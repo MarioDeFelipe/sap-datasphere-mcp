@@ -1,0 +1,51 @@
+{
+  "title": "Creating New OAuth Client in SAP Datasphere",
+  "prerequisites": [
+    "Administrator access to SAP Datasphere tenant",
+    "Permission to create OAuth clients",
+    "Understanding of OAuth2 client credentials flow"
+  ],
+  "creation_steps": [
+    {
+      "step": 1,
+      "title": "Access OAuth Client Management",
+      "description": "Navigate to the OAuth clients section using the guide above"
+    },
+    {
+      "step": 2,
+      "title": "Create New Client",
+      "description": "Click 'Add' or 'Create New OAuth Client'",
+      "form_fields": {
+        "Name": "API Access Client (or similar descriptive name)",
+        "Description": "OAuth client for API access and MCP server integration",
+        "Purpose": "Technical User",
+        "Grant Type": "Client Credentials",
+        "Redirect URI": "Not required for client credentials flow"
+      }
+    },
+    {
+      "step": 3,
+      "title": "Configure Permissions",
+      "description": "Set appropriate scopes and permissions",
+      "recommended_scopes": [
+        "API Access",
+        "Read Data",
+        "Write Data",
+        "Manage Spaces",
+        "Access Catalog"
+      ]
+    },
+    {
+      "step": 4,
+      "title": "Generate Credentials",
+      "description": "Save the generated credentials",
+      "important_note": "Client Secret is only shown once - save it immediately!"
+    }
+  ],
+  "expected_output": {
+    "client_id": "Usually starts with 'sb-' followed by UUID",
+    "client_secret": "Long random string - save this securely",
+    "authorization_url": "https://{tenant}.eu10.hcs.cloud.sap/oauth/authorize",
+    "token_url": "https://{tenant}.eu10.hcs.cloud.sap/oauth/token"
+  }
+}
