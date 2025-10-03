@@ -1,0 +1,90 @@
+{
+  "title": "How to Find OAuth Credentials in SAP Datasphere",
+  "tenant_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap",
+  "navigation_paths": [
+    {
+      "method": "Primary Navigation",
+      "steps": [
+        "1. Log into SAP Datasphere with admin credentials",
+        "2. Click on the 'System' menu (usually in top navigation or sidebar)",
+        "3. Navigate to 'Administration'",
+        "4. Look for 'App Integration' or 'Integration'",
+        "5. Click on 'OAuth Clients' or 'OAuth2 Clients'"
+      ],
+      "expected_location": "System > Administration > App Integration > OAuth Clients"
+    },
+    {
+      "method": "Alternative Navigation 1",
+      "steps": [
+        "1. Look for a 'Settings' or 'Configuration' menu",
+        "2. Navigate to 'Security' or 'Authentication'",
+        "3. Find 'OAuth Clients' or 'API Access'"
+      ],
+      "expected_location": "Settings > Security > OAuth Clients"
+    },
+    {
+      "method": "Alternative Navigation 2",
+      "steps": [
+        "1. Check the main menu for 'Space Management'",
+        "2. Look for 'System Configuration'",
+        "3. Find 'OAuth' or 'API Configuration'"
+      ],
+      "expected_location": "Space Management > System Configuration > OAuth"
+    },
+    {
+      "method": "Search Method",
+      "steps": [
+        "1. Use the search function in Datasphere (if available)",
+        "2. Search for terms like: 'OAuth', 'API', 'Client', 'Integration'",
+        "3. Look for results related to OAuth client management"
+      ]
+    }
+  ],
+  "what_to_look_for": {
+    "page_titles": [
+      "OAuth Clients",
+      "OAuth2 Clients",
+      "API Clients",
+      "App Integration",
+      "Client Applications",
+      "Authentication Clients"
+    ],
+    "buttons_or_links": [
+      "Add OAuth Client",
+      "Create Client",
+      "New OAuth Client",
+      "Manage Clients",
+      "API Access"
+    ]
+  },
+  "oauth_client_details": {
+    "required_fields": [
+      "Client ID",
+      "Client Secret",
+      "Authorization URL",
+      "Token URL"
+    ],
+    "client_configuration": {
+      "Purpose": "Technical User (for API access)",
+      "Grant Type": "Client Credentials",
+      "Scopes": [
+        "API access",
+        "Read",
+        "Write"
+      ]
+    }
+  },
+  "troubleshooting": {
+    "if_not_found": [
+      "Check if you have administrator privileges",
+      "Look in user profile/account settings",
+      "Check if OAuth clients are managed at tenant level",
+      "Contact SAP support for navigation help"
+    ],
+    "permission_issues": [
+      "Ensure you have 'System Administrator' role",
+      "Check if 'API Access' permissions are assigned",
+      "Verify tenant has API access enabled"
+    ]
+  }
+}
