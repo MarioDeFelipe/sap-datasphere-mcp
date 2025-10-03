@@ -1,0 +1,53 @@
+{
+  "title": "SAP Datasphere OAuth2 Setup Guide",
+  "description": "Steps to create OAuth2 client for API access",
+  "steps": [
+    {
+      "step": 1,
+      "title": "Access SAP Datasphere Administration",
+      "description": "Log into your SAP Datasphere tenant as an administrator",
+      "url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+    },
+    {
+      "step": 2,
+      "title": "Navigate to OAuth Clients",
+      "description": "Go to System > Administration > App Integration > OAuth Clients"
+    },
+    {
+      "step": 3,
+      "title": "Create New OAuth Client",
+      "description": "Click 'Add' to create a new OAuth client",
+      "settings": {
+        "Purpose": "Technical User (for API access)",
+        "Authorization Flow": "Client Credentials",
+        "Access Token Lifetime": "720 hours (30 days)",
+        "Refresh Token Lifetime": "Not applicable for client credentials"
+      }
+    },
+    {
+      "step": 4,
+      "title": "Configure OAuth Client",
+      "description": "Set the following configuration",
+      "required_fields": [
+        "Client ID (will be generated)",
+        "Client Secret (will be generated)",
+        "Authorization URL (auto-configured)",
+        "Token URL (auto-configured)"
+      ]
+    },
+    {
+      "step": 5,
+      "title": "Grant Permissions",
+      "description": "Assign appropriate permissions to the OAuth client for API access"
+    }
+  ],
+  "expected_urls": {
+    "authorization_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap/oauth/authorize",
+    "token_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap/oauth/token"
+  },
+  "next_steps": [
+    "Update the OAUTH_CONFIG in this script with the generated credentials",
+    "Test the connection using the OAuth2 client credentials",
+    "Explore available API endpoints"
+  ]
+}

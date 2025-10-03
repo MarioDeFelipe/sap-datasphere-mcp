@@ -1,54 +1,192 @@
-# Contributing Guidelines
+# Contributing to SAP Datasphere MCP Server
 
-Thank you for your interest in contributing to our project. Whether it's a bug report, new feature, correction, or additional
-documentation, we greatly value feedback and contributions from our community.
+Thank you for your interest in contributing to the SAP Datasphere MCP Server! This document provides guidelines and information for contributors.
 
-Please read through this document before submitting any issues or pull requests to ensure we have all the necessary
-information to effectively respond to your bug report or contribution.
+## 🎯 How to Contribute
 
-## Reporting Bugs/Feature Requests
+### Reporting Issues
+- Use the [GitHub Issues](https://github.com/yourusername/sap-datasphere-mcp-server/issues) page
+- Search existing issues before creating a new one
+- Provide detailed information including:
+  - Steps to reproduce
+  - Expected vs actual behavior
+  - Environment details (Python version, OS, etc.)
+  - Error messages or logs
 
-We welcome you to use the GitHub issue tracker to report bugs or suggest features.
+### Suggesting Features
+- Open an issue with the "enhancement" label
+- Describe the feature and its use case
+- Explain how it would benefit users
+- Consider implementation complexity
 
-When filing an issue, please check existing open, or recently closed, issues to make sure somebody else hasn't already
-reported the issue. Please try to include as much information as you can. Details like these are incredibly useful:
+### Code Contributions
 
-* A reproducible test case or series of steps
-* The version of our code being used
-* Any modifications you've made relevant to the bug
-* Anything unusual about your environment or deployment
+#### Development Setup
+```bash
+# Fork and clone the repository
+git clone https://github.com/yourusername/sap-datasphere-mcp-server.git
+cd sap-datasphere-mcp-server
 
-## Contributing via Pull Requests
+# Create a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-Contributions via pull requests are much appreciated. Before sending us a pull request, please ensure that:
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
-1. You are working against the latest source on the *main* branch.
-2. You check existing open, and recently merged, pull requests to make sure someone else hasn't addressed the problem already.
-3. You open an issue to discuss any significant work - we would hate for your time to be wasted. For instance, if you want to propose a new MCP Server, you would need to first open a RFC issue.
+# Run tests
+python test_simple_server.py
+```
 
-The [Developer guide](DEVELOPER_GUIDE.md) provides the steps to set up your dev environment and make sure your code is ready before you submit your pull request.
+#### Code Style
+- Follow PEP 8 Python style guidelines
+- Use meaningful variable and function names
+- Add docstrings to functions and classes
+- Keep functions focused and small
+- Use type hints where appropriate
 
-### Special `./README.md` considerations for new MCP servers
+#### Testing
+- Add tests for new functionality
+- Ensure existing tests pass
+- Test both mock and live modes (when applicable)
+- Include edge cases and error conditions
 
-When adding a new MCP server, you must update the README.md to include your server in the appropriate categories under "Available MCP Servers". Add it to both the "Browse by What You're Building" and "Browse by How You're Working" sections with a brief description that clearly explains its purpose. Include a link to the server's directory using the pattern `src/your-server-name/`. Ensure your server's description is consistent with the style of existing entries.
+#### Pull Request Process
+1. **Fork** the repository
+2. **Create** a feature branch from `main`
+3. **Make** your changes with clear, focused commits
+4. **Add** tests for new functionality
+5. **Update** documentation as needed
+6. **Ensure** all tests pass
+7. **Submit** a pull request with:
+   - Clear description of changes
+   - Reference to related issues
+   - Screenshots (if UI changes)
 
-GitHub provides additional document on [forking a repository](https://help.github.com/articles/fork-a-repo/) and
-[creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
+## 🏗️ Project Structure
 
-## Finding contributions to work on
+```
+sap-datasphere-mcp-server/
+├── sap_datasphere_mcp_simple.py    # Main MCP server
+├── test_simple_server.py            # Test suite
+├── README.md                        # Project documentation
+├── pyproject.toml                   # Python project config
+├── requirements.txt                 # Dependencies
+├── examples/                        # Usage examples
+├── docs/                           # Additional documentation
+└── tests/                          # Test files
+```
 
-Looking at the existing issues is a great way to find something to contribute on. As our projects, by default, use the default GitHub issue labels (enhancement/bug/duplicate/help wanted/invalid/question/wontfix), looking at any 'help wanted' issues is a great place to start.
+## 🧪 Development Guidelines
 
-## Code of Conduct
+### Mock Data
+- Keep mock data realistic and representative
+- Update mock data when adding new features
+- Ensure JSON serialization compatibility
+- Document mock data structure
 
-This project has adopted the [Amazon Open Source Code of Conduct](https://aws.github.io/code-of-conduct).
-For more information see the [Code of Conduct FAQ](https://aws.github.io/code-of-conduct-faq) or contact
-[opensource-codeofconduct@amazon.com](mailto:opensource-codeofconduct@amazon.com) with any additional questions or comments.
+### OAuth Integration
+- Maintain separation between mock and live modes
+- Test OAuth flows when credentials are available
+- Handle authentication errors gracefully
+- Document OAuth setup process
 
-## Security issue notifications
+### MCP Protocol
+- Follow MCP specification strictly
+- Test with multiple MCP clients when possible
+- Ensure proper error handling and responses
+- Document tool schemas clearly
 
-If you discover a potential security issue in this project we ask that you notify AWS/Amazon Security via our [vulnerability reporting page](http://aws.amazon.com/security/vulnerability-reporting/). Please do **not** create a public github issue.
+### Documentation
+- Update README for new features
+- Add inline code comments
+- Include usage examples
+- Update CHANGELOG for releases
 
-## Licensing
+## 🔧 Development Tools
 
-See the [LICENSE](LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
+### Recommended Tools
+- **IDE**: VS Code with Python extension
+- **Linting**: ruff or flake8
+- **Formatting**: black
+- **Type Checking**: mypy
+- **Testing**: pytest
+
+### Pre-commit Hooks
+Consider setting up pre-commit hooks:
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+## 📋 Issue Labels
+
+- `bug` - Something isn't working
+- `enhancement` - New feature or request
+- `documentation` - Improvements to documentation
+- `good first issue` - Good for newcomers
+- `help wanted` - Extra attention needed
+- `oauth` - Related to OAuth authentication
+- `mock-data` - Related to mock data
+- `mcp-protocol` - MCP protocol compliance
+
+## 🚀 Release Process
+
+1. Update version in `pyproject.toml`
+2. Update `CHANGELOG.md`
+3. Create release branch
+4. Test thoroughly
+5. Create GitHub release
+6. Tag version
+
+## 💡 Tips for Contributors
+
+### Getting Started
+- Start with documentation improvements
+- Fix typos or improve examples
+- Add test cases
+- Enhance mock data
+
+### Understanding the Codebase
+- Read the MCP specification
+- Understand SAP Datasphere concepts
+- Review existing tools and resources
+- Test with Claude Desktop or other MCP clients
+
+### Best Practices
+- Write clear commit messages
+- Keep pull requests focused
+- Respond to review feedback promptly
+- Be respectful in discussions
+
+## 🤝 Code of Conduct
+
+### Our Standards
+- Be respectful and inclusive
+- Focus on constructive feedback
+- Help others learn and grow
+- Maintain professional communication
+
+### Unacceptable Behavior
+- Harassment or discrimination
+- Trolling or insulting comments
+- Publishing private information
+- Unprofessional conduct
+
+## 📞 Getting Help
+
+- **Questions**: Open a GitHub Discussion
+- **Issues**: Create a GitHub Issue
+- **Chat**: Join our community discussions
+- **Email**: Contact maintainers directly
+
+## 🏆 Recognition
+
+Contributors will be recognized in:
+- README acknowledgments
+- Release notes
+- Contributor list
+- Special thanks for significant contributions
+
+Thank you for contributing to the SAP Datasphere MCP Server! 🎉
