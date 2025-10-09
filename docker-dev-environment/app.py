@@ -481,6 +481,43 @@ def get_hello_world_html():
                 overflow-x: auto;
                 margin-top: 10px;
             }
+            
+            .quick-questions {
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            
+            .question-buttons {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .quick-question-btn {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                color: #e2e8f0;
+                padding: 12px 16px;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                text-align: left;
+                font-size: 14px;
+                line-height: 1.4;
+                width: 100%;
+            }
+            
+            .quick-question-btn:hover {
+                background: rgba(255, 255, 255, 0.2);
+                border-color: rgba(255, 255, 255, 0.4);
+                transform: translateY(-1px);
+            }
+            
+            .quick-question-btn:active {
+                transform: translateY(0);
+                background: rgba(255, 255, 255, 0.15);
+            }
         </style>
     </head>
     <body>
