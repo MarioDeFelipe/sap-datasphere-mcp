@@ -57,6 +57,11 @@ def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
+@app.route('/api-explorer')
+def api_explorer():
+    """API Explorer page - comprehensive list of all available APIs and tools"""
+    return render_template_string(get_api_explorer_html())
+
 @app.route('/api/datasphere/connect', methods=['POST'])
 def connect_datasphere():
     """Connect to SAP Datasphere and retrieve data products"""
