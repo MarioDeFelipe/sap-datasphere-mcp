@@ -238,8 +238,8 @@ def get_hello_world_html():
             
             body {
                 font-family: 'Inter', 'Segoe UI', sans-serif;
-                background: linear-gradient(135deg, #f8fffe 0%, #e8f5e8 30%, #d4f1d4 70%, #c8e6c8 100%);
-                color: #1a5a1a;
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #334155 50%, #475569 100%);
+                color: #e2e8f0;
                 min-height: 100vh;
                 display: flex;
                 padding: 20px;
@@ -255,12 +255,12 @@ def get_hello_world_html():
             
             .container {
                 text-align: center;
-                background: rgba(255, 255, 255, 0.9);
+                background: rgba(30, 41, 59, 0.9);
                 backdrop-filter: blur(10px);
                 border-radius: 20px;
                 padding: 50px;
-                box-shadow: 0 20px 40px rgba(34, 139, 34, 0.15);
-                border: 1px solid rgba(46, 125, 50, 0.3);
+                box-shadow: 0 20px 40px rgba(15, 23, 42, 0.4);
+                border: 1px solid rgba(71, 85, 105, 0.3);
                 max-width: 800px;
                 width: 100%;
             }
