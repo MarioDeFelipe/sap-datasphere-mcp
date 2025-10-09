@@ -238,7 +238,7 @@ def get_hello_world_html():
             
             body {
                 font-family: 'Inter', 'Segoe UI', sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #2563eb 100%);
                 color: white;
                 min-height: 100vh;
                 display: flex;
