@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Auto Git Save",
+  "description": "Automatically commits and pushes changes to GitHub whenever files are updated to maintain version control",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Files have been modified. Please commit these changes to git with an appropriate commit message and push to the remote repository to maintain version control."
+  }
+}

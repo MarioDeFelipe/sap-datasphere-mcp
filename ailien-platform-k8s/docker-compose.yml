@@ -1,0 +1,35 @@
+# Ailien Platform Control Panel - Local Development
+version: '3.8'
+
+services:
+  ailien-platform:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DATASPHERE_BASE_URL=https://academydatasphere.eu10.hcs.cloud.sap
+      - DATASPHERE_SPACE_NAME=GE230769
+      - DATASPHERE_USERNAME=GE230769#AWSUSER
+      - DATASPHERE_PASSWORD=D^1(52u37Y)hfMUZ+YC[5)Wq<eh_T@.n
+    volumes:
+      - ./app:/app/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add monitoring
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+
+networks:
+  default:
+    name: ailien-platform-network
