@@ -20,13 +20,6 @@ ENVIRONMENTS = {
         'name': 'Development',
         'color': '#ff6b35'  # Orange for dev
     },
-    'staging': {
-        'port': 5001,
-        'host': '127.0.0.1',
-        'debug': True,
-        'name': 'Staging',
-        'color': '#f7931e'  # Yellow for staging
-    },
     'prod': {
         'port': 8080,
         'host': '0.0.0.0',
