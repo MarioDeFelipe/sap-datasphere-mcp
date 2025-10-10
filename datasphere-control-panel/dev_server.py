@@ -422,6 +422,41 @@ def get_html_template():
         </div>
         
         <div class="main-container">
+            <!-- Left Sidebar -->
+            <div class="left-sidebar">
+                <div class="sidebar-header">
+                    <h2>🚀 Ailien Platform</h2>
+                    <p>Data Integration Hub</p>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="#" class="active">
+                        <span class="nav-icon">🏠</span>
+                        Dashboard
+                    </a>
+                    <a href="#" onclick="showGlueTables()">
+                        <span class="nav-icon">🔧</span>
+                        Glue Tables
+                    </a>
+                    <a href="#" onclick="showDataViewer()">
+                        <span class="nav-icon">👁️</span>
+                        Data Viewer
+                    </a>
+                    <a href="#" onclick="showSyncManager()">
+                        <span class="nav-icon">🔄</span>
+                        Sync Manager
+                    </a>
+                    <a href="#" onclick="showMetadataManager()">
+                        <span class="nav-icon">📊</span>
+                        Metadata Manager
+                    </a>
+                    <a href="#" onclick="showSystemStatus()">
+                        <span class="nav-icon">📈</span>
+                        System Status
+                    </a>
+                </div>
+            </div>
+            
             <!-- Main Control Panel -->
             <div class="control-panel">
                 <div class="header">
@@ -432,15 +467,6 @@ def get_html_template():
                         <div>Server: {env_config['host']}:{env_config['port']}</div>
                         <div>Started: <span id="startTime"></span></div>
                     </div>
-                </div>
-                
-                <div class="nav-links">
-                    <a href="#" class="active">🏠 Dashboard</a>
-                    <a href="#" onclick="showGlueTables()">🔧 Glue Tables</a>
-                    <a href="#" onclick="showDataViewer()">👁️ Data Viewer</a>
-                    <a href="#" onclick="showSyncManager()">🔄 Sync Manager</a>
-                    <a href="#" onclick="showMetadataManager()">📊 Metadata Manager</a>
-                    <a href="#" onclick="showSystemStatus()">📈 System Status</a>
                 </div>
                 
                 <div class="dashboard-grid">
