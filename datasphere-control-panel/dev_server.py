@@ -74,10 +74,20 @@ def get_html_template():
                 height: calc(100vh - 40px);
             }}
             
+            .left-sidebar {{
+                width: 280px;
+                background: linear-gradient(180deg, #2d3748 0%, #1a202c 100%);
+                border-right: 1px solid #4a5568;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }}
+            
             .control-panel {{
                 flex: 1;
                 padding: 20px;
                 overflow-y: auto;
+                background: #f8fafc;
             }}
             
             .q-business-panel {{
@@ -104,26 +114,64 @@ def get_html_template():
                 font-size: 14px;
             }}
             
+            .sidebar-header {{
+                padding: 25px 20px;
+                border-bottom: 1px solid #4a5568;
+                text-align: center;
+            }}
+            
+            .sidebar-header h2 {{
+                color: white;
+                font-size: 1.3em;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+            }}
+            
+            .sidebar-header p {{
+                color: #a0aec0;
+                font-size: 0.9em;
+                margin: 0;
+            }}
+            
             .nav-links {{
                 display: flex;
-                gap: 15px;
-                margin: 20px 0;
-                flex-wrap: wrap;
+                flex-direction: column;
+                padding: 20px 0;
+                gap: 0;
             }}
             
             .nav-links a {{
-                padding: 10px 20px;
-                background: #667eea;
-                color: white;
+                padding: 15px 25px;
+                color: #e2e8f0;
                 text-decoration: none;
-                border-radius: 25px;
-                font-size: 14px;
+                font-size: 15px;
+                font-weight: 500;
                 transition: all 0.3s ease;
+                border-left: 4px solid transparent;
+                display: flex;
+                align-items: center;
+                gap: 12px;
             }}
             
-            .nav-links a:hover, .nav-links a.active {{
-                background: #5a67d8;
-                transform: translateY(-2px);
+            .nav-links a:hover {{
+                background: rgba(255,255,255,0.1);
+                border-left-color: #667eea;
+                color: white;
+            }}
+            
+            .nav-links a.active {{
+                background: rgba(102, 126, 234, 0.2);
+                border-left-color: #667eea;
+                color: white;
+            }}
+            
+            .nav-icon {{
+                font-size: 18px;
+                width: 20px;
+                text-align: center;
             }}
             
             .dashboard-grid {{
