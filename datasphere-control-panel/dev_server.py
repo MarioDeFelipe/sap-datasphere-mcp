@@ -75,17 +75,17 @@ def get_html_template():
             }}
             
             .left-sidebar {{
-                width: 280px;
-                background: linear-gradient(180deg, #2d3748 0%, #1a202c 100%);
-                border-right: 1px solid #4a5568;
+                width: 240px;
+                background: #ffffff;
+                border-right: 1px solid #e1e5e9;
                 display: flex;
                 flex-direction: column;
-                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+                box-shadow: 2px 0 4px rgba(0,0,0,0.05);
             }}
             
             .control-panel {{
                 flex: 1;
-                padding: 20px;
+                padding: 0;
                 overflow-y: auto;
                 background: #f8fafc;
             }}
