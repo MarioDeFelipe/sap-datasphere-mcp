@@ -253,16 +253,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🆘 Support
 
 For issues and questions:
-- 📋 [Open an issue](https://github.com/yourusername/sap-datasphere-mcp-server/issues)
 - 📖 Check the [troubleshooting section](#troubleshooting)
 - 📚 Review [SAP Datasphere documentation](https://help.sap.com/docs/SAP_DATASPHERE)
 - 👥 Contact your Datasphere administrator for OAuth setup
 
-## 🙏 Acknowledgments
-
-- SAP Datasphere team for the excellent platform
-- Model Context Protocol community for the MCP specification
-- Contributors and users of this project
 
 ## 📊 Project Stats
 
