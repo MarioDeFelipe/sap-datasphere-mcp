@@ -123,5 +123,3 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Support
 
 - 📖 [Documentation](docs/)
-- 🐛 [Issues](https://github.com/yourusername/sap-datasphere-mcp/issues)
-- 💬 [Discussions](https://github.com/yourusername/sap-datasphere-mcp/discussions)
