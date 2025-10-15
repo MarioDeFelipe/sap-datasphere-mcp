@@ -1,0 +1,9 @@
+# Core MCP dependencies
+mcp>=1.0.0
+pydantic>=2.0.0
+httpx>=0.25.0
+python-dotenv>=1.0.0
+loguru>=0.7.0
+
+# Optional: For enhanced functionality
+typing-extensions>=4.0.0
