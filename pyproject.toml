@@ -4,15 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sap-datasphere-mcp"
-version = "0.1.0"
-description = "SAP Datasphere MCP Server - AI-powered access to SAP Datasphere APIs"
+version = "2.0.0"
+description = "SAP Datasphere MCP Server - 100% Working Production Version with Real API Integration"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
     { name = "Mario de Felipe", email = "mario@ailien.studio" }
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -49,6 +49,7 @@ Issues = "https://github.com/MarioDeFelipe/sap-datasphere-mcp/issues"
 
 [project.scripts]
 sap-datasphere-mcp = "sap_datasphere_mcp.server:main"
+sap-datasphere-mcp-production = "sap_datasphere_mcp.production_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sap_datasphere_mcp"]
