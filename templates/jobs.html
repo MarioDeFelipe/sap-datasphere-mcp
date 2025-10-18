@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="fas fa-tasks me-2"></i>
+        Sync Jobs
+    </h1>
+    <div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createJobModal">
+            <i class="fas fa-plus me-2"></i>
+            Create Job
+        </button>
+        <button class="btn btn-outline-secondary" onclick="refreshJobs()">
+            <i class="fas fa-sync-alt me-2"></i>
+            Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Job Statistics -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-primary" id="total-jobs">-</div>
+            <div class="metric-label">Total Jobs</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-info" id="running-jobs">-</div>
+            <div class="metric-label">Running</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-warning" id="pending-jobs">-</div>
+            <div class="metric-label">Pending</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-success" id="completed-jobs">-</div>
+            <div class="metric-label">Completed</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-danger" id="failed-jobs">-</div>
+            <div class="metric-label">Failed</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-secondary" id="cancelled-jobs">-</div>
+            <div class="metric-label">Cancelled</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-end">
+            <div class="col-md-3">
+                <label for="statusFilter" class="form-label">Status</label>
+                <select class="form-select" id="statusFilter" onchange="applyFilters()">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="running">Running</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="priorityFilter" class="form-label">Priority</label>
+                <select class="form-select" id="priorityFilter" onchange="applyFilters()">
+                    <option value="">All Priorities</option>
+                    <option value="CRITICAL">Critical</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="sourceSystemFilter" class="form-label">Source System</label>
+                <select class="form-select" id="sourceSystemFilter" onchange="applyFilters()">
+                    <option value="">All Systems</option>
+                    <option value="datasphere">Datasphere</option>
+                    <option value="glue">AWS Glue</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="fas fa-times me-2"></i>
+                    Clear Filters
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Jobs Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>
+            Job List
+            <span class="badge bg-secondary ms-2" id="jobs-count">0</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Asset</th>
+                        <th>Priority</th>
+                        <th>Source → Target</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-table-body">
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="loading-spinner spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-2">Loading jobs...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create Job Modal -->
+<div class="modal fade" id="createJobModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>
+                    Create Sync Job
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createJobForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="assetId" class="form-label">Asset ID *</label>
+                                <input type="text" class="form-control" id="assetId" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="assetType" class="form-label">Asset Type *</label>
+                                <select class="form-select" id="assetType" required>
+                                    <option value="">Select Type</option>
+                                    <option value="analytical_model">Analytical Model</option>
+                                    <option value="table">Table</option>
+                                    <option value="view">View</option>
+                                    <option value="data_flow">Data Flow</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="sourceSystem" class="form-label">Source System *</label>
+                                <select class="form-select" id="sourceSystem" required>
+                                    <option value="">Select Source</option>
+                                    <option value="datasphere">SAP Datasphere</option>
+                                    <option value="glue">AWS Glue</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="targetSystem" class="form-label">Target System *</label>
+                                <select class="form-select" id="targetSystem" required>
+                                    <option value="">Select Target</option>
+                                    <option value="datasphere">SAP Datasphere</option>
+                                    <option value="glue">AWS Glue</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority">
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="CRITICAL">Critical</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="LOW">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="owner" class="form-label">Owner</label>
+                                <input type="text" class="form-control" id="owner" value="dashboard_user">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="technicalName" class="form-label">Technical Name</label>
+                        <input type="text" class="form-control" id="technicalName">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="businessName" class="form-label">Business Name</label>
+                        <input type="text" class="form-control" id="businessName">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tags" class="form-label">Tags (comma-separated)</label>
+                        <input type="text" class="form-control" id="tags" placeholder="e.g., finance, critical, production">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createJob()">
+                    <i class="fas fa-plus me-2"></i>
+                    Create Job
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Job Details Modal -->
+<div class="modal fade" id="jobDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Job Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="jobDetailsContent">
+                <!-- Job details will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Jobs page variables
+    let allJobs = [];
+    let filteredJobs = [];
+    
+    // Initialize jobs page
+    document.addEventListener('DOMContentLoaded', function() {
+        loadJobs();
+        
+        // Auto-refresh every 10 seconds
+        setInterval(loadJobs, 10000);
+    });
+    
+    // Load jobs data
+    async function loadJobs() {
+        try {
+            const response = await apiCall('/api/jobs?limit=100');
+            allJobs = response.jobs || [];
+            applyFilters();
+            updateJobStatistics();
+            
+        } catch (error) {\n            console.error('Failed to load jobs:', error);\n            document.getElementById('jobs-table-body').innerHTML = `\n                <tr>\n                    <td colspan=\"8\" class=\"text-center py-4 text-danger\">\n                        <i class=\"fas fa-exclamation-triangle me-2\"></i>\n                        Failed to load jobs: ${error.message}\n                    </td>\n                </tr>\n            `;\n        }\n    }\n    \n    // Apply filters\n    function applyFilters() {\n        const statusFilter = document.getElementById('statusFilter').value;\n        const priorityFilter = document.getElementById('priorityFilter').value;\n        const sourceSystemFilter = document.getElementById('sourceSystemFilter').value;\n        \n        filteredJobs = allJobs.filter(job => {\n            if (statusFilter && job.status !== statusFilter) return false;\n            if (priorityFilter && job.priority !== priorityFilter) return false;\n            if (sourceSystemFilter && job.source_system !== sourceSystemFilter) return false;\n            return true;\n        });\n        \n        renderJobsTable();\n    }\n    \n    // Clear filters\n    function clearFilters() {\n        document.getElementById('statusFilter').value = '';\n        document.getElementById('priorityFilter').value = '';\n        document.getElementById('sourceSystemFilter').value = '';\n        applyFilters();\n    }\n    \n    // Render jobs table\n    function renderJobsTable() {\n        const tbody = document.getElementById('jobs-table-body');\n        const countBadge = document.getElementById('jobs-count');\n        \n        countBadge.textContent = filteredJobs.length;\n        \n        if (filteredJobs.length === 0) {\n            tbody.innerHTML = `\n                <tr>\n                    <td colspan=\"8\" class=\"text-center py-4 text-muted\">\n                        <i class=\"fas fa-inbox me-2\"></i>\n                        No jobs found\n                    </td>\n                </tr>\n            `;\n            return;\n        }\n        \n        const rows = filteredJobs.map(job => {\n            const statusBadge = getStatusBadgeClass(job.status);\n            const priorityClass = getPriorityClass(job.priority);\n            const duration = calculateDuration(job);\n            const createdTime = formatDateTime(job.created_time);\n            \n            return `\n                <tr>\n                    <td>\n                        <code class=\"text-primary\">${job.job_id.substring(0, 8)}...</code>\n                    </td>\n                    <td>\n                        <div class=\"fw-bold\">${job.asset_id}</div>\n                        <small class=\"text-muted\">${job.asset_type}</small>\n                    </td>\n                    <td>\n                        <span class=\"fw-bold ${priorityClass}\">${job.priority}</span>\n                    </td>\n                    <td>\n                        <span class=\"badge bg-light text-dark\">${job.source_system}</span>\n                        <i class=\"fas fa-arrow-right mx-1 text-muted\"></i>\n                        <span class=\"badge bg-light text-dark\">${job.target_system}</span>\n                    </td>\n                    <td>\n                        <span class=\"badge ${statusBadge}\">${job.status}</span>\n                    </td>\n                    <td>\n                        <small>${createdTime}</small>\n                    </td>\n                    <td>\n                        <small>${duration}</small>\n                    </td>\n                    <td>\n                        <button class=\"btn btn-sm btn-outline-primary btn-action\" \n                                onclick=\"showJobDetails('${job.job_id}')\" \n                                title=\"View Details\">\n                            <i class=\"fas fa-eye\"></i>\n                        </button>\n                        ${job.status === 'pending' || job.status === 'running' ? `\n                            <button class=\"btn btn-sm btn-outline-danger btn-action\" \n                                    onclick=\"cancelJob('${job.job_id}')\" \n                                    title=\"Cancel Job\">\n                                <i class=\"fas fa-times\"></i>\n                            </button>\n                        ` : ''}\n                    </td>\n                </tr>\n            `;\n        }).join('');\n        \n        tbody.innerHTML = rows;\n    }\n    \n    // Update job statistics\n    function updateJobStatistics() {\n        const stats = {\n            total: allJobs.length,\n            running: 0,\n            pending: 0,\n            completed: 0,\n            failed: 0,\n            cancelled: 0\n        };\n        \n        allJobs.forEach(job => {\n            switch (job.status) {\n                case 'running': stats.running++; break;\n                case 'pending': stats.pending++; break;\n                case 'completed': stats.completed++; break;\n                case 'failed': stats.failed++; break;\n                case 'cancelled': stats.cancelled++; break;\n            }\n        });\n        \n        document.getElementById('total-jobs').textContent = stats.total;\n        document.getElementById('running-jobs').textContent = stats.running;\n        document.getElementById('pending-jobs').textContent = stats.pending;\n        document.getElementById('completed-jobs').textContent = stats.completed;\n        document.getElementById('failed-jobs').textContent = stats.failed;\n        document.getElementById('cancelled-jobs').textContent = stats.cancelled;\n    }\n    \n    // Calculate job duration\n    function calculateDuration(job) {\n        if (job.status === 'pending') {\n            return 'Not started';\n        }\n        \n        const startTime = job.started_time ? new Date(job.started_time) : null;\n        const endTime = job.completed_time ? new Date(job.completed_time) : new Date();\n        \n        if (!startTime) {\n            return 'Unknown';\n        }\n        \n        const durationMs = endTime - startTime;\n        const durationSeconds = Math.floor(durationMs / 1000);\n        \n        return formatDuration(durationSeconds);\n    }\n    \n    // Show job details\n    async function showJobDetails(jobId) {\n        try {\n            const job = await apiCall(`/api/jobs/${jobId}`);\n            \n            const detailsHtml = `\n                <div class=\"row\">\n                    <div class=\"col-md-6\">\n                        <h6>Job Information</h6>\n                        <table class=\"table table-sm\">\n                            <tr><td><strong>Job ID:</strong></td><td><code>${job.job_id}</code></td></tr>\n                            <tr><td><strong>Asset ID:</strong></td><td>${job.asset_id}</td></tr>\n                            <tr><td><strong>Asset Type:</strong></td><td>${job.asset_type}</td></tr>\n                            <tr><td><strong>Priority:</strong></td><td><span class=\"${getPriorityClass(job.priority)}\">${job.priority}</span></td></tr>\n                            <tr><td><strong>Status:</strong></td><td><span class=\"badge ${getStatusBadgeClass(job.status)}\">${job.status}</span></td></tr>\n                        </table>\n                    </div>\n                    <div class=\"col-md-6\">\n                        <h6>Timing Information</h6>\n                        <table class=\"table table-sm\">\n                            <tr><td><strong>Created:</strong></td><td>${formatDateTime(job.created_time)}</td></tr>\n                            <tr><td><strong>Started:</strong></td><td>${job.started_time ? formatDateTime(job.started_time) : 'Not started'}</td></tr>\n                            <tr><td><strong>Completed:</strong></td><td>${job.completed_time ? formatDateTime(job.completed_time) : 'Not completed'}</td></tr>\n                            <tr><td><strong>Duration:</strong></td><td>${calculateDuration(job)}</td></tr>\n                            <tr><td><strong>Retry Count:</strong></td><td>${job.retry_count || 0}</td></tr>\n                        </table>\n                    </div>\n                </div>\n                \n                <div class=\"row mt-3\">\n                    <div class=\"col-12\">\n                        <h6>System Information</h6>\n                        <table class=\"table table-sm\">\n                            <tr><td><strong>Source System:</strong></td><td>${job.source_system}</td></tr>\n                            <tr><td><strong>Target System:</strong></td><td>${job.target_system}</td></tr>\n                            <tr><td><strong>Frequency:</strong></td><td>${job.frequency || 'Manual'}</td></tr>\n                        </table>\n                    </div>\n                </div>\n                \n                ${job.error_message ? `\n                    <div class=\"row mt-3\">\n                        <div class=\"col-12\">\n                            <h6>Error Information</h6>\n                            <div class=\"alert alert-danger\">\n                                <i class=\"fas fa-exclamation-triangle me-2\"></i>\n                                ${job.error_message}\n                            </div>\n                        </div>\n                    </div>\n                ` : ''}\n                \n                ${job.result ? `\n                    <div class=\"row mt-3\">\n                        <div class=\"col-12\">\n                            <h6>Result</h6>\n                            <pre class=\"bg-light p-3 rounded\"><code>${JSON.stringify(job.result, null, 2)}</code></pre>\n                        </div>\n                    </div>\n                ` : ''}\n            `;\n            \n            document.getElementById('jobDetailsContent').innerHTML = detailsHtml;\n            new bootstrap.Modal(document.getElementById('jobDetailsModal')).show();\n            \n        } catch (error) {\n            showNotification('Failed to load job details', 'danger');\n        }\n    }\n    \n    // Create new job\n    async function createJob() {\n        try {\n            const formData = {\n                asset_id: document.getElementById('assetId').value,\n                asset_type: document.getElementById('assetType').value,\n                source_system: document.getElementById('sourceSystem').value,\n                target_system: document.getElementById('targetSystem').value,\n                priority: document.getElementById('priority').value,\n                owner: document.getElementById('owner').value,\n                technical_name: document.getElementById('technicalName').value,\n                business_name: document.getElementById('businessName').value,\n                description: document.getElementById('description').value,\n                tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t)\n            };\n            \n            // Validate required fields\n            if (!formData.asset_id || !formData.asset_type || !formData.source_system || !formData.target_system) {\n                showNotification('Please fill in all required fields', 'warning');\n                return;\n            }\n            \n            const result = await apiCall('/api/jobs', {\n                method: 'POST',\n                body: JSON.stringify(formData)\n            });\n            \n            showNotification(`Job created successfully: ${result.job_id}`, 'success');\n            \n            // Close modal and refresh\n            bootstrap.Modal.getInstance(document.getElementById('createJobModal')).hide();\n            document.getElementById('createJobForm').reset();\n            loadJobs();\n            \n        } catch (error) {\n            showNotification('Failed to create job', 'danger');\n        }\n    }\n    \n    // Cancel job\n    async function cancelJob(jobId) {\n        if (!confirm('Are you sure you want to cancel this job?')) {\n            return;\n        }\n        \n        try {\n            await apiCall(`/api/jobs/${jobId}`, { method: 'DELETE' });\n            showNotification('Job cancelled successfully', 'success');\n            loadJobs();\n            \n        } catch (error) {\n            showNotification('Failed to cancel job', 'danger');\n        }\n    }\n    \n    // Refresh jobs (called from WebSocket updates)\n    function refreshJobs() {\n        loadJobs();\n    }\n</script>\n{% endblock %}

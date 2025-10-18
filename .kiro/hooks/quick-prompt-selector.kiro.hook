@@ -1,0 +1,11 @@
+{
+  "name": "Quick Prompt Selector",
+  "description": "Display categorized prompts for common development tasks",
+  "trigger": "manual",
+  "icon": "💬",
+  "category": "productivity",
+  "script": {
+    "language": "javascript",
+    "content": "console.log('🚀 QUICK PROMPTS - Copy and paste into chat:\\n');\n\nconsole.log('🔍 CODE ANALYSIS:');\nconsole.log('• Analyze this code for potential issues, security vulnerabilities, and performance improvements');\nconsole.log('• Review this code following enterprise best practices and suggest improvements\\n');\n\nconsole.log('⚡ CODE GENERATION:');\nconsole.log('• Refactor this code to be more readable, maintainable, and follow modern best practices');\nconsole.log('• Convert this code to TypeScript with proper type definitions\\n');\n\nconsole.log('☁️ AWS & CLOUD:');\nconsole.log('• Design a scalable AWS architecture for this application');\nconsole.log('• Create Terraform configuration for deploying this to AWS\\n');\n\nconsole.log('🧪 TESTING:');\nconsole.log('• Generate comprehensive unit tests for this code including edge cases');\nconsole.log('• Create integration tests for this API endpoint\\n');\n\nconsole.log('🐛 DEBUGGING:');\nconsole.log('• Help me debug this error and suggest solutions');\nconsole.log('• This code is running slowly - profile and optimize it\\n');\n\nconsole.log('🔗 SAP DATASPHERE:');\nconsole.log('• Create integration between SAP Datasphere and AWS Glue Catalog');\nconsole.log('• Design a control panel for managing SAP Datasphere connections\\n');\n\nconsole.log('💡 TIP: Add context using #File, #Folder, #Problems, or #Git Diff');"
+  }
+}

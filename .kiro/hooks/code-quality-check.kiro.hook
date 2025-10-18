@@ -1,0 +1,12 @@
+{
+  "name": "Code Quality Check",
+  "description": "Run code quality checks on Python files when saved",
+  "trigger": "fileSaved",
+  "filePatterns": [
+    "*.py"
+  ],
+  "script": {
+    "language": "javascript",
+    "content": "console.log('🔍 Running code quality checks...');\nconsole.log('Checking: Syntax, Style, Security, Performance');\nconsole.log('Use: python -m flake8 . && python -m black . --check');"
+  }
+}

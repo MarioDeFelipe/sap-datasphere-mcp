@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Python Code Quality Check",
+  "description": "Automatically runs linting, formatting, and type checking on Python files when they are saved to ensure code quality and catch issues early in development",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A Python file has been saved. Please run code quality checks on this file including:\n\n1. **Linting with Ruff**: Check for code style issues, potential bugs, and best practice violations\n2. **Formatting with Ruff**: Ensure consistent code formatting according to project standards\n3. **Type Checking**: Validate type annotations and catch type-related issues\n4. **Security Scanning**: Look for potential security vulnerabilities\n5. **Import Organization**: Check import ordering and unused imports\n\nFocus on the specific file that was changed and provide actionable feedback on any issues found. If there are no issues, confirm that the code quality checks passed successfully."
+  }
+}

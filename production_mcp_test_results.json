@@ -1,0 +1,74 @@
+{
+  "timestamp": "2025-10-15T22:53:41.713963",
+  "test_type": "production_mcp_server",
+  "tool_tests": [
+    {
+      "tool_name": "test_datasphere_connection",
+      "arguments": {},
+      "success": true,
+      "response_text": "\ud83d\udd0d **SAP Datasphere Connection Test**\n\n**Authentication:** \u2705 Success\n**OAuth Token:** Valid (expires at 2025-10-16 21:52:41.531096)\n**Tenant URL:** https://ailien-test.eu20.hcs.cloud.sap\n\n**Endpoint Tests:**\n\u2022 analytic_model_data: \u2705 Working\n\u2022 analytic_model_service: \u2705 Working\n\u2022 analytic_model_metadata: \u274c HTTP 406: {\"status\":406,\"message\":\"HTTP 406 Not Acceptable\"}\n\n**Configuration:**\n\u2022 Client ID: sb-1d624427-f63c-4be1-8066-eee88b15ce05!b130936|cl...\n\u2022 Token URL: https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token\n",
+      "response_length": 536
+    },
+    {
+      "tool_name": "get_analytical_model_info",
+      "arguments": {},
+      "success": true,
+      "response_text": "\ud83d\udccb **SAP Datasphere Analytical Model Service Info**\n\n**OData Context:** https://ailien-test.eu20.hcs.cloud.sap/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2/$metadata\n**Service Entities:** 1\n\n**Available Entities:**\n\u2022 **New_Analytic_Model_2**: New_Analytic_Model_2\n\n**Raw Response:**\n```json\n{\n  \"@odata.context\": \"https://ailien-test.eu20.hcs.cloud.sap/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2/$metadata\",\n  \"@odata.metadataEtag\": \"W/\\\"5X3DYNbKUQlrt6kQr8MBkEITTCE3UJCJifkOJawAWjE=\\\"\",\n  \"value\": [\n    {\n      \"name\": \"New_Analytic_Model_2\",\n      \"url\": \"New_Analytic_Model_2\"\n    }\n  ]\n}\n```",
+      "response_length": 654
+    },
+    {
+      "tool_name": "get_analytical_model_data",
+      "arguments": {
+        "top": 10
+      },
+      "success": true,
+      "response_text": "\ud83d\udcca **SAP Datasphere Analytical Model Data**\n\n**OData Context:** https://ailien-test.eu20.hcs.cloud.sap/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2/$metadata#New_Analytic_Model_2\n**Records Returned:** 0\n\n**Data:**\nNo records found (empty result set)\n\n**Query Parameters:**\n\u2022 Top: 10\n\u2022 Skip: 0\n",
+      "response_length": 321
+    },
+    {
+      "tool_name": "get_analytical_model_data",
+      "arguments": {
+        "top": 5,
+        "skip": 0
+      },
+      "success": true,
+      "response_text": "\ud83d\udcca **SAP Datasphere Analytical Model Data**\n\n**OData Context:** https://ailien-test.eu20.hcs.cloud.sap/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2/$metadata#New_Analytic_Model_2\n**Records Returned:** 0\n\n**Data:**\nNo records found (empty result set)\n\n**Query Parameters:**\n\u2022 Top: 5\n\u2022 Skip: 0\n",
+      "response_length": 320
+    },
+    {
+      "tool_name": "get_analytical_model_metadata",
+      "arguments": {},
+      "success": true,
+      "response_text": "\ud83d\udccb **SAP Datasphere Analytical Model Metadata**\n\n**Endpoint:** /api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2/$metadata\n**Status:** HTTP 200\n**Content-Type:** application/xml\n\n**Metadata Schema:**\n```xml\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<edmx:Edmx Version=\"4.0\" xmlns:edmx=\"http://docs.oasis-open.org/odata/ns/edmx\">\n  <edmx:Reference Uri=\"https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Aggregation.V1.xml\">\n    <edmx:Include Alias=\"Aggregation\" Namespace=\"Org.OData.Aggregation.V1\"/>\n  </edmx:Reference>\n  <edmx:Reference Uri=\"https://sap.github.io/odata-vocabularies/vocabularies/Analytics.xml\">\n    <edmx:Include Alias=\"Analytics\" Namespace=\"com.sap.vocabularies.Analytics.v1\"/>\n  </edmx:Reference>\n  <edmx:Reference Uri=\"https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Capabilities.V1.xml\">\n    <edmx:Include Alias=\"Capabilities\" Namespace=\"Org.OData.Capabilities.V1\"/>\n  </edmx:Reference>\n  <edmx:Reference Uri=\"https://sap.github.io/odata-vocabularies/vocabularies/Common.xml\">\n    <edmx:Include Alias=\"Common\" Namespace=\"com.sap.vocabularies.Common.v1\"/>\n  </edmx:Reference>\n  <edmx:Reference Uri=\"https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Core.V1.xml\">\n    <edmx:Include Alias=\"Core\" Namespace=\"Org.OData.Core.V1\"/>\n  </edmx:Reference>\n  <edmx:Reference Uri=\"https://sap.github.io/odata-vocabularies/vocabularies/DataIntegration.xml\">\n    <edmx:Include Alias=\"DataIntegration\" Namespace=\"com.sap.vocabularies.DataIntegration.v1\"/>\n  </edmx:Reference>\n  <edmx:DataServices>\n    <Schema Namespace=\"InaApplicationService\" xmlns=\"http://docs.oasis-open.org/odata/ns/edm\">\n      <EntityContainer Name=\"EntityContainer\">\n        <EntitySet Name=\"New_Analytic_Model_2\" EntityType=\"InaApplicationService.New_Analytic_Model_2\"/>\n      </EntityContainer>\n      <EntityType Name=\"New_Analytic_Model_2\">\n        <Property Name=\"ACCOUNTID_D1\" Type=\"Edm.String\" MaxLength=\"10\"/>\n        <Property Name=\"ACCOUNTTYPEID_GL_Account\" Type=\"Edm.String\" MaxLength=\"4\"/>\n        <Property Name=\"ACCOUNTTYPEID_D2\" Type=\"Edm.String\" MaxLength=\"4\"/>\n        <Property Name=\"CALMONTH_Date\" Type=\"Edm.String\" MaxLength=\"6\"/>\n        <Property N...\n```",
+      "response_length": 2238
+    }
+  ],
+  "endpoint_tests": [
+    {
+      "endpoint_name": "Analytical Model Data",
+      "endpoint_path": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2/New_Analytic_Model_2",
+      "success": true,
+      "error": null,
+      "response_type": "json",
+      "has_odata_context": true,
+      "has_value_array": true,
+      "record_count": 0
+    },
+    {
+      "endpoint_name": "Analytical Model Service",
+      "endpoint_path": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2",
+      "success": true,
+      "error": null,
+      "response_type": "json",
+      "has_odata_context": true,
+      "has_value_array": true,
+      "record_count": 1
+    }
+  ],
+  "overall_success": true,
+  "successful_tools": 5,
+  "total_tools": 5,
+  "successful_endpoints": 2,
+  "total_endpoints": 2,
+  "overall_success_rate": "100.0%"
+}

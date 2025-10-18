@@ -1,7 +1,41 @@
-# Core MCP dependencies
-mcp>=1.0.0
-pydantic>=2.0.0
-requests>=2.31.0
+# Core Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+jinja2==3.1.2
+python-multipart==0.0.6
 
-# Optional dependencies for live API integration
-hdbcli>=2.26.0  # SAP HANA database client (optional)
+# HTTP and API
+requests==2.31.0
+httpx==0.25.2
+
+# AWS Integration
+boto3==1.34.0
+botocore==1.34.0
+
+# Data Validation and Serialization
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Logging and Monitoring
+loguru==0.7.2
+
+# Date and Time Handling
+python-dateutil==2.8.2
+
+# Configuration Management
+python-dotenv==1.0.0
+
+# Threading and Concurrency
+threading-utils==0.3
+
+# Development Dependencies (optional)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+
+# Documentation (optional)
+mkdocs==1.5.3
+mkdocs-material==9.4.8
