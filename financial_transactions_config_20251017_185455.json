@@ -1,0 +1,34 @@
+{
+  "model_name": "SAP_SC_FI_AM_FINTRANSACTIONS",
+  "model_type": "Financial Transactions (SAP Smart Controls)",
+  "base_url": "https://ailien-test.eu20.hcs.cloud.sap",
+  "endpoints": {
+    "service": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/SAP_SC_FI_AM_FINTRANSACTIONS",
+    "data": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/SAP_SC_FI_AM_FINTRANSACTIONS/SAP_SC_FI_AM_FINTRANSACTIONS",
+    "metadata": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/SAP_SC_FI_AM_FINTRANSACTIONS/$metadata"
+  },
+  "extraction_ready": true,
+  "recommended_queries": [
+    {
+      "params": {
+        "$top": 100
+      },
+      "purpose": "Sample data extraction"
+    },
+    {
+      "params": {
+        "$count": "true"
+      },
+      "purpose": "Get total record count"
+    },
+    {
+      "params": {
+        "$top": 1,
+        "$select": "*"
+      },
+      "purpose": "Schema discovery"
+    }
+  ],
+  "aws_glue_table_name": "sap_financial_transactions",
+  "aws_glue_database": "datasphere_wolf_staging"
+}

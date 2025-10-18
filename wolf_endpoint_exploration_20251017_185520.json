@@ -1,0 +1,281 @@
+{
+  "timestamp": "2025-10-17T18:55:20.090463",
+  "environment": "https://ailien-test.eu20.hcs.cloud.sap",
+  "total_tested": 19,
+  "working_endpoints": [
+    {
+      "endpoint": "/api/health",
+      "description": "API health check",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"VCK2sehfHo6l1Wdy7BkI1w==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/datasphere",
+      "description": "Datasphere API root",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 813,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"I+oQfdW76EgNO4evuOAj8w==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/datasphere/spaces",
+      "description": "Datasphere spaces",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"sRZq4pFVPF0HY6pTPHrG5Q==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/datasphere/models",
+      "description": "Datasphere models",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 809,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"p+j7wf9vbKA9YLmRIQvMkg==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/datasphere/metadata",
+      "description": "Datasphere metadata",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"xxbB1n72eQxYJrjI76ddCg==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/user",
+      "description": "User information",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"K6/oOVl5tk3Q/6d5geHtag==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/permissions",
+      "description": "User permissions",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 815,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"sM8wWbbnE4I7cYAUaQFXXA==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/scopes",
+      "description": "Available scopes",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"3In4nxGjBCp2KeVDKQNh3Q==\">document.cookie=\"fragmentAfterLog..."
+    }
+  ],
+  "permission_denied": [
+    {
+      "endpoint": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2",
+      "description": "New Analytic Model 2 service",
+      "status_code": 403,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 97,
+      "error": "Permission denied - user not authorized for this endpoint"
+    },
+    {
+      "endpoint": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2/New_Analytic_Model_2",
+      "description": "New Analytic Model 2 data",
+      "status_code": 403,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 97,
+      "error": "Permission denied - user not authorized for this endpoint"
+    },
+    {
+      "endpoint": "/api/v1/dwc/catalog",
+      "description": "DWC Catalog",
+      "status_code": 403,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 97,
+      "error": "Permission denied - user not authorized for this endpoint"
+    }
+  ],
+  "all_results": [
+    {
+      "endpoint": "/health",
+      "description": "Health check",
+      "status_code": 401,
+      "success": false,
+      "content_type": "unknown",
+      "response_size": 12,
+      "error": "Unauthorized"
+    },
+    {
+      "endpoint": "/api/health",
+      "description": "API health check",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"VCK2sehfHo6l1Wdy7BkI1w==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/datasphere",
+      "description": "Datasphere API root",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 813,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"I+oQfdW76EgNO4evuOAj8w==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/datasphere/consumption",
+      "description": "Consumption API root",
+      "status_code": 404,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 45,
+      "error": "Endpoint not found"
+    },
+    {
+      "endpoint": "/api/v1/datasphere/consumption/analytical",
+      "description": "Analytical consumption root",
+      "status_code": 404,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 45,
+      "error": "Endpoint not found"
+    },
+    {
+      "endpoint": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT",
+      "description": "SAP Content space",
+      "status_code": 404,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 45,
+      "error": "Endpoint not found"
+    },
+    {
+      "endpoint": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2",
+      "description": "New Analytic Model 2 service",
+      "status_code": 403,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 97,
+      "error": "Permission denied - user not authorized for this endpoint"
+    },
+    {
+      "endpoint": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2/New_Analytic_Model_2",
+      "description": "New Analytic Model 2 data",
+      "status_code": 403,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 97,
+      "error": "Permission denied - user not authorized for this endpoint"
+    },
+    {
+      "endpoint": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/New_Analytic_Model_2/$metadata",
+      "description": "New Analytic Model 2 metadata",
+      "status_code": 406,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 50,
+      "error": "{\"status\":406,\"message\":\"HTTP 406 Not Acceptable\"}"
+    },
+    {
+      "endpoint": "/api/v1/dwc/catalog",
+      "description": "DWC Catalog",
+      "status_code": 403,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 97,
+      "error": "Permission denied - user not authorized for this endpoint"
+    },
+    {
+      "endpoint": "/api/v1/dwc/consumption",
+      "description": "DWC Consumption",
+      "status_code": 404,
+      "success": false,
+      "content_type": "application/json",
+      "response_size": 45,
+      "error": "Endpoint not found"
+    },
+    {
+      "endpoint": "/dwaas-core/api/v1/catalog",
+      "description": "DWaaS Catalog",
+      "status_code": 404,
+      "success": false,
+      "content_type": "unknown",
+      "response_size": 0,
+      "error": "Endpoint not found"
+    },
+    {
+      "endpoint": "/dwaas-core/api/v1/consumption",
+      "description": "DWaaS Consumption",
+      "status_code": 404,
+      "success": false,
+      "content_type": "unknown",
+      "response_size": 0,
+      "error": "Endpoint not found"
+    },
+    {
+      "endpoint": "/api/v1/datasphere/spaces",
+      "description": "Datasphere spaces",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"sRZq4pFVPF0HY6pTPHrG5Q==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/datasphere/models",
+      "description": "Datasphere models",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 809,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"p+j7wf9vbKA9YLmRIQvMkg==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/datasphere/metadata",
+      "description": "Datasphere metadata",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"xxbB1n72eQxYJrjI76ddCg==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/user",
+      "description": "User information",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"K6/oOVl5tk3Q/6d5geHtag==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/permissions",
+      "description": "User permissions",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 815,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"sM8wWbbnE4I7cYAUaQFXXA==\">document.cookie=\"fragmentAfterLog..."
+    },
+    {
+      "endpoint": "/api/v1/scopes",
+      "description": "Available scopes",
+      "status_code": 200,
+      "success": true,
+      "content_type": "text/html",
+      "response_size": 811,
+      "data_preview": "<html><head><link rel=\"shortcut icon\" href=\"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\" /><script nonce=\"3In4nxGjBCp2KeVDKQNh3Q==\">document.cookie=\"fragmentAfterLog..."
+    }
+  ]
+}

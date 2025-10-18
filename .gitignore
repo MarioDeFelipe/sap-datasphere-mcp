@@ -21,11 +21,9 @@ wheels/
 *.egg
 MANIFEST
 
-# Virtual environments
-.env
-.venv
-env/
+# Virtual Environments
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
@@ -37,41 +35,49 @@ venv.bak/
 *.swo
 *~
 
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Configuration Files (contain sensitive data)
+config/datasphere_config.json
+config/glue_config.json
+*.env
+.env
 
 # Logs
 *.log
 logs/
 
-# Test results
-.pytest_cache/
-.coverage
-htmlcov/
+# Database
+*.db
+*.sqlite3
 
-# MCP specific
-mcp-config.json
-secrets.json
-oauth-credentials.json
-
-# SAP Datasphere specific
-datasphere-*.json
-hana-connection-results.json
-api-subdomain-results.json
+# OS
+.DS_Store
+Thumbs.db
 
 # Temporary files
 *.tmp
 *.temp
-temp/
-tmp/
 
-# Other repositories (exclude from this MCP server repo)
-btp-sap-odata-to-mcp-server/
-odata_mcp/
-odata_mcp_go/
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# AWS
+.aws/
+
+# Local development
+local_*
+test_*
+debug_*

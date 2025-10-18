@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-10-15T21:30:05.210649",
+  "test_type": "api_proxy_discovery",
+  "oauth_scopes": "approuter-sac-saceu20!t3944.sap.fpa.user uaa.resource dmi-api-proxy-sac-saceu20!t3944.apiaccess",
+  "json_apis_found": [],
+  "odata_services": [],
+  "errors": [],
+  "json_apis_count": 0,
+  "odata_services_count": 0,
+  "total_found": 0
+}
