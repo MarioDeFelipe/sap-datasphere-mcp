@@ -81,3 +81,11 @@ dmypy.json
 local_*
 test_*
 debug_*
+
+# Embedded repositories (exclude from main project)
+btp-sap-odata-to-mcp-server/
+odata_mcp/
+odata_mcp_go/
+sap-datasphere-mcp-server/
+sap-datasphere-mcp/
+datasphere-control-panel/
