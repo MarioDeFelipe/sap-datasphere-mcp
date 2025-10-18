@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="fas fa-database me-2"></i>
+        Assets Management
+    </h1>
+    <div>
+        <button class="btn btn-outline-secondary" onclick="refreshAssets()">
+            <i class="fas fa-sync-alt me-2"></i>
+            Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Asset Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="metric-card text-center">
+            <div class="metric-value text-primary" id="total-assets">-</div>
+            <div class="metric-label">Total Assets</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card text-center">
+            <div class="metric-value text-info" id="datasphere-assets">-</div>
+            <div class="metric-label">Datasphere</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card text-center">
+            <div class="metric-value text-warning" id="glue-assets">-</div>
+            <div class="metric-label">AWS Glue</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card text-center">
+            <div class="metric-value text-success" id="synced-assets">-</div>
+            <div class="metric-label">Synced</div>
+        </div>
+    </div>
+</div>
+
+<!-- Assets Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>
+            Asset Catalog
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Asset ID</th>
+                        <th>Type</th>
+                        <th>System</th>
+                        <th>Business Name</th>
+                        <th>Owner</th>
+                        <th>Last Modified</th>
+                        <th>Sync Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="assets-table-body">
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="loading-spinner spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-2">Loading assets...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // API helper function (ensure it's available)
+    async function apiCall(url, options = {}) {
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                },
+                ...options
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('API call failed:', error);
+            throw error;
+        }
+    }
+    
+    // Utility functions
+    function formatDateTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString();
+    }
+    
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
+    
+    // Assets page variables
+    let allAssets = [];
+    
+    // Initialize assets page
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAssets();
+    });
+    
+    // Load assets data
+    async function loadAssets() {
+        try {
+            const response = await apiCall('/api/assets');
+            allAssets = response.assets || [];
+            renderAssetsTable();
+            updateAssetStatistics();
+            
+        } catch (error) {
+            console.error('Failed to load assets:', error);
+            document.getElementById('assets-table-body').innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load assets: ${error.message}
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    // Render assets table
+    function renderAssetsTable() {
+        const tbody = document.getElementById('assets-table-body');
+        
+        if (allAssets.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox me-2"></i>
+                        No assets found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        const rows = allAssets.map(asset => {
+            const syncStatusClass = getSyncStatusClass(asset.sync_status);
+            const lastModified = formatDateTime(asset.last_modified);
+            
+            return `
+                <tr>
+                    <td>
+                        <code class="text-primary">${asset.asset_id}</code>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark">${asset.asset_type}</span>
+                    </td>
+                    <td>
+                        <span class="badge ${asset.source_system === 'datasphere' ? 'bg-info' : 'bg-warning'} text-white">
+                            ${asset.source_system}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="fw-bold">${asset.business_name}</div>
+                        <small class="text-muted">${asset.technical_name}</small>
+                    </td>
+                    <td>${asset.owner}</td>
+                    <td>
+                        <small>${lastModified}</small>
+                    </td>
+                    <td>
+                        <span class="badge ${syncStatusClass}">${asset.sync_status}</span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary btn-action" 
+                                onclick="syncAsset('${asset.asset_id}')" 
+                                title="Sync Asset">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        tbody.innerHTML = rows;
+    }
+    
+    // Update asset statistics
+    function updateAssetStatistics() {
+        const stats = {
+            total: allAssets.length,
+            datasphere: 0,
+            glue: 0,
+            synced: 0
+        };
+        
+        allAssets.forEach(asset => {
+            if (asset.source_system === 'datasphere') stats.datasphere++;
+            if (asset.source_system === 'glue') stats.glue++;
+            if (asset.sync_status === 'synced') stats.synced++;
+        });
+        
+        document.getElementById('total-assets').textContent = stats.total;
+        document.getElementById('datasphere-assets').textContent = stats.datasphere;
+        document.getElementById('glue-assets').textContent = stats.glue;
+        document.getElementById('synced-assets').textContent = stats.synced;
+    }
+    
+    // Get sync status badge class
+    function getSyncStatusClass(status) {
+        switch (status.toLowerCase()) {
+            case 'synced': return 'bg-success';
+            case 'pending': return 'bg-warning';
+            case 'error': return 'bg-danger';
+            default: return 'bg-secondary';
+        }
+    }
+    
+    // Sync asset
+    async function syncAsset(assetId) {
+        try {
+            // This would create a sync job for the asset
+            const jobData = {
+                asset_id: assetId,
+                asset_type: 'table', // Default, would be determined from asset
+                source_system: 'datasphere', // Default, would be determined from asset
+                target_system: 'glue',
+                priority: 'MEDIUM'
+            };
+            
+            const result = await apiCall('/api/jobs', {
+                method: 'POST',
+                body: JSON.stringify(jobData)
+            });
+            
+            showNotification(`Sync job created for ${assetId}: ${result.job_id}`, 'success');
+            
+        } catch (error) {
+            showNotification(`Failed to sync asset ${assetId}`, 'danger');
+        }
+    }
+    
+    // Refresh assets
+    function refreshAssets() {
+        showNotification('Refreshing assets...', 'info');
+        loadAssets();
+    }
+</script>
+{% endblock %}

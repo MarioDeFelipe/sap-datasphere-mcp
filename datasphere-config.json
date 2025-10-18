@@ -1,0 +1,36 @@
+{
+  "tenant_id": "f45fa9cc-f4b5-4126-ab73-b19b578fb17a",
+  "region": "eu10",
+  "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap",
+  "working_endpoints": {
+    "health": "/health",
+    "status": "\u2705 Working"
+  },
+  "api_subdomains": [
+    "api-f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap",
+    "f45fa9cc-f4b5-4126-ab73-b19b578fb17a-api.eu10.hcs.cloud.sap",
+    "rest-f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+  ],
+  "authentication": {
+    "type": "basic_auth",
+    "username": "GE230769",
+    "status": "\u2705 Working (no 401 errors)"
+  },
+  "service_info": {
+    "type": "SAP Analytics Cloud / Datasphere",
+    "headers": {
+      "x-sap-sac-ar-instance-id": "Present"
+    }
+  },
+  "api_status": {
+    "tested_endpoints": [
+      "/api/v1/spaces",
+      "/api/v1/catalog",
+      "/api/v1/metadata",
+      "/odata/v4/catalog",
+      "/$metadata"
+    ],
+    "status": "\u274c All return 404",
+    "next_steps": "Check documentation and permissions"
+  }
+}

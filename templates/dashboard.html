@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="fas fa-tachometer-alt me-2"></i>
+        System Dashboard
+    </h1>
+    <div class="real-time-indicator">
+        <span class="badge bg-success">
+            <i class="fas fa-circle me-1"></i>
+            Live Updates
+        </span>
+    </div>
+</div>
+
+<!-- System Status Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card status-card h-100">
+            <div class="card-body text-center">
+                <div class="mb-2">
+                    <i class="fas fa-server fa-2x text-primary"></i>
+                </div>
+                <h6 class="card-title">System Health</h6>
+                <div id="system-health-status">
+                    <span class="status-indicator status-unknown"></span>
+                    <span id="system-health-text">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card status-card h-100">
+            <div class="card-body text-center">
+                <div class="mb-2">
+                    <i class="fas fa-tasks fa-2x text-info"></i>
+                </div>
+                <h6 class="card-title">Active Jobs</h6>
+                <div class="metric-value" id="active-jobs-count">-</div>
+                <div class="metric-label">Running</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card status-card h-100">
+            <div class="card-body text-center">
+                <div class="mb-2">
+                    <i class="fas fa-clock fa-2x text-warning"></i>
+                </div>
+                <h6 class="card-title">Queue Size</h6>
+                <div class="metric-value" id="queue-size-count">-</div>
+                <div class="metric-label">Pending</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card status-card h-100">
+            <div class="card-body text-center">
+                <div class="mb-2">
+                    <i class="fas fa-percentage fa-2x text-success"></i>
+                </div>
+                <h6 class="card-title">Success Rate</h6>
+                <div class="metric-value" id="success-rate">-</div>
+                <div class="metric-label">Last 24h</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Component Status -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-puzzle-piece me-2"></i>
+                    Component Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row" id="component-status">
+                    <!-- Component status will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Job Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="jobDistributionChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Metrics -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Performance Trends
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart" width="800" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Recent Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="recent-activity" style="max-height: 300px; overflow-y: auto;">
+                    <!-- Recent activity will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt me-2"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100 mb-2" onclick="createSampleJob()">
+                            <i class="fas fa-plus me-2"></i>
+                            Create Sample Job
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-info w-100 mb-2" onclick="refreshDashboard()">
+                            <i class="fas fa-sync-alt me-2"></i>
+                            Refresh Data
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="/jobs" class="btn btn-success w-100 mb-2">
+                            <i class="fas fa-tasks me-2"></i>
+                            View All Jobs
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="/assets" class="btn btn-warning w-100 mb-2">
+                            <i class="fas fa-database me-2"></i>
+                            Browse Assets
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Dashboard-specific variables
+    let jobDistributionChart = null;
+    let performanceChart = null;
+    let dashboardData = {};
+    
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeCharts();
+        loadDashboardData();
+        
+        // Refresh data every 30 seconds
+        setInterval(loadDashboardData, 30000);
+    });
+    
+    // Initialize charts
+    function initializeCharts() {
+        // Job Distribution Chart
+        const jobCtx = document.getElementById('jobDistributionChart').getContext('2d');
+        jobDistributionChart = new Chart(jobCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'Running', 'Pending', 'Failed'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: [
+                        '#28a745',
+                        '#007bff',
+                        '#ffc107',
+                        '#dc3545'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // Performance Chart
+        const perfCtx = document.getElementById('performanceChart').getContext('2d');
+        performanceChart = new Chart(perfCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Jobs per Hour',
+                    data: [],
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Success Rate %',
+                    data: [],
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Jobs per Hour'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Success Rate %'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                        min: 0,
+                        max: 100
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Load dashboard data
+    async function loadDashboardData() {
+        try {
+            // Load system status
+            const statusData = await apiCall('/api/status');
+            updateSystemStatus(statusData);
+            
+            // Load metrics
+            const metricsData = await apiCall('/api/metrics');
+            updateMetrics(metricsData);
+            
+            // Load recent jobs for activity
+            const jobsData = await apiCall('/api/jobs?limit=10');
+            updateRecentActivity(jobsData.jobs);
+            
+        } catch (error) {
+            console.error('Failed to load dashboard data:', error);
+        }
+    }
+    
+    // Update system status
+    function updateSystemStatus(data) {
+        // Update system health
+        const healthElement = document.getElementById('system-health-status');
+        const healthText = document.getElementById('system-health-text');
+        const healthIndicator = healthElement.querySelector('.status-indicator');
+        
+        healthText.textContent = data.system_health;
+        healthIndicator.className = `status-indicator status-${data.system_health === 'healthy' ? 'healthy' : 'error'}`;\n        \n        // Update component status\n        const componentContainer = document.getElementById('component-status');\n        componentContainer.innerHTML = '';\n        \n        Object.entries(data.components).forEach(([name, component]) => {\n            const statusClass = getComponentStatusClass(component.status);\n            const componentHtml = `\n                <div class=\"col-6 mb-3\">\n                    <div class=\"d-flex align-items-center\">\n                        <span class=\"status-indicator ${statusClass} me-2\"></span>\n                        <div>\n                            <div class=\"fw-bold\">${formatComponentName(name)}</div>\n                            <small class=\"text-muted\">${component.status}</small>\n                        </div>\n                    </div>\n                </div>\n            `;\n            componentContainer.innerHTML += componentHtml;\n        });\n    }\n    \n    // Update metrics\n    function updateMetrics(data) {\n        dashboardData = data;\n        \n        // Update metric cards\n        document.getElementById('active-jobs-count').textContent = data.running_jobs || 0;\n        document.getElementById('queue-size-count').textContent = data.queue_size || 0;\n        document.getElementById('success-rate').textContent = \n            data.success_rate ? `${(data.success_rate * 100).toFixed(1)}%` : '0%';\n        \n        // Update job distribution chart\n        if (jobDistributionChart) {\n            jobDistributionChart.data.datasets[0].data = [\n                data.completed_jobs || 0,\n                data.running_jobs || 0,\n                data.pending_jobs || 0,\n                data.failed_jobs || 0\n            ];\n            jobDistributionChart.update();\n        }\n        \n        // Update performance chart (simulate historical data)\n        if (performanceChart) {\n            const now = new Date();\n            const timeLabels = [];\n            const jobsPerHour = [];\n            const successRates = [];\n            \n            // Generate last 12 hours of data\n            for (let i = 11; i >= 0; i--) {\n                const time = new Date(now.getTime() - i * 60 * 60 * 1000);\n                timeLabels.push(time.getHours() + ':00');\n                \n                // Simulate data based on current metrics\n                const baseJobs = data.jobs_per_hour || 0;\n                jobsPerHour.push(Math.max(0, baseJobs + (Math.random() - 0.5) * 10));\n                \n                const baseSuccess = (data.success_rate || 0) * 100;\n                successRates.push(Math.max(0, Math.min(100, baseSuccess + (Math.random() - 0.5) * 20)));\n            }\n            \n            performanceChart.data.labels = timeLabels;\n            performanceChart.data.datasets[0].data = jobsPerHour;\n            performanceChart.data.datasets[1].data = successRates;\n            performanceChart.update();\n        }\n    }\n    \n    // Update recent activity\n    function updateRecentActivity(jobs) {\n        const activityContainer = document.getElementById('recent-activity');\n        \n        if (!jobs || jobs.length === 0) {\n            activityContainer.innerHTML = '<p class=\"text-muted\">No recent activity</p>';\n            return;\n        }\n        \n        const activityHtml = jobs.map(job => {\n            const statusClass = getStatusBadgeClass(job.status);\n            const priorityClass = getPriorityClass(job.priority);\n            const timeAgo = getTimeAgo(job.created_time);\n            \n            return `\n                <div class=\"d-flex justify-content-between align-items-center mb-2 p-2 border-bottom\">\n                    <div>\n                        <div class=\"fw-bold\">${job.asset_id}</div>\n                        <small class=\"text-muted\">\n                            <span class=\"${priorityClass}\">${job.priority}</span> • \n                            ${job.source_system} → ${job.target_system}\n                        </small>\n                    </div>\n                    <div class=\"text-end\">\n                        <span class=\"badge ${statusClass}\">${job.status}</span>\n                        <br>\n                        <small class=\"text-muted\">${timeAgo}</small>\n                    </div>\n                </div>\n            `;\n        }).join('');\n        \n        activityContainer.innerHTML = activityHtml;\n    }\n    \n    // Utility functions\n    function getComponentStatusClass(status) {\n        switch (status.toLowerCase()) {\n            case 'running':\n            case 'connected':\n                return 'status-healthy';\n            case 'error':\n            case 'not_connected':\n                return 'status-error';\n            case 'not_initialized':\n                return 'status-warning';\n            default:\n                return 'status-unknown';\n        }\n    }\n    \n    function formatComponentName(name) {\n        return name.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase());\n    }\n    \n    function getTimeAgo(dateString) {\n        const now = new Date();\n        const date = new Date(dateString);\n        const diffMs = now - date;\n        const diffMins = Math.floor(diffMs / 60000);\n        \n        if (diffMins < 1) return 'Just now';\n        if (diffMins < 60) return `${diffMins}m ago`;\n        \n        const diffHours = Math.floor(diffMins / 60);\n        if (diffHours < 24) return `${diffHours}h ago`;\n        \n        const diffDays = Math.floor(diffHours / 24);\n        return `${diffDays}d ago`;\n    }\n    \n    // Action functions\n    async function createSampleJob() {\n        try {\n            const sampleJob = {\n                asset_id: `sample_job_${Date.now()}`,\n                asset_type: 'analytical_model',\n                source_system: 'datasphere',\n                target_system: 'glue',\n                priority: 'HIGH',\n                technical_name: 'SAMPLE_FINANCIAL_MODEL',\n                business_name: 'Sample Financial Model',\n                description: 'Sample job created from dashboard',\n                owner: 'dashboard_user',\n                tags: ['sample', 'dashboard']\n            };\n            \n            const result = await apiCall('/api/jobs', {\n                method: 'POST',\n                body: JSON.stringify(sampleJob)\n            });\n            \n            showNotification(`Sample job created: ${result.job_id}`, 'success');\n            loadDashboardData();\n            \n        } catch (error) {\n            showNotification('Failed to create sample job', 'danger');\n        }\n    }\n    \n    function refreshDashboard() {\n        showNotification('Refreshing dashboard data...', 'info');\n        loadDashboardData();\n    }\n</script>\n{% endblock %}
