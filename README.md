@@ -49,8 +49,8 @@ Git for version control
 ### Installation
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/sap-aws-metadata-sync.git
-cd sap-aws-metadata-sync
+git clone https://github.com/MarioDeFelipe/mcp_aws.git
+cd mcp_aws
 
 # 2. Install dependencies
 pip install fastapi uvicorn requests boto3 pydantic loguru
@@ -256,7 +256,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ### Development Setup
 ```bash
 # Fork and clone the repository
-git clone https://github.com/your-username/sap-aws-metadata-sync.git
+git clone https://github.com/MarioDeFelipe/mcp_aws.git
 
 # Create virtual environment
 python -m venv venv
@@ -283,9 +283,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 **Support**
 
 - 📚 **Documentation**: [Full Documentation](docs/)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/your-username/sap-aws-metadata-sync/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/your-username/sap-aws-metadata-sync/discussions)
-- 📧 **Email**: support@your-domain.com
+- 🐛 **Issues**: [GitHub Issues](https://github.com/MarioDeFelipe/mcp_aws/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/MarioDeFelipe/mcp_aws/discussions)
+- 📖 **SAP Datasphere Docs**: [Official Documentation](https://help.sap.com/docs/SAP_DATASPHERE)
 
 ---
 
@@ -293,7 +293,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **🏆 Built with ❤️ for enterprise data integration**
 
-[![GitHub stars](https://img.shields.io/github/stars/your-username/sap-aws-metadata-sync?style=social)](https://github.com/your-username/sap-aws-metadata-sync/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/your-username/sap-aws-metadata-sync?style=social)](https://github.com/your-username/sap-aws-metadata-sync/network/members)
+[![GitHub stars](https://img.shields.io/github/stars/MarioDeFelipe/mcp_aws?style=social)](https://github.com/MarioDeFelipe/mcp_aws/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/MarioDeFelipe/mcp_aws?style=social)](https://github.com/MarioDeFelipe/mcp_aws/network/members)
 
 </div>
