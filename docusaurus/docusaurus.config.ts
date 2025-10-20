@@ -5,9 +5,9 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'AWS MCP Servers',
-  tagline: 'Get started with AWS MCP Servers and learn core features',
-  favicon: 'img/aws-logo.svg',
+  title: 'SAP Datasphere to AWS Sync',
+  tagline: 'Advanced metadata synchronization with incremental sync and priority-based orchestration',
+  favicon: 'img/sap-datasphere-logo.svg',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -15,15 +15,14 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://awslabs.github.io',
+  url: 'https://ailien.studio',
   // Set the /<baseUrl>/ pathname under which your site is served
-  // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/mcp/',
+  // For root deployment on S3 static website
+  baseUrl: '/',
 
-  // GitHub pages deployment config.
-  // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'awslabs', // Usually your GitHub org/user name.
-  projectName: 'mcp', // Usually your repo name.
+  // Deployment config for ailien.studio
+  organizationName: 'ailien-studio',
+  projectName: 'sap-datasphere-sync',
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'throw',
@@ -49,7 +48,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl:
-            'https://github.com/awslabs/mcp/tree/main/',
+            'https://github.com/ailien-studio/sap-datasphere-sync/tree/main/docusaurus/',
           routeBasePath: '/', // Serve docs at the site's root
           remarkPlugins: [],
           rehypePlugins: [],
@@ -69,15 +68,20 @@ const config: Config = {
     },
     image: 'img/aws-logo.svg',
     navbar: {
-      title: 'AWS MCP Servers',
+      title: 'SAP Datasphere Sync',
       logo: {
-        alt: 'AWS MCP Servers Logo',
-        src: 'img/aws-logo.svg',
+        alt: 'SAP Datasphere Sync Logo',
+        src: 'img/sap-datasphere-logo.svg',
       },
       items: [
         {
-          href: 'https://github.com/awslabs/mcp',
-          label: 'GitHub',
+          href: 'http://localhost:8001',
+          label: 'Live Dashboard',
+          position: 'right',
+        },
+        {
+          href: 'https://ailien.studio',
+          label: 'Ailien Studio',
           position: 'right',
         },
       ],
@@ -102,12 +106,16 @@ const config: Config = {
           title: 'Resources',
           items: [
             {
-              label: 'AWS Blog',
-              href: 'https://aws.amazon.com/blogs/machine-learning/introducing-aws-mcp-servers-for-code-assistants-part-1/',
+              label: 'Live Dashboard',
+              href: 'http://localhost:8001',
             },
             {
-              label: 'Model Context Protocol',
-              href: 'https://modelcontextprotocol.io/introduction',
+              label: 'SAP Datasphere',
+              href: 'https://www.sap.com/products/technology-platform/datasphere.html',
+            },
+            {
+              label: 'AWS Glue',
+              href: 'https://aws.amazon.com/glue/',
             },
           ],
         },
@@ -115,13 +123,13 @@ const config: Config = {
           title: 'More',
           items: [
             {
-              label: 'GitHub',
-              href: 'https://github.com/awslabs/mcp',
+              label: 'Ailien Studio',
+              href: 'https://ailien.studio',
             },
           ],
         },
       ],
-      copyright: `© Amazon Web Services, Inc. or its affiliates. All rights reserved.`,
+      copyright: `© ${new Date().getFullYear()} Ailien Studio. Built for SAP Datasphere to AWS synchronization.`,
     },
     prism: {
       theme: prismThemes.github,
