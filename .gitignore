@@ -21,7 +21,7 @@ wheels/
 *.egg
 MANIFEST
 
-# Virtual Environments
+# Virtual environments
 venv/
 env/
 ENV/
@@ -35,57 +35,49 @@ venv.bak/
 *.swo
 *~
 
-# Configuration Files (contain sensitive data)
-config/datasphere_config.json
-config/glue_config.json
-*.env
-.env
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Logs
 *.log
 logs/
 
-# Database
-*.db
-*.sqlite3
+# Configuration files with secrets
+config/*.json
+!config/*.example.json
+sap_credentials.json
+.env
+.env.local
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-
-# Coverage reports
-htmlcov/
-.coverage
-.coverage.*
-coverage.xml
-
-# pytest
+# Test results
 .pytest_cache/
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Jupyter Notebook
-.ipynb_checkpoints
+.coverage
+htmlcov/
+.tox/
 
 # AWS
 .aws/
 
-# Local development
-local_*
-test_*
-debug_*
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
 
-# Embedded repositories (exclude from main project)
-btp-sap-odata-to-mcp-server/
-odata_mcp/
-odata_mcp_go/
-sap-datasphere-mcp-server/
-sap-datasphere-mcp/
-datasphere-control-panel/
+# Data files
+*.csv
+*.json
+!requirements.json
+!package.json
+*.xml
+!pyproject.toml
+
+# Cache
+.cache/
+*.cache

@@ -270,6 +270,122 @@
 
 {% block extra_js %}
 <script>
+    // API helper function (ensure it's available)
+    async function apiCall(url, options = {}) {
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                },
+                ...options
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('API call failed:', error);
+            throw error;
+        }
+    }
+    
+    // Utility functions
+    function formatDateTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString();
+    }
+    
+    function formatDuration(seconds) {
+        if (seconds < 60) {
+            return `${seconds}s`;
+        } else if (seconds < 3600) {
+            return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+        } else {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${hours}h ${minutes}m`;
+        }
+    }
+    
+    function getStatusBadgeClass(status) {
+        if (!status || typeof status !== 'string') {
+            return 'bg-secondary';
+        }
+        switch (status.toLowerCase()) {
+            case 'completed': return 'bg-success';
+            case 'running': return 'bg-primary';
+            case 'pending': return 'bg-warning';
+            case 'failed': return 'bg-danger';
+            case 'cancelled': return 'bg-secondary';
+            default: return 'bg-secondary';
+        }
+    }
+    
+    function getPriorityString(priority) {
+        // Convert priority number to string for display
+        if (typeof priority === 'number') {
+            switch (priority) {
+                case 1: return 'CRITICAL';
+                case 2: return 'HIGH';
+                case 3: return 'MEDIUM';
+                case 4: return 'LOW';
+                default: return 'MEDIUM';
+            }
+        } else if (typeof priority === 'string') {
+            return priority.toUpperCase();
+        }
+        return 'MEDIUM';
+    }
+    
+    function getPriorityClass(priority) {
+        // Convert priority to string if it's a number (from enum)
+        let priorityStr = '';
+        if (typeof priority === 'number') {
+            switch (priority) {
+                case 1: priorityStr = 'critical'; break;
+                case 2: priorityStr = 'high'; break;
+                case 3: priorityStr = 'medium'; break;
+                case 4: priorityStr = 'low'; break;
+                default: priorityStr = 'medium'; break;
+            }
+        } else if (typeof priority === 'string') {
+            priorityStr = priority.toLowerCase();
+        } else {
+            return '';
+        }
+        
+        switch (priorityStr) {
+            case 'critical': return 'text-danger';
+            case 'high': return 'text-warning';
+            case 'medium': return 'text-info';
+            case 'low': return 'text-success';
+            default: return '';
+        }
+    }
+    
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
+    
     // Jobs page variables
     let allJobs = [];
     let filteredJobs = [];
@@ -285,9 +401,299 @@
     // Load jobs data
     async function loadJobs() {
         try {
+            console.log('Loading jobs...');
             const response = await apiCall('/api/jobs?limit=100');
+            console.log('Jobs API response:', response);
             allJobs = response.jobs || [];
+            console.log('All jobs:', allJobs);
             applyFilters();
             updateJobStatistics();
             
-        } catch (error) {\n            console.error('Failed to load jobs:', error);\n            document.getElementById('jobs-table-body').innerHTML = `\n                <tr>\n                    <td colspan=\"8\" class=\"text-center py-4 text-danger\">\n                        <i class=\"fas fa-exclamation-triangle me-2\"></i>\n                        Failed to load jobs: ${error.message}\n                    </td>\n                </tr>\n            `;\n        }\n    }\n    \n    // Apply filters\n    function applyFilters() {\n        const statusFilter = document.getElementById('statusFilter').value;\n        const priorityFilter = document.getElementById('priorityFilter').value;\n        const sourceSystemFilter = document.getElementById('sourceSystemFilter').value;\n        \n        filteredJobs = allJobs.filter(job => {\n            if (statusFilter && job.status !== statusFilter) return false;\n            if (priorityFilter && job.priority !== priorityFilter) return false;\n            if (sourceSystemFilter && job.source_system !== sourceSystemFilter) return false;\n            return true;\n        });\n        \n        renderJobsTable();\n    }\n    \n    // Clear filters\n    function clearFilters() {\n        document.getElementById('statusFilter').value = '';\n        document.getElementById('priorityFilter').value = '';\n        document.getElementById('sourceSystemFilter').value = '';\n        applyFilters();\n    }\n    \n    // Render jobs table\n    function renderJobsTable() {\n        const tbody = document.getElementById('jobs-table-body');\n        const countBadge = document.getElementById('jobs-count');\n        \n        countBadge.textContent = filteredJobs.length;\n        \n        if (filteredJobs.length === 0) {\n            tbody.innerHTML = `\n                <tr>\n                    <td colspan=\"8\" class=\"text-center py-4 text-muted\">\n                        <i class=\"fas fa-inbox me-2\"></i>\n                        No jobs found\n                    </td>\n                </tr>\n            `;\n            return;\n        }\n        \n        const rows = filteredJobs.map(job => {\n            const statusBadge = getStatusBadgeClass(job.status);\n            const priorityClass = getPriorityClass(job.priority);\n            const duration = calculateDuration(job);\n            const createdTime = formatDateTime(job.created_time);\n            \n            return `\n                <tr>\n                    <td>\n                        <code class=\"text-primary\">${job.job_id.substring(0, 8)}...</code>\n                    </td>\n                    <td>\n                        <div class=\"fw-bold\">${job.asset_id}</div>\n                        <small class=\"text-muted\">${job.asset_type}</small>\n                    </td>\n                    <td>\n                        <span class=\"fw-bold ${priorityClass}\">${job.priority}</span>\n                    </td>\n                    <td>\n                        <span class=\"badge bg-light text-dark\">${job.source_system}</span>\n                        <i class=\"fas fa-arrow-right mx-1 text-muted\"></i>\n                        <span class=\"badge bg-light text-dark\">${job.target_system}</span>\n                    </td>\n                    <td>\n                        <span class=\"badge ${statusBadge}\">${job.status}</span>\n                    </td>\n                    <td>\n                        <small>${createdTime}</small>\n                    </td>\n                    <td>\n                        <small>${duration}</small>\n                    </td>\n                    <td>\n                        <button class=\"btn btn-sm btn-outline-primary btn-action\" \n                                onclick=\"showJobDetails('${job.job_id}')\" \n                                title=\"View Details\">\n                            <i class=\"fas fa-eye\"></i>\n                        </button>\n                        ${job.status === 'pending' || job.status === 'running' ? `\n                            <button class=\"btn btn-sm btn-outline-danger btn-action\" \n                                    onclick=\"cancelJob('${job.job_id}')\" \n                                    title=\"Cancel Job\">\n                                <i class=\"fas fa-times\"></i>\n                            </button>\n                        ` : ''}\n                    </td>\n                </tr>\n            `;\n        }).join('');\n        \n        tbody.innerHTML = rows;\n    }\n    \n    // Update job statistics\n    function updateJobStatistics() {\n        const stats = {\n            total: allJobs.length,\n            running: 0,\n            pending: 0,\n            completed: 0,\n            failed: 0,\n            cancelled: 0\n        };\n        \n        allJobs.forEach(job => {\n            switch (job.status) {\n                case 'running': stats.running++; break;\n                case 'pending': stats.pending++; break;\n                case 'completed': stats.completed++; break;\n                case 'failed': stats.failed++; break;\n                case 'cancelled': stats.cancelled++; break;\n            }\n        });\n        \n        document.getElementById('total-jobs').textContent = stats.total;\n        document.getElementById('running-jobs').textContent = stats.running;\n        document.getElementById('pending-jobs').textContent = stats.pending;\n        document.getElementById('completed-jobs').textContent = stats.completed;\n        document.getElementById('failed-jobs').textContent = stats.failed;\n        document.getElementById('cancelled-jobs').textContent = stats.cancelled;\n    }\n    \n    // Calculate job duration\n    function calculateDuration(job) {\n        if (job.status === 'pending') {\n            return 'Not started';\n        }\n        \n        const startTime = job.started_time ? new Date(job.started_time) : null;\n        const endTime = job.completed_time ? new Date(job.completed_time) : new Date();\n        \n        if (!startTime) {\n            return 'Unknown';\n        }\n        \n        const durationMs = endTime - startTime;\n        const durationSeconds = Math.floor(durationMs / 1000);\n        \n        return formatDuration(durationSeconds);\n    }\n    \n    // Show job details\n    async function showJobDetails(jobId) {\n        try {\n            const job = await apiCall(`/api/jobs/${jobId}`);\n            \n            const detailsHtml = `\n                <div class=\"row\">\n                    <div class=\"col-md-6\">\n                        <h6>Job Information</h6>\n                        <table class=\"table table-sm\">\n                            <tr><td><strong>Job ID:</strong></td><td><code>${job.job_id}</code></td></tr>\n                            <tr><td><strong>Asset ID:</strong></td><td>${job.asset_id}</td></tr>\n                            <tr><td><strong>Asset Type:</strong></td><td>${job.asset_type}</td></tr>\n                            <tr><td><strong>Priority:</strong></td><td><span class=\"${getPriorityClass(job.priority)}\">${job.priority}</span></td></tr>\n                            <tr><td><strong>Status:</strong></td><td><span class=\"badge ${getStatusBadgeClass(job.status)}\">${job.status}</span></td></tr>\n                        </table>\n                    </div>\n                    <div class=\"col-md-6\">\n                        <h6>Timing Information</h6>\n                        <table class=\"table table-sm\">\n                            <tr><td><strong>Created:</strong></td><td>${formatDateTime(job.created_time)}</td></tr>\n                            <tr><td><strong>Started:</strong></td><td>${job.started_time ? formatDateTime(job.started_time) : 'Not started'}</td></tr>\n                            <tr><td><strong>Completed:</strong></td><td>${job.completed_time ? formatDateTime(job.completed_time) : 'Not completed'}</td></tr>\n                            <tr><td><strong>Duration:</strong></td><td>${calculateDuration(job)}</td></tr>\n                            <tr><td><strong>Retry Count:</strong></td><td>${job.retry_count || 0}</td></tr>\n                        </table>\n                    </div>\n                </div>\n                \n                <div class=\"row mt-3\">\n                    <div class=\"col-12\">\n                        <h6>System Information</h6>\n                        <table class=\"table table-sm\">\n                            <tr><td><strong>Source System:</strong></td><td>${job.source_system}</td></tr>\n                            <tr><td><strong>Target System:</strong></td><td>${job.target_system}</td></tr>\n                            <tr><td><strong>Frequency:</strong></td><td>${job.frequency || 'Manual'}</td></tr>\n                        </table>\n                    </div>\n                </div>\n                \n                ${job.error_message ? `\n                    <div class=\"row mt-3\">\n                        <div class=\"col-12\">\n                            <h6>Error Information</h6>\n                            <div class=\"alert alert-danger\">\n                                <i class=\"fas fa-exclamation-triangle me-2\"></i>\n                                ${job.error_message}\n                            </div>\n                        </div>\n                    </div>\n                ` : ''}\n                \n                ${job.result ? `\n                    <div class=\"row mt-3\">\n                        <div class=\"col-12\">\n                            <h6>Result</h6>\n                            <pre class=\"bg-light p-3 rounded\"><code>${JSON.stringify(job.result, null, 2)}</code></pre>\n                        </div>\n                    </div>\n                ` : ''}\n            `;\n            \n            document.getElementById('jobDetailsContent').innerHTML = detailsHtml;\n            new bootstrap.Modal(document.getElementById('jobDetailsModal')).show();\n            \n        } catch (error) {\n            showNotification('Failed to load job details', 'danger');\n        }\n    }\n    \n    // Create new job\n    async function createJob() {\n        try {\n            const formData = {\n                asset_id: document.getElementById('assetId').value,\n                asset_type: document.getElementById('assetType').value,\n                source_system: document.getElementById('sourceSystem').value,\n                target_system: document.getElementById('targetSystem').value,\n                priority: document.getElementById('priority').value,\n                owner: document.getElementById('owner').value,\n                technical_name: document.getElementById('technicalName').value,\n                business_name: document.getElementById('businessName').value,\n                description: document.getElementById('description').value,\n                tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t)\n            };\n            \n            // Validate required fields\n            if (!formData.asset_id || !formData.asset_type || !formData.source_system || !formData.target_system) {\n                showNotification('Please fill in all required fields', 'warning');\n                return;\n            }\n            \n            const result = await apiCall('/api/jobs', {\n                method: 'POST',\n                body: JSON.stringify(formData)\n            });\n            \n            showNotification(`Job created successfully: ${result.job_id}`, 'success');\n            \n            // Close modal and refresh\n            bootstrap.Modal.getInstance(document.getElementById('createJobModal')).hide();\n            document.getElementById('createJobForm').reset();\n            loadJobs();\n            \n        } catch (error) {\n            showNotification('Failed to create job', 'danger');\n        }\n    }\n    \n    // Cancel job\n    async function cancelJob(jobId) {\n        if (!confirm('Are you sure you want to cancel this job?')) {\n            return;\n        }\n        \n        try {\n            await apiCall(`/api/jobs/${jobId}`, { method: 'DELETE' });\n            showNotification('Job cancelled successfully', 'success');\n            loadJobs();\n            \n        } catch (error) {\n            showNotification('Failed to cancel job', 'danger');\n        }\n    }\n    \n    // Refresh jobs (called from WebSocket updates)\n    function refreshJobs() {\n        loadJobs();\n    }\n</script>\n{% endblock %}
+        } catch (error) {
+            console.error('Failed to load jobs:', error);
+            document.getElementById('jobs-table-body').innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load jobs: ${error.message}
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    // Apply filters
+    function applyFilters() {
+        const statusFilter = document.getElementById('statusFilter').value;
+        const priorityFilter = document.getElementById('priorityFilter').value;
+        const sourceSystemFilter = document.getElementById('sourceSystemFilter').value;
+        
+        filteredJobs = allJobs.filter(job => {
+            if (statusFilter && job.status !== statusFilter) return false;
+            if (priorityFilter && getPriorityString(job.priority) !== priorityFilter) return false;
+            if (sourceSystemFilter && job.source_system !== sourceSystemFilter) return false;
+            return true;
+        });
+        
+        renderJobsTable();
+    }
+    
+    // Clear filters
+    function clearFilters() {
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('priorityFilter').value = '';
+        document.getElementById('sourceSystemFilter').value = '';
+        applyFilters();
+    }
+    
+    // Render jobs table
+    function renderJobsTable() {
+        const tbody = document.getElementById('jobs-table-body');
+        const countBadge = document.getElementById('jobs-count');
+        
+        countBadge.textContent = filteredJobs.length;
+        
+        if (filteredJobs.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox me-2"></i>
+                        No jobs found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        const rows = filteredJobs.map(job => {
+            const statusBadge = getStatusBadgeClass(job.status);
+            const priorityClass = getPriorityClass(job.priority);
+            const duration = calculateDuration(job);
+            const createdTime = formatDateTime(job.created_time);
+            
+            return `
+                <tr>
+                    <td>
+                        <code class="text-primary">${job.job_id.substring(0, 8)}...</code>
+                    </td>
+                    <td>
+                        <div class="fw-bold">${job.asset_id}</div>
+                        <small class="text-muted">${job.asset_type}</small>
+                    </td>
+                    <td>
+                        <span class="fw-bold ${priorityClass}">${getPriorityString(job.priority)}</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark">${job.source_system}</span>
+                        <i class="fas fa-arrow-right mx-1 text-muted"></i>
+                        <span class="badge bg-light text-dark">${job.target_system}</span>
+                    </td>
+                    <td>
+                        <span class="badge ${statusBadge}">${job.status}</span>
+                    </td>
+                    <td>
+                        <small>${createdTime}</small>
+                    </td>
+                    <td>
+                        <small>${duration}</small>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary btn-action" 
+                                onclick="showJobDetails('${job.job_id}')" 
+                                title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${job.status === 'pending' || job.status === 'running' ? `
+                            <button class="btn btn-sm btn-outline-danger btn-action" 
+                                    onclick="cancelJob('${job.job_id}')" 
+                                    title="Cancel Job">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        tbody.innerHTML = rows;
+    }
+    
+    // Update job statistics
+    function updateJobStatistics() {
+        const stats = {
+            total: allJobs.length,
+            running: 0,
+            pending: 0,
+            completed: 0,
+            failed: 0,
+            cancelled: 0
+        };
+        
+        allJobs.forEach(job => {
+            switch (job.status) {
+                case 'running': stats.running++; break;
+                case 'pending': stats.pending++; break;
+                case 'completed': stats.completed++; break;
+                case 'failed': stats.failed++; break;
+                case 'cancelled': stats.cancelled++; break;
+            }
+        });
+        
+        document.getElementById('total-jobs').textContent = stats.total;
+        document.getElementById('running-jobs').textContent = stats.running;
+        document.getElementById('pending-jobs').textContent = stats.pending;
+        document.getElementById('completed-jobs').textContent = stats.completed;
+        document.getElementById('failed-jobs').textContent = stats.failed;
+        document.getElementById('cancelled-jobs').textContent = stats.cancelled;
+    }
+    
+    // Calculate job duration
+    function calculateDuration(job) {
+        if (job.status === 'pending') {
+            return 'Not started';
+        }
+        
+        const startTime = job.started_time ? new Date(job.started_time) : null;
+        const endTime = job.completed_time ? new Date(job.completed_time) : new Date();
+        
+        if (!startTime) {
+            return 'Unknown';
+        }
+        
+        const durationMs = endTime - startTime;
+        const durationSeconds = Math.floor(durationMs / 1000);
+        
+        return formatDuration(durationSeconds);
+    }
+    
+    // Show job details
+    async function showJobDetails(jobId) {
+        try {
+            const job = await apiCall(`/api/jobs/${jobId}`);
+            
+            const detailsHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Job Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Job ID:</strong></td><td><code>${job.job_id}</code></td></tr>
+                            <tr><td><strong>Asset ID:</strong></td><td>${job.asset_id}</td></tr>
+                            <tr><td><strong>Asset Type:</strong></td><td>${job.asset_type}</td></tr>
+                            <tr><td><strong>Priority:</strong></td><td><span class="${getPriorityClass(job.priority)}">${getPriorityString(job.priority)}</span></td></tr>
+                            <tr><td><strong>Status:</strong></td><td><span class="badge ${getStatusBadgeClass(job.status)}">${job.status}</span></td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Timing Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Created:</strong></td><td>${formatDateTime(job.created_time)}</td></tr>
+                            <tr><td><strong>Started:</strong></td><td>${job.started_time ? formatDateTime(job.started_time) : 'Not started'}</td></tr>
+                            <tr><td><strong>Completed:</strong></td><td>${job.completed_time ? formatDateTime(job.completed_time) : 'Not completed'}</td></tr>
+                            <tr><td><strong>Duration:</strong></td><td>${calculateDuration(job)}</td></tr>
+                            <tr><td><strong>Retry Count:</strong></td><td>${job.retry_count || 0}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>System Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Source System:</strong></td><td>${job.source_system}</td></tr>
+                            <tr><td><strong>Target System:</strong></td><td>${job.target_system}</td></tr>
+                            <tr><td><strong>Frequency:</strong></td><td>${job.frequency || 'Manual'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                
+                ${job.error_message ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Error Information</h6>
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                ${job.error_message}
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${job.result ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Result</h6>
+                            <pre class="bg-light p-3 rounded"><code>${JSON.stringify(job.result, null, 2)}</code></pre>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('jobDetailsContent').innerHTML = detailsHtml;
+            new bootstrap.Modal(document.getElementById('jobDetailsModal')).show();
+            
+        } catch (error) {
+            showNotification('Failed to load job details', 'danger');
+        }
+    }
+    
+    // Create new job
+    async function createJob() {
+        try {
+            const formData = {
+                asset_id: document.getElementById('assetId').value,
+                asset_type: document.getElementById('assetType').value,
+                source_system: document.getElementById('sourceSystem').value,
+                target_system: document.getElementById('targetSystem').value,
+                priority: document.getElementById('priority').value,
+                owner: document.getElementById('owner').value,
+                technical_name: document.getElementById('technicalName').value,
+                business_name: document.getElementById('businessName').value,
+                description: document.getElementById('description').value,
+                tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t)
+            };
+            
+            // Validate required fields
+            if (!formData.asset_id || !formData.asset_type || !formData.source_system || !formData.target_system) {
+                showNotification('Please fill in all required fields', 'warning');
+                return;
+            }
+            
+            const result = await apiCall('/api/jobs', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+            
+            showNotification(`Job created successfully: ${result.job_id}`, 'success');
+            
+            // Close modal and refresh
+            bootstrap.Modal.getInstance(document.getElementById('createJobModal')).hide();
+            document.getElementById('createJobForm').reset();
+            loadJobs();
+            
+        } catch (error) {
+            showNotification('Failed to create job', 'danger');
+        }
+    }
+    
+    // Cancel job
+    async function cancelJob(jobId) {
+        if (!confirm('Are you sure you want to cancel this job?')) {
+            return;
+        }
+        
+        try {
+            await apiCall(`/api/jobs/${jobId}`, { method: 'DELETE' });
+            showNotification('Job cancelled successfully', 'success');
+            loadJobs();
+            
+        } catch (error) {
+            showNotification('Failed to cancel job', 'danger');
+        }
+    }
+    
+    // Refresh jobs (called from WebSocket updates)
+    function refreshJobs() {
+        loadJobs();
+    }
+</script>
+{% endblock %}

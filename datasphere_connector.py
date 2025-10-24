@@ -21,6 +21,8 @@ from metadata_sync_core import (
     BusinessContext, LineageRelationship
 )
 from sync_logging import SyncLogger, EventType
+from dataset_discovery_service import DatasetDiscoveryService, create_dataset_discovery_service
+from s3_data_lake_service import S3DataLakeService, create_s3_data_lake_service
 
 @dataclass
 class DatasphereConfig:
@@ -60,6 +62,9 @@ class DatasphereConnector(MetadataConnector):
             'User-Agent': f'Datasphere-Metadata-Sync/{config.environment_name}/2.0'
         })
         
+        # Initialize dataset discovery service
+        self.dataset_discovery_service: Optional[DatasetDiscoveryService] = None
+        
         # Type mappings
         self.odata_to_glue_types = {
             'Edm.String': 'string',
@@ -94,6 +99,24 @@ class DatasphereConnector(MetadataConnector):
             if not self._test_connection():
                 return False
             
+            # Initialize dataset discovery service
+            try:
+                self.dataset_discovery_service = create_dataset_discovery_service(
+                    base_url=self.config.base_url,
+                    session=self.session,
+                    environment_name=self.config.environment_name,
+                    s3_bucket_name=f"datasphere-metadata-lake-{self.config.environment_name}"
+                )
+                
+                if self.dataset_discovery_service.connect():
+                    self.logger.logger.info("Dataset discovery service initialized successfully")
+                else:
+                    self.logger.logger.warning("Dataset discovery service initialization failed")
+                    
+            except Exception as e:
+                self.logger.logger.warning(f"Failed to initialize dataset discovery service: {str(e)}")
+                self.dataset_discovery_service = None
+            
             self.is_connected = True
             
             self.logger.log_event(
@@ -103,7 +126,8 @@ class DatasphereConnector(MetadataConnector):
                 status="connected",
                 details={
                     'base_url': self.config.base_url,
-                    'token_expires_at': self.oauth_token.expires_at.isoformat() if self.oauth_token else None
+                    'token_expires_at': self.oauth_token.expires_at.isoformat() if self.oauth_token else None,
+                    'dataset_discovery_enabled': self.dataset_discovery_service is not None
                 }
             )
             
@@ -136,6 +160,11 @@ class DatasphereConnector(MetadataConnector):
     def disconnect(self) -> bool:
         """Disconnect from Datasphere"""
         try:
+            # Disconnect dataset discovery service
+            if self.dataset_discovery_service:
+                self.dataset_discovery_service.disconnect()
+                self.dataset_discovery_service = None
+            
             self.is_connected = False
             self.oauth_token = None
             
@@ -277,20 +306,66 @@ class DatasphereConnector(MetadataConnector):
         assets = []
         
         try:
-            # Discover analytical models (highest priority)
+            # Use comprehensive catalog discovery first
+            catalog_assets = self.discover_comprehensive_catalog()
+            assets.extend(catalog_assets)
+            
+            # Discover datasets with CSDL extraction for analytical models and tables
+            if self.dataset_discovery_service and (asset_type is None or asset_type in [AssetType.ANALYTICAL_MODEL, AssetType.TABLE]):
+                # Extract space/asset combinations from catalog assets
+                space_asset_combinations = []
+                for asset in catalog_assets:
+                    if asset.asset_type in [AssetType.ANALYTICAL_MODEL, AssetType.TABLE]:
+                        space_id = asset.custom_properties.get('datasphere_space')
+                        asset_name = asset.technical_name
+                        if space_id and asset_name:
+                            space_asset_combinations.append((space_id, asset_name))
+                
+                # Also add known working combinations
+                known_combinations = [
+                    ("SAP_CONTENT", "Employee Headcount"),  # From user's screenshot
+                    ("SAP_CONTENT", "Financial Transactions"),  # From user's screenshot
+                    ("DEFAULT_SPACE", "New_Analytic_Model_2")  # Test with DEFAULT_SPACE
+                ]
+                
+                for combo in known_combinations:
+                    if combo not in space_asset_combinations:
+                        space_asset_combinations.append(combo)
+                
+                if space_asset_combinations:
+                    dataset_assets = self.discover_datasets_with_csdl_extraction(space_asset_combinations)
+                    # Only add if not already discovered
+                    existing_ids = {asset.asset_id for asset in assets}
+                    for dataset_asset in dataset_assets:
+                        if dataset_asset.asset_id not in existing_ids:
+                            assets.append(dataset_asset)
+            
+            # Discover analytical models (highest priority) - legacy method as fallback
             if asset_type is None or asset_type == AssetType.ANALYTICAL_MODEL:
                 analytical_models = self._discover_analytical_models()
-                assets.extend(analytical_models)
+                # Only add if not already discovered via catalog or dataset discovery
+                existing_ids = {asset.asset_id for asset in assets}
+                for model in analytical_models:
+                    if model.asset_id not in existing_ids:
+                        assets.append(model)
             
-            # Discover spaces
+            # Discover spaces - legacy method as fallback
             if asset_type is None or asset_type == AssetType.SPACE:
                 spaces = self._discover_spaces()
-                assets.extend(spaces)
+                # Only add if not already discovered via catalog
+                existing_ids = {asset.asset_id for asset in assets}
+                for space in spaces:
+                    if space.asset_id not in existing_ids:
+                        assets.append(space)
             
-            # Discover tables and views (if accessible)
+            # Discover tables and views (if accessible) - legacy method as fallback
             if asset_type is None or asset_type in [AssetType.TABLE, AssetType.VIEW]:
                 tables_and_views = self._discover_tables_and_views()
-                assets.extend(tables_and_views)
+                # Only add if not already discovered via catalog
+                existing_ids = {asset.asset_id for asset in assets}
+                for item in tables_and_views:
+                    if item.asset_id not in existing_ids:
+                        assets.append(item)
             
             self.logger.log_event(
                 event_type=EventType.SYNC_COMPLETED,
@@ -315,6 +390,939 @@ class DatasphereConnector(MetadataConnector):
         
         return assets
     
+    def discover_datasets_with_csdl_extraction(self, space_assets: List[Tuple[str, str]]) -> List[MetadataAsset]:
+        """
+        Discover datasets with CSDL metadata extraction and S3 archival
+        
+        This method implements task 2.3 requirements:
+        - Discover available datasets using consumption APIs
+        - Extract CSDL XML metadata for each dataset
+        - Store ALL raw API responses in S3 with date partitioning
+        - Parse OData entity relationships and navigation properties
+        - Extract analytical-specific annotations and semantic annotations
+        - Store service URLs in AWS Glue custom properties
+        - Map multi-dataset assets to multiple AWS Glue tables
+        
+        Args:
+            space_assets: List of (space_id, asset_id) tuples to discover datasets for
+            
+        Returns:
+            List[MetadataAsset]: Enhanced metadata assets with dataset discovery information
+        """
+        if not self.is_connected:
+            self.logger.logger.error("Not connected to Datasphere for dataset discovery")
+            return []
+        
+        if not self.dataset_discovery_service:
+            self.logger.logger.error("Dataset discovery service not available")
+            return []
+        
+        if not self._refresh_token_if_needed():
+            self.logger.logger.error("Failed to refresh token for dataset discovery")
+            return []
+        
+        all_assets = []
+        
+        try:
+            self.logger.log_event(
+                event_type=EventType.SYNC_STARTED,
+                source_system=self.config.environment_name,
+                operation="discover_datasets_with_csdl_extraction",
+                status="started",
+                details={
+                    'total_space_assets': len(space_assets),
+                    'dataset_discovery_enabled': True,
+                    's3_archival_enabled': True,
+                    'csdl_extraction_enabled': True
+                }
+            )
+            
+            # Discover datasets for each space/asset combination
+            for space_id, asset_id in space_assets:
+                try:
+                    self.logger.logger.info(f"Discovering datasets for {space_id}/{asset_id}...")
+                    
+                    # Use dataset discovery service to find all available datasets
+                    discovered_datasets = self.dataset_discovery_service.discover_asset_datasets(space_id, asset_id)
+                    
+                    if discovered_datasets:
+                        # Convert discovered datasets to metadata assets
+                        dataset_assets = self.dataset_discovery_service.create_metadata_assets_from_datasets(discovered_datasets)
+                        all_assets.extend(dataset_assets)
+                        
+                        self.logger.logger.info(f"Discovered {len(discovered_datasets)} datasets for {space_id}/{asset_id}")
+                        
+                        # Log detailed discovery results
+                        for dataset in discovered_datasets:
+                            self.logger.log_event(
+                                event_type=EventType.SYNC_COMPLETED,
+                                source_system=self.config.environment_name,
+                                operation="dataset_discovered",
+                                status="completed",
+                                details={
+                                    'space_id': space_id,
+                                    'asset_id': asset_id,
+                                    'dataset_id': dataset.dataset_id,
+                                    'consumption_type': dataset.consumption_type,
+                                    'service_url': dataset.service_url,
+                                    'metadata_url': dataset.metadata_url,
+                                    'has_odata_metadata': dataset.odata_metadata is not None,
+                                    'glue_table_mappings_count': len(dataset.glue_table_mappings),
+                                    'entity_types_count': len(dataset.odata_metadata.entity_types) if dataset.odata_metadata else 0,
+                                    'analytical_annotations_count': len(dataset.odata_metadata.analytical_annotations) if dataset.odata_metadata else 0,
+                                    'semantic_annotations_count': len(dataset.odata_metadata.semantic_annotations) if dataset.odata_metadata else 0
+                                }
+                            )
+                    else:
+                        self.logger.logger.warning(f"No datasets discovered for {space_id}/{asset_id}")
+                        
+                except Exception as e:
+                    self.logger.logger.error(f"Failed to discover datasets for {space_id}/{asset_id}: {str(e)}")
+                    continue
+            
+            # Get discovery statistics
+            discovery_stats = self.dataset_discovery_service.get_discovery_statistics()
+            
+            self.logger.log_event(
+                event_type=EventType.SYNC_COMPLETED,
+                source_system=self.config.environment_name,
+                operation="discover_datasets_with_csdl_extraction",
+                status="completed",
+                details={
+                    'total_space_assets_processed': len(space_assets),
+                    'total_dataset_assets_created': len(all_assets),
+                    'discovery_statistics': discovery_stats
+                }
+            )
+            
+            self.logger.logger.info(f"Dataset discovery with CSDL extraction completed: {len(all_assets)} dataset assets created")
+            
+        except Exception as e:
+            self.logger.log_event(
+                event_type=EventType.ERROR_OCCURRED,
+                source_system=self.config.environment_name,
+                operation="discover_datasets_with_csdl_extraction",
+                status="failed",
+                details={},
+                error_message=str(e)
+            )
+            self.logger.logger.error(f"Dataset discovery with CSDL extraction failed: {str(e)}")
+        
+        return all_assets
+    
+    def discover_comprehensive_catalog(self) -> List[MetadataAsset]:
+        """
+        Implement comprehensive catalog discovery using available APIs and known patterns
+        
+        This method systematically discovers assets by:
+        1. Using existing working discovery methods as the foundation
+        2. Enhancing with systematic space and asset enumeration
+        3. Creating comprehensive asset inventory with space-asset relationships
+        4. Enabling automated synchronization planning and bulk operations
+        
+        Returns:
+            List[MetadataAsset]: Comprehensive inventory of all discoverable assets
+        """
+        if not self.is_connected:
+            self.logger.logger.error("Not connected to Datasphere for catalog discovery")
+            return []
+        
+        if not self._refresh_token_if_needed():
+            self.logger.logger.error("Failed to refresh token for catalog discovery")
+            return []
+        
+        all_assets = []
+        discovered_spaces = {}
+        discovered_models = {}
+        
+        try:
+            self.logger.log_event(
+                event_type=EventType.SYNC_STARTED,
+                source_system=self.config.environment_name,
+                operation="comprehensive_catalog_discovery",
+                status="started",
+                details={'discovery_phase': 'initialization'}
+            )
+            
+            # Phase 1: Use existing working discovery methods as foundation
+            self.logger.logger.info("Phase 1: Using existing discovery methods as foundation...")
+            
+            # Get assets using existing methods
+            existing_assets = []
+            
+            # Discover analytical models (highest priority)
+            analytical_models = self._discover_analytical_models()
+            existing_assets.extend(analytical_models)
+            self.logger.logger.info(f"   Found {len(analytical_models)} analytical models via existing methods")
+            
+            # Discover spaces
+            spaces = self._discover_spaces()
+            existing_assets.extend(spaces)
+            self.logger.logger.info(f"   Found {len(spaces)} spaces via existing methods")
+            
+            # Discover tables and views
+            tables_and_views = self._discover_tables_and_views()
+            existing_assets.extend(tables_and_views)
+            self.logger.logger.info(f"   Found {len(tables_and_views)} tables/views via existing methods")
+            
+            # Phase 2: Enhance with systematic enumeration
+            self.logger.logger.info("Phase 2: Enhancing with systematic enumeration...")
+            
+            # Extract space information from discovered assets
+            for asset in existing_assets:
+                if asset.asset_type == AssetType.SPACE:
+                    space_name = asset.technical_name
+                    discovered_spaces[space_name] = {
+                        'name': space_name,
+                        'asset': asset,
+                        'discovery_method': 'existing_methods'
+                    }
+                elif asset.asset_type == AssetType.ANALYTICAL_MODEL:
+                    space_name = asset.custom_properties.get('datasphere_space', 'UNKNOWN')
+                    model_name = asset.technical_name
+                    
+                    if space_name not in discovered_models:
+                        discovered_models[space_name] = []
+                    discovered_models[space_name].append(model_name)
+                    
+                    # Ensure space exists
+                    if space_name not in discovered_spaces:
+                        discovered_spaces[space_name] = {
+                            'name': space_name,
+                            'asset': None,
+                            'discovery_method': 'inferred_from_models'
+                        }
+            
+            # Phase 3: Create comprehensive asset inventory
+            self.logger.logger.info("Phase 3: Creating comprehensive asset inventory...")
+            
+            # Add all existing assets to the comprehensive inventory
+            all_assets.extend(existing_assets)
+            
+            # Create missing space assets for inferred spaces
+            for space_name, space_info in discovered_spaces.items():
+                if space_info['asset'] is None:
+                    # Create space asset for inferred space
+                    space_asset = self._create_inferred_space_asset(space_name)
+                    if space_asset:
+                        all_assets.append(space_asset)
+                        space_info['asset'] = space_asset
+            
+            # Phase 4: Enable automated synchronization planning
+            self.logger.logger.info("Phase 4: Enabling automated synchronization planning...")
+            
+            # Add synchronization metadata to all assets
+            for asset in all_assets:
+                asset.custom_properties.update({
+                    'comprehensive_discovery': True,
+                    'sync_planning_enabled': True,
+                    'bulk_operations_enabled': True,
+                    'discovery_timestamp': datetime.now().isoformat()
+                })
+                
+                # Add priority based on asset type
+                if asset.asset_type == AssetType.ANALYTICAL_MODEL:
+                    asset.custom_properties['sync_priority'] = 'critical'
+                elif asset.asset_type == AssetType.SPACE:
+                    asset.custom_properties['sync_priority'] = 'high'
+                else:
+                    asset.custom_properties['sync_priority'] = 'medium'
+            
+            # Phase 5: Build comprehensive relationships
+            self.logger.logger.info("Phase 5: Building comprehensive asset relationships...")
+            self._build_comprehensive_asset_relationships(all_assets, discovered_models)
+            
+            self.logger.log_event(
+                event_type=EventType.SYNC_COMPLETED,
+                source_system=self.config.environment_name,
+                operation="comprehensive_catalog_discovery",
+                status="completed",
+                details={
+                    'total_assets': len(all_assets),
+                    'spaces_discovered': len(discovered_spaces),
+                    'models_discovered': sum(len(models) for models in discovered_models.values()),
+                    'asset_types': list(set([asset.asset_type.value for asset in all_assets])),
+                    'sync_planning_enabled': True,
+                    'bulk_operations_enabled': True
+                }
+            )
+            
+            self.logger.logger.info(f"Comprehensive catalog discovery completed: {len(all_assets)} total assets")
+            
+        except Exception as e:
+            self.logger.log_event(
+                event_type=EventType.ERROR_OCCURRED,
+                source_system=self.config.environment_name,
+                operation="comprehensive_catalog_discovery",
+                status="failed",
+                details={},
+                error_message=str(e)
+            )
+            self.logger.logger.error(f"Comprehensive catalog discovery failed: {str(e)}")
+        
+        return all_assets
+    
+    def _discover_catalog_spaces(self) -> Optional[List[Dict[str, Any]]]:
+        """Discover all accessible spaces using multiple API endpoints"""
+        
+        # Try multiple endpoints in order of preference
+        endpoints_to_try = [
+            "/api/v1/datasphere/consumption/catalog/spaces",  # Official consumption API
+            "/api/v1/catalog/spaces",  # Working catalog API we discovered
+            "/deepsea/catalog/v1/spaces"  # Alternative deepsea API
+        ]
+        
+        for endpoint in endpoints_to_try:
+            try:
+                url = urljoin(self.config.base_url, endpoint)
+                
+                self.logger.logger.debug(f"Trying spaces discovery: {endpoint}")
+                response = self.session.get(url, timeout=self.config.timeout)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if isinstance(data, dict) and 'value' in data:
+                        spaces = data['value']
+                        self.logger.logger.info(f"Successfully discovered {len(spaces)} spaces via {endpoint}")
+                        return spaces
+                    elif isinstance(data, list):
+                        self.logger.logger.info(f"Successfully discovered {len(data)} spaces via {endpoint} (direct array)")
+                        return data
+                    else:
+                        self.logger.logger.debug(f"Unexpected spaces response format from {endpoint}: {type(data)}")
+                        continue
+                        
+                elif response.status_code == 403:
+                    self.logger.logger.debug(f"Access forbidden for {endpoint}, trying next endpoint")
+                    continue
+                else:
+                    self.logger.logger.debug(f"Spaces discovery failed for {endpoint}: HTTP {response.status_code}")
+                    continue
+                    
+            except Exception as e:
+                self.logger.logger.debug(f"Error with endpoint {endpoint}: {str(e)}")
+                continue
+        
+        # If all endpoints fail, log warning and return None
+        self.logger.logger.warning("All spaces discovery endpoints failed or returned no data")
+        return None
+    
+    def _discover_catalog_assets(self) -> Optional[List[Dict[str, Any]]]:
+        """Discover all accessible assets using multiple API endpoints"""
+        
+        # Try multiple endpoints in order of preference
+        endpoints_to_try = [
+            "/api/v1/datasphere/consumption/catalog/assets",  # Official consumption API
+            "/api/v1/catalog/assets",  # Working catalog API we discovered
+            "/deepsea/catalog/v1/assets"  # Alternative deepsea API
+        ]
+        
+        for endpoint in endpoints_to_try:
+            try:
+                url = urljoin(self.config.base_url, endpoint)
+                
+                self.logger.logger.debug(f"Trying assets discovery: {endpoint}")
+                response = self.session.get(url, timeout=self.config.timeout)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if isinstance(data, dict) and 'value' in data:
+                        assets = data['value']
+                        self.logger.logger.info(f"Successfully discovered {len(assets)} global assets via {endpoint}")
+                        return assets
+                    elif isinstance(data, list):
+                        self.logger.logger.info(f"Successfully discovered {len(data)} global assets via {endpoint} (direct array)")
+                        return data
+                    else:
+                        self.logger.logger.debug(f"Unexpected assets response format from {endpoint}: {type(data)}")
+                        continue
+                        
+                elif response.status_code == 403:
+                    self.logger.logger.debug(f"Access forbidden for {endpoint}, trying next endpoint")
+                    continue
+                else:
+                    self.logger.logger.debug(f"Assets discovery failed for {endpoint}: HTTP {response.status_code}")
+                    continue
+                    
+            except Exception as e:
+                self.logger.logger.debug(f"Error with endpoint {endpoint}: {str(e)}")
+                continue
+        
+        # If all endpoints fail, log warning and return None
+        self.logger.logger.warning("All assets discovery endpoints failed or returned no data")
+        return None
+    
+    def _discover_space_assets(self, space_name: str) -> Optional[List[Dict[str, Any]]]:
+        """Discover assets within a specific space using multiple API endpoints"""
+        
+        # Try multiple endpoints in order of preference
+        endpoints_to_try = [
+            f"/api/v1/datasphere/consumption/catalog/spaces('{space_name}')/assets",  # Official consumption API
+            f"/api/v1/catalog/spaces('{space_name}')/assets",  # Working catalog API we discovered
+            f"/deepsea/catalog/v1/spaces/{space_name}/assets"  # Alternative deepsea API
+        ]
+        
+        for endpoint in endpoints_to_try:
+            try:
+                url = urljoin(self.config.base_url, endpoint)
+                
+                self.logger.logger.debug(f"Trying space assets discovery: {endpoint}")
+                response = self.session.get(url, timeout=self.config.timeout)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if isinstance(data, dict) and 'value' in data:
+                        assets = data['value']
+                        self.logger.logger.debug(f"Successfully discovered {len(assets)} assets in space '{space_name}' via {endpoint}")
+                        return assets
+                    elif isinstance(data, list):
+                        self.logger.logger.debug(f"Successfully discovered {len(data)} assets in space '{space_name}' via {endpoint} (direct array)")
+                        return data
+                    else:
+                        self.logger.logger.debug(f"Unexpected space assets response format from {endpoint}: {type(data)}")
+                        continue
+                        
+                elif response.status_code == 403:
+                    self.logger.logger.debug(f"Access forbidden for {endpoint}, trying next endpoint")
+                    continue
+                elif response.status_code == 404:
+                    self.logger.logger.debug(f"Space '{space_name}' not found via {endpoint}, trying next endpoint")
+                    continue
+                else:
+                    self.logger.logger.debug(f"Space assets discovery failed for '{space_name}' via {endpoint}: HTTP {response.status_code}")
+                    continue
+                    
+            except Exception as e:
+                self.logger.logger.debug(f"Error with endpoint {endpoint}: {str(e)}")
+                continue
+        
+        # If all endpoints fail, return None (this is expected for many spaces)
+        return None
+    
+    def _get_detailed_asset_metadata(self, space_name: str, asset_name: str, basic_info: Dict[str, Any]) -> Optional[MetadataAsset]:
+        """Get detailed asset descriptions using multiple API endpoints"""
+        
+        # Try multiple endpoints in order of preference
+        endpoints_to_try = [
+            f"/api/v1/datasphere/consumption/catalog/spaces('{space_name}')/assets('{asset_name}')",  # Official consumption API
+            f"/api/v1/catalog/spaces('{space_name}')/assets('{asset_name}')",  # Working catalog API we discovered
+            f"/deepsea/catalog/v1/spaces/{space_name}/assets/{asset_name}"  # Alternative deepsea API
+        ]
+        
+        for endpoint in endpoints_to_try:
+            try:
+                url = urljoin(self.config.base_url, endpoint)
+                
+                self.logger.logger.debug(f"Trying detailed metadata: {endpoint}")
+                response = self.session.get(url, timeout=self.config.timeout)
+                
+                if response.status_code == 200:
+                    detailed_data = response.json()
+                    
+                    # Create enhanced asset with detailed information
+                    return self._create_enhanced_asset_from_catalog(space_name, asset_name, basic_info, detailed_data)
+                    
+                elif response.status_code == 403:
+                    self.logger.logger.debug(f"Access forbidden for {endpoint}, trying next endpoint")
+                    continue
+                elif response.status_code == 404:
+                    self.logger.logger.debug(f"Asset '{space_name}/{asset_name}' not found via {endpoint}, trying next endpoint")
+                    continue
+                else:
+                    self.logger.logger.debug(f"Detailed metadata failed for '{space_name}/{asset_name}' via {endpoint}: HTTP {response.status_code}")
+                    continue
+                    
+            except Exception as e:
+                self.logger.logger.debug(f"Error with endpoint {endpoint}: {str(e)}")
+                continue
+        
+        # If all detailed endpoints fail, fall back to basic asset creation
+        self.logger.logger.debug(f"All detailed metadata endpoints failed for '{space_name}/{asset_name}', creating basic asset")
+        return self._create_basic_asset_from_catalog(asset_name, basic_info)
+    
+    def _create_space_asset_from_catalog(self, space_name: str, space_info: Dict[str, Any]) -> MetadataAsset:
+        """Create a space asset from catalog discovery data"""
+        
+        business_context = BusinessContext(
+            business_name=space_info.get('label', space_name),
+            description=space_info.get('description', f"Datasphere space: {space_name}"),
+            owner=space_info.get('owner', 'datasphere'),
+            tags=['space', 'datasphere', 'catalog_discovered', space_name.lower()]
+        )
+        
+        return MetadataAsset(
+            asset_id=f"{self.config.environment_name}_catalog_space_{space_name}",
+            asset_type=AssetType.SPACE,
+            source_system=SourceSystem.DATASPHERE,
+            technical_name=space_name,
+            business_name=space_info.get('label', space_name),
+            description=space_info.get('description', f"Datasphere space discovered via catalog API"),
+            owner=space_info.get('owner', 'datasphere'),
+            business_context=business_context,
+            custom_properties={
+                'datasphere_space': space_name,
+                'datasphere_environment': self.config.environment_name,
+                'discovery_method': 'catalog_api',
+                'catalog_data': space_info,
+                'extraction_timestamp': datetime.now().isoformat()
+            }
+        )
+    
+    def _create_basic_asset_from_catalog(self, asset_name: str, asset_info: Dict[str, Any]) -> MetadataAsset:
+        """Create a basic asset from catalog discovery data"""
+        
+        space_name = asset_info.get('spaceName', 'UNKNOWN')
+        asset_type = self._determine_asset_type_from_catalog(asset_info)
+        
+        business_context = BusinessContext(
+            business_name=asset_info.get('label', asset_name),
+            description=asset_info.get('description', f"Asset from {space_name}"),
+            owner=asset_info.get('owner', 'datasphere'),
+            tags=['datasphere', 'catalog_discovered', asset_type.value, space_name.lower()]
+        )
+        
+        return MetadataAsset(
+            asset_id=f"{self.config.environment_name}_catalog_{space_name}_{asset_name}",
+            asset_type=asset_type,
+            source_system=SourceSystem.DATASPHERE,
+            technical_name=asset_name,
+            business_name=asset_info.get('label', asset_name),
+            description=asset_info.get('description', f"Asset discovered via catalog API"),
+            owner=asset_info.get('owner', 'datasphere'),
+            business_context=business_context,
+            custom_properties={
+                'datasphere_space': space_name,
+                'datasphere_asset': asset_name,
+                'datasphere_environment': self.config.environment_name,
+                'discovery_method': 'catalog_api',
+                'catalog_data': asset_info,
+                'extraction_timestamp': datetime.now().isoformat()
+            }
+        )
+    
+    def _create_enhanced_asset_from_catalog(self, space_name: str, asset_name: str, basic_info: Dict[str, Any], detailed_info: Dict[str, Any]) -> MetadataAsset:
+        """Create an enhanced asset with detailed metadata from catalog APIs"""
+        
+        asset_type = self._determine_asset_type_from_catalog(detailed_info)
+        
+        # Extract enhanced business context
+        business_context = BusinessContext(
+            business_name=detailed_info.get('label', basic_info.get('label', asset_name)),
+            description=detailed_info.get('description', basic_info.get('description', f"Enhanced asset from {space_name}")),
+            owner=detailed_info.get('owner', basic_info.get('owner', 'datasphere')),
+            steward=detailed_info.get('steward'),
+            certification_status=detailed_info.get('certificationStatus'),
+            tags=['datasphere', 'catalog_discovered', 'enhanced_metadata', asset_type.value, space_name.lower()]
+        )
+        
+        # Extract schema information if available
+        schema_info = self._extract_schema_from_catalog_data(detailed_info)
+        
+        # Build comprehensive custom properties
+        custom_properties = {
+            'datasphere_space': space_name,
+            'datasphere_asset': asset_name,
+            'datasphere_environment': self.config.environment_name,
+            'discovery_method': 'catalog_api_enhanced',
+            'basic_catalog_data': basic_info,
+            'detailed_catalog_data': detailed_info,
+            'extraction_timestamp': datetime.now().isoformat(),
+            'has_detailed_metadata': True
+        }
+        
+        # Add URLs if available
+        if 'url' in detailed_info:
+            custom_properties['service_url'] = detailed_info['url']
+        if 'metadataUrl' in detailed_info:
+            custom_properties['metadata_url'] = detailed_info['metadataUrl']
+        
+        return MetadataAsset(
+            asset_id=f"{self.config.environment_name}_catalog_enhanced_{space_name}_{asset_name}",
+            asset_type=asset_type,
+            source_system=SourceSystem.DATASPHERE,
+            technical_name=asset_name,
+            business_name=detailed_info.get('label', basic_info.get('label', asset_name)),
+            description=detailed_info.get('description', basic_info.get('description', f"Enhanced asset discovered via catalog API")),
+            owner=detailed_info.get('owner', basic_info.get('owner', 'datasphere')),
+            business_context=business_context,
+            schema_info=schema_info,
+            custom_properties=custom_properties
+        )
+    
+    def _determine_asset_type_from_catalog(self, asset_info: Dict[str, Any]) -> AssetType:
+        """Determine asset type from catalog metadata"""
+        
+        # Check for explicit type indicators
+        asset_type_hint = asset_info.get('type', '').lower()
+        kind = asset_info.get('kind', '').lower()
+        
+        # Check for analytical indicators
+        supports_analytical = asset_info.get('supportsAnalyticalQueries', False)
+        supports_relational = asset_info.get('supportsRelationalQueries', False)
+        
+        # Determine type based on available information
+        if 'analytical' in asset_type_hint or 'perspective' in asset_type_hint or supports_analytical:
+            return AssetType.ANALYTICAL_MODEL
+        elif 'view' in asset_type_hint or 'view' in kind:
+            return AssetType.VIEW
+        elif 'table' in asset_type_hint or 'table' in kind or supports_relational:
+            return AssetType.TABLE
+        else:
+            # Default to table for unknown types
+            return AssetType.TABLE
+    
+    def _extract_schema_from_catalog_data(self, detailed_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract schema information from detailed catalog data"""
+        
+        schema_info = {}
+        
+        # Look for metadata URL to extract schema
+        metadata_url = detailed_info.get('metadataUrl')
+        if metadata_url:
+            schema_info['metadata_url'] = metadata_url
+            # Try to extract schema from metadata URL
+            try:
+                columns = self._extract_columns_from_metadata(metadata_url)
+                if columns:
+                    schema_info['columns'] = columns
+            except Exception as e:
+                self.logger.logger.debug(f"Could not extract schema from metadata URL: {str(e)}")
+        
+        # Look for service URL
+        service_url = detailed_info.get('url')
+        if service_url:
+            schema_info['service_url'] = service_url
+        
+        # Extract any available field information
+        if 'fields' in detailed_info:
+            schema_info['fields'] = detailed_info['fields']
+        
+        # Extract OData context if available
+        if '@odata.context' in detailed_info:
+            schema_info['odata_context'] = detailed_info['@odata.context']
+        
+        return schema_info
+    
+    def _build_asset_relationships(self, all_assets: List[MetadataAsset], space_asset_relationships: Dict[str, List[Dict[str, Any]]]):
+        """Build relationships between assets based on space-asset mappings"""
+        
+        # Create a mapping of space names to space assets
+        space_assets = {asset.technical_name: asset for asset in all_assets if asset.asset_type == AssetType.SPACE}
+        
+        # For each asset, establish relationship with its parent space
+        for asset in all_assets:
+            if asset.asset_type != AssetType.SPACE:
+                space_name = asset.custom_properties.get('datasphere_space')
+                if space_name and space_name in space_assets:
+                    # Add lineage relationship
+                    relationship = LineageRelationship(
+                        source_asset_id=space_assets[space_name].asset_id,
+                        target_asset_id=asset.asset_id,
+                        relationship_type="contains",
+                        transformation_logic=f"Asset {asset.technical_name} is contained in space {space_name}"
+                    )
+                    asset.lineage.append(relationship)
+                    
+                    # Update asset tags to include space relationship
+                    if 'space_member' not in asset.business_context.tags:
+                        asset.business_context.tags.append('space_member')
+    
+    def _test_space_accessibility(self, space_name: str) -> Optional[Dict[str, Any]]:
+        """Test if a space is accessible using working API patterns"""
+        try:
+            # Test the analytical consumption endpoint for this space
+            endpoint = f"/api/v1/datasphere/consumption/analytical/{space_name}"
+            url = urljoin(self.config.base_url, endpoint)
+            
+            response = self.session.get(url, timeout=self.config.timeout)
+            
+            if response.status_code == 200:
+                # Space is accessible, return basic info
+                return {
+                    'name': space_name,
+                    'accessible': True,
+                    'endpoint': endpoint,
+                    'discovery_method': 'analytical_consumption_test'
+                }
+            else:
+                self.logger.logger.debug(f"Space '{space_name}' not accessible: HTTP {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.logger.debug(f"Error testing space '{space_name}': {str(e)}")
+            return None
+    
+    def _discover_analytical_models_in_space(self, space_name: str) -> List[str]:
+        """Discover analytical models in a space using known working patterns"""
+        
+        # Known working models from our previous exploration
+        known_models = {
+            "SAP_CONTENT": ["Employee Headcount", "Financial Transactions"],  # From user's screenshot
+            "DEFAULT_SPACE": ["New_Analytic_Model_2"]  # Test with DEFAULT_SPACE
+        }
+        
+        models = []
+        
+        # Start with known working models
+        if space_name in known_models:
+            for model_name in known_models[space_name]:
+                if self._test_analytical_model_accessibility(space_name, model_name):
+                    models.append(model_name)
+        
+        # Try to discover additional models using various patterns
+        discovery_patterns = [
+            f"/api/v1/datasphere/consumption/analytical/{space_name}",
+            f"/api/v1/datasphere/consumption/analytical/{space_name}/$metadata"
+        ]
+        
+        for pattern in discovery_patterns:
+            try:
+                url = urljoin(self.config.base_url, pattern)
+                response = self.session.get(url, timeout=self.config.timeout)
+                
+                if response.status_code == 200:
+                    # Try to parse response for additional model names
+                    additional_models = self._parse_models_from_response(response, space_name)
+                    for model in additional_models:
+                        if model not in models and self._test_analytical_model_accessibility(space_name, model):
+                            models.append(model)
+                            
+            except Exception as e:
+                self.logger.logger.debug(f"Discovery pattern {pattern} failed: {str(e)}")
+                continue
+        
+        return models
+    
+    def _test_analytical_model_accessibility(self, space_name: str, model_name: str) -> bool:
+        """Test if an analytical model is accessible"""
+        try:
+            endpoint = f"/api/v1/datasphere/consumption/analytical/{space_name}/{model_name}"
+            url = urljoin(self.config.base_url, endpoint)
+            
+            response = self.session.get(url, timeout=self.config.timeout)
+            return response.status_code == 200
+            
+        except Exception:
+            return False
+    
+    def _parse_models_from_response(self, response: requests.Response, space_name: str) -> List[str]:
+        """Parse model names from API response"""
+        models = []
+        
+        try:
+            if 'json' in response.headers.get('content-type', ''):
+                data = response.json()
+                
+                # Look for model names in various response structures
+                if isinstance(data, dict):
+                    # Check for 'value' array (OData format)
+                    if 'value' in data:
+                        for item in data['value']:
+                            if isinstance(item, dict) and 'name' in item:
+                                models.append(item['name'])
+                    
+                    # Check for direct model references
+                    for key, value in data.items():
+                        if isinstance(value, str) and key.lower() in ['name', 'model', 'id']:
+                            models.append(value)
+                
+                elif isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict) and 'name' in item:
+                            models.append(item['name'])
+                        elif isinstance(item, str):
+                            models.append(item)
+            
+            # Also try to parse XML metadata responses
+            elif 'xml' in response.headers.get('content-type', ''):
+                # Basic XML parsing for model names
+                import xml.etree.ElementTree as ET
+                try:
+                    root = ET.fromstring(response.text)
+                    # Look for EntitySet names which often correspond to model names
+                    for elem in root.iter():
+                        if 'Name' in elem.attrib:
+                            name = elem.attrib['Name']
+                            if name and name != space_name:
+                                models.append(name)
+                except ET.ParseError:
+                    pass
+                    
+        except Exception as e:
+            self.logger.logger.debug(f"Error parsing models from response: {str(e)}")
+        
+        return list(set(models))  # Remove duplicates
+    
+    def _create_space_asset_from_working_api(self, space_name: str, space_info: Dict[str, Any]) -> MetadataAsset:
+        """Create a space asset from working API discovery"""
+        
+        business_context = BusinessContext(
+            business_name=space_name,
+            description=f"Datasphere space discovered via working API patterns",
+            owner="datasphere",
+            tags=['space', 'datasphere', 'working_api_discovered', space_name.lower()]
+        )
+        
+        return MetadataAsset(
+            asset_id=f"{self.config.environment_name}_working_space_{space_name}",
+            asset_type=AssetType.SPACE,
+            source_system=SourceSystem.DATASPHERE,
+            technical_name=space_name,
+            business_name=space_name,
+            description=f"Datasphere space discovered via working API patterns",
+            owner="datasphere",
+            business_context=business_context,
+            custom_properties={
+                'datasphere_space': space_name,
+                'datasphere_environment': self.config.environment_name,
+                'discovery_method': 'working_api_patterns',
+                'space_info': space_info,
+                'extraction_timestamp': datetime.now().isoformat()
+            }
+        )
+    
+    def _create_analytical_model_asset_from_working_api(self, space_name: str, model_name: str) -> Optional[MetadataAsset]:
+        """Create an analytical model asset using working API patterns"""
+        try:
+            # Get service info
+            service_endpoint = f"/api/v1/datasphere/consumption/analytical/{space_name}/{model_name}"
+            service_url = urljoin(self.config.base_url, service_endpoint)
+            
+            # Get metadata info
+            metadata_endpoint = f"/api/v1/datasphere/consumption/analytical/{space_name}/{model_name}/$metadata"
+            metadata_url = urljoin(self.config.base_url, metadata_endpoint)
+            
+            # Get data endpoint
+            data_endpoint = f"/api/v1/datasphere/consumption/analytical/{space_name}/{model_name}/{model_name}"
+            data_url = urljoin(self.config.base_url, data_endpoint)
+            
+            # Try to get service information
+            service_response = self.session.get(service_url, timeout=self.config.timeout)
+            service_data = {}
+            if service_response.status_code == 200:
+                try:
+                    service_data = service_response.json()
+                except:
+                    pass
+            
+            # Extract columns from metadata
+            columns = self._extract_columns_from_metadata(metadata_url)
+            
+            # Create business context
+            business_context = BusinessContext(
+                business_name=service_data.get('displayName', model_name),
+                description=service_data.get('description', f"Analytical model from {space_name}"),
+                owner=service_data.get('owner', 'datasphere'),
+                tags=['datasphere', 'analytical_model', 'working_api_discovered', space_name.lower()]
+            )
+            
+            # Create comprehensive schema info
+            schema_info = {
+                'columns': columns,
+                'service_url': service_url,
+                'metadata_url': metadata_url,
+                'data_url': data_url,
+                'odata_context': service_data.get('@odata.context', '')
+            }
+            
+            # Create the asset
+            asset = MetadataAsset(
+                asset_id=f"{self.config.environment_name}_working_model_{space_name}_{model_name}",
+                asset_type=AssetType.ANALYTICAL_MODEL,
+                source_system=SourceSystem.DATASPHERE,
+                technical_name=model_name,
+                business_name=service_data.get('displayName', model_name),
+                description=service_data.get('description', f"Analytical model discovered via working API patterns"),
+                owner=service_data.get('owner', 'datasphere'),
+                business_context=business_context,
+                schema_info=schema_info,
+                custom_properties={
+                    'datasphere_space': space_name,
+                    'datasphere_model': model_name,
+                    'datasphere_environment': self.config.environment_name,
+                    'discovery_method': 'working_api_patterns',
+                    'service_data': service_data,
+                    'extraction_timestamp': datetime.now().isoformat(),
+                    'has_working_endpoints': True
+                }
+            )
+            
+            self.logger.log_asset_operation(
+                operation="create_from_working_api",
+                asset_id=asset.asset_id,
+                asset_type=asset.asset_type.value,
+                source_system=self.config.environment_name,
+                target_system="metadata_sync",
+                status="completed",
+                details={
+                    'space': space_name,
+                    'model': model_name,
+                    'columns_count': len(columns),
+                    'has_service_data': bool(service_data)
+                }
+            )
+            
+            return asset
+            
+        except Exception as e:
+            self.logger.logger.error(f"Failed to create analytical model asset for {space_name}/{model_name}: {str(e)}")
+            return None
+    
+    def _build_comprehensive_asset_relationships(self, all_assets: List[MetadataAsset], discovered_models: Dict[str, List[str]]):
+        """Build relationships between assets based on discovered models"""
+        
+        # Create a mapping of space names to space assets
+        space_assets = {asset.technical_name: asset for asset in all_assets if asset.asset_type == AssetType.SPACE}
+        
+        # For each analytical model, establish relationship with its parent space
+        for asset in all_assets:
+            if asset.asset_type == AssetType.ANALYTICAL_MODEL:
+                space_name = asset.custom_properties.get('datasphere_space')
+                if space_name and space_name in space_assets:
+                    # Add lineage relationship
+                    relationship = LineageRelationship(
+                        source_asset_id=space_assets[space_name].asset_id,
+                        target_asset_id=asset.asset_id,
+                        relationship_type="contains",
+                        transformation_logic=f"Analytical model {asset.technical_name} is contained in space {space_name}"
+                    )
+                    asset.lineage.append(relationship)
+                    
+                    # Update asset tags to include space relationship
+                    if 'space_member' not in asset.business_context.tags:
+                        asset.business_context.tags.append('space_member')
+    
+    def _create_inferred_space_asset(self, space_name: str) -> MetadataAsset:
+        """Create a space asset inferred from model discovery"""
+        
+        business_context = BusinessContext(
+            business_name=space_name,
+            description=f"Datasphere space inferred from analytical model discovery",
+            owner="datasphere",
+            tags=['space', 'datasphere', 'inferred_from_models', space_name.lower()]
+        )
+        
+        return MetadataAsset(
+            asset_id=f"{self.config.environment_name}_inferred_space_{space_name}",
+            asset_type=AssetType.SPACE,
+            source_system=SourceSystem.DATASPHERE,
+            technical_name=space_name,
+            business_name=space_name,
+            description=f"Datasphere space inferred from analytical model discovery",
+            owner="datasphere",
+            business_context=business_context,
+            custom_properties={
+                'datasphere_space': space_name,
+                'datasphere_environment': self.config.environment_name,
+                'discovery_method': 'inferred_from_models',
+                'extraction_timestamp': datetime.now().isoformat(),
+                'comprehensive_discovery': True
+            }
+        )
+
     def _discover_analytical_models(self) -> List[MetadataAsset]:
         """Discover analytical models from Datasphere"""
         models = []
@@ -322,8 +1330,9 @@ class DatasphereConnector(MetadataConnector):
         try:
             # Known working models and discovery patterns
             known_models = [
-                {"space": "SAP_CONTENT", "model": "New_Analytic_Model_2"},
-                {"space": "SAP_SC_FI_AM", "model": "FINTRANSACTIONS"}
+                {"space": "SAP_CONTENT", "model": "Employee Headcount"},  # From user's screenshot
+                {"space": "SAP_CONTENT", "model": "Financial Transactions"},  # From user's screenshot
+                {"space": "DEFAULT_SPACE", "model": "New_Analytic_Model_2"}  # Test with DEFAULT_SPACE
             ]
             
             # Try discovery endpoints
@@ -612,8 +1621,9 @@ class DatasphereConnector(MetadataConnector):
         spaces = []
         
         try:
-            # Known spaces from our exploration
-            known_spaces = ["SAP_CONTENT", "SAP_SC_FI_AM"]
+            # FIXED: Use actual spaces from user's environment (based on screenshot)
+            # User has: DEFAULT_SPACE and SAP_CONTENT (not SAP_SC_FI_AM)
+            known_spaces = ["DEFAULT_SPACE", "SAP_CONTENT"]
             
             for space_name in known_spaces:
                 asset = MetadataAsset(
@@ -768,26 +1778,12 @@ def create_datasphere_connector(environment: str = "wolf") -> DatasphereConnecto
     
     # Environment configurations
     configs = {
-        "dog": DatasphereConfig(
-            base_url="https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap",
+        "ailien-test": DatasphereConfig(
+            base_url="https://ailien-test.eu20.hcs.cloud.sap",
             client_id="sb-60cb266e-ad9d-49f7-9967-b53b8286a259!b130936|client!b3944",
             client_secret="caaea1b9-b09b-4d28-83fe-09966d525243$LOFW4h5LpLvB3Z2FE0P7FiH4-C7qexeQPi22DBiHbz8=",
             token_url="https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token",
-            environment_name="dog"
-        ),
-        "wolf": DatasphereConfig(
-            base_url="https://ailien-test.eu20.hcs.cloud.sap",
-            client_id="sb-60cb266e-ad9d-49f7-9967-b53b8286a259!b130936|client!b3944",
-            client_secret="YOUR_WOLF_SECRET",  # Replace with actual secret
-            token_url="https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token",
-            environment_name="wolf"
-        ),
-        "bear": DatasphereConfig(
-            base_url="https://ailien-test.eu20.hcs.cloud.sap",
-            client_id="sb-60cb266e-ad9d-49f7-9967-b53b8286a259!b130936|client!b3944",
-            client_secret="YOUR_BEAR_SECRET",  # Replace with actual secret
-            token_url="https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token",
-            environment_name="bear"
+            environment_name="ailien-test"
         )
     }
     

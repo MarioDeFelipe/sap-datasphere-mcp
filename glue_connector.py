@@ -34,6 +34,9 @@ class GlueConfig:
     retry_delay: int = 2
     timeout: int = 30
     environment_name: str = "glue"
+    # Database filtering configuration for Web Dashboard
+    target_databases: Optional[List[str]] = None  # If specified, only read from these databases
+    primary_database: Optional[str] = None  # Primary database for table-level display
 
 @dataclass
 class GlueTableInfo:
@@ -324,14 +327,31 @@ class GlueConnector(MetadataConnector):
         return assets
     
     def _get_databases(self) -> List[MetadataAsset]:
-        """Get all databases from Glue Data Catalog"""
+        """Get databases from Glue Data Catalog with optional filtering"""
         databases = []
         
         try:
-            paginator = self.glue_client.get_paginator('get_databases')
+            # Determine which databases to include
+            databases_to_include = []
             
-            for page in paginator.paginate():
-                for db in page['DatabaseList']:
+            if self.config.target_databases:
+                databases_to_include = self.config.target_databases
+            elif self.config.primary_database:
+                databases_to_include = [self.config.primary_database]
+            else:
+                # Get all databases (original behavior)
+                paginator = self.glue_client.get_paginator('get_databases')
+                for page in paginator.paginate():
+                    for db in page['DatabaseList']:
+                        databases_to_include.append(db['Name'])
+            
+            # Create assets for specified databases
+            for db_name in databases_to_include:
+                try:
+                    # Get database details
+                    db_response = self.glue_client.get_database(Name=db_name)
+                    db = db_response['Database']
+                    
                     asset = MetadataAsset(
                         asset_id=f"{self.config.environment_name}_db_{db['Name']}",
                         asset_type=AssetType.SPACE,
@@ -355,6 +375,14 @@ class GlueConnector(MetadataConnector):
                         }
                     )
                     databases.append(asset)
+                    
+                except ClientError as e:
+                    if e.response['Error']['Code'] == 'EntityNotFoundException':
+                        self.logger.logger.warning(f"Database '{db_name}' not found, skipping")
+                    else:
+                        self.logger.logger.error(f"Error accessing database '{db_name}': {str(e)}")
+                except Exception as e:
+                    self.logger.logger.error(f"Error processing database '{db_name}': {str(e)}")
             
             self.logger.logger.info(f"Retrieved {len(databases)} databases from Glue")
             
@@ -364,16 +392,34 @@ class GlueConnector(MetadataConnector):
         return databases
     
     def _get_tables(self, asset_type: Optional[AssetType] = None) -> List[MetadataAsset]:
-        """Get all tables from Glue Data Catalog"""
+        """Get all tables from Glue Data Catalog with optional database filtering"""
         tables = []
         
         try:
-            # First get all databases
-            db_paginator = self.glue_client.get_paginator('get_databases')
+            # Determine which databases to query
+            databases_to_query = []
             
-            for db_page in db_paginator.paginate():
-                for db in db_page['DatabaseList']:
-                    database_name = db['Name']
+            if self.config.target_databases:
+                # Use specified target databases
+                databases_to_query = self.config.target_databases
+                self.logger.logger.info(f"Using configured target databases: {databases_to_query}")
+            elif self.config.primary_database:
+                # Use primary database only
+                databases_to_query = [self.config.primary_database]
+                self.logger.logger.info(f"Using primary database: {self.config.primary_database}")
+            else:
+                # Get all databases (original behavior)
+                db_paginator = self.glue_client.get_paginator('get_databases')
+                for db_page in db_paginator.paginate():
+                    for db in db_page['DatabaseList']:
+                        databases_to_query.append(db['Name'])
+                self.logger.logger.info(f"Using all databases: {len(databases_to_query)} found")
+            
+            # Get tables from specified databases
+            for database_name in databases_to_query:
+                try:
+                    # Verify database exists
+                    self.glue_client.get_database(Name=database_name)
                     
                     # Get tables for this database
                     table_paginator = self.glue_client.get_paginator('get_tables')
@@ -383,8 +429,18 @@ class GlueConnector(MetadataConnector):
                             asset = self._create_table_asset(database_name, table)
                             if asset and (asset_type is None or asset.asset_type == asset_type):
                                 tables.append(asset)
+                    
+                    self.logger.logger.info(f"Retrieved tables from database '{database_name}'")
+                    
+                except ClientError as e:
+                    if e.response['Error']['Code'] == 'EntityNotFoundException':
+                        self.logger.logger.warning(f"Database '{database_name}' not found, skipping")
+                    else:
+                        self.logger.logger.error(f"Error accessing database '{database_name}': {str(e)}")
+                except Exception as e:
+                    self.logger.logger.error(f"Error processing database '{database_name}': {str(e)}")
             
-            self.logger.logger.info(f"Retrieved {len(tables)} tables from Glue")
+            self.logger.logger.info(f"Retrieved {len(tables)} tables from {len(databases_to_query)} databases")
             
         except Exception as e:
             self.logger.logger.error(f"Error retrieving tables: {str(e)}")
