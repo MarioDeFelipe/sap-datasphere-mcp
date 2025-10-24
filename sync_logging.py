@@ -39,6 +39,11 @@ class EventType(Enum):
     ERROR_OCCURRED = "error_occurred"
     SYSTEM_STARTED = "system_started"
     SYSTEM_STOPPED = "system_stopped"
+    CHECKPOINT_SAVED = "checkpoint_saved"
+    CHANGE_DETECTION_COMPLETED = "change_detection_completed"
+    INCREMENTAL_SYNC_COMPLETED = "incremental_sync_completed"
+    CLEANUP_COMPLETED = "cleanup_completed"
+    LINEAGE_UPDATED = "lineage_updated"
 
 @dataclass
 class AuditLogEntry:

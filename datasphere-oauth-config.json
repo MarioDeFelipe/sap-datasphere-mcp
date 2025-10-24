@@ -1,7 +1,0 @@
-{
-  "tenant_url": "https://your-tenant.eu10.hcs.cloud.sap",
-  "client_id": "sb-<subaccount-uuid>!b<n>|client!b<n>",
-  "client_secret": "<your-client-secret>",
-  "token_url": "https://your-tenant.eu10.hcs.cloud.sap/oauth/token",
-  "authorization_url": "https://your-tenant.eu10.hcs.cloud.sap/oauth/authorize"
-}
