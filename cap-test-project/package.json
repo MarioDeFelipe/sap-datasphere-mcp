@@ -7,7 +7,7 @@
     "start": "cds run"
   },
   "dependencies": {
-    "@sap/cds": "^7.0.0"
+    "@sap/cds": "^9.4.4"
   },
   "cds": {
     "requires": {
