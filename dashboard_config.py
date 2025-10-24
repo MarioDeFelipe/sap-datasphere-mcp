@@ -8,27 +8,56 @@ import os
 from typing import Dict, Any
 
 def get_datasphere_config() -> Dict[str, Any]:
-    """Get Datasphere configuration with working credentials"""
+    """Get Datasphere configuration from AWS Secrets Manager"""
     
-    # Current working credentials from your environment
-    config = {
-        "base_url": "https://ailien-test.eu20.hcs.cloud.sap",
-        "client_id": "sb-60cb266e-ad9d-49f7-9967-b53b8286a259!b130936|client!b3944",
-        "client_secret": "caaea1b9-b09b-4d28-83fe-09966d525243$LOFW4h5LpLvB3Z2FE0P7FiH4-C7qexeQPi22DBiHbz8=",
-        "token_url": "https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token"
-    }
-    
-    # Override with environment variables if available
-    config["client_secret"] = os.getenv("DOG_CLIENT_SECRET", config["client_secret"])
-    
-    return config
+    try:
+        import boto3
+        import json
+        
+        # Get credentials from AWS Secrets Manager
+        secrets_client = boto3.client('secretsmanager', region_name='us-east-1')
+        response = secrets_client.get_secret_value(SecretId='sap-datasphere-credentials')
+        secret_data = json.loads(response['SecretString'])
+        
+        return {
+            "base_url": secret_data.get("base_url"),
+            "client_id": secret_data.get("client_id"),
+            "client_secret": secret_data.get("client_secret"),
+            "token_url": secret_data.get("token_url"),
+            "tenant_name": secret_data.get("tenant_name"),
+            "authorization_url": secret_data.get("authorization_url"),
+            "oauth_token_url": secret_data.get("oauth_token_url"),
+            "saml_audience": secret_data.get("saml_audience")
+        }
+        
+    except Exception as e:
+        print(f"⚠️ Failed to retrieve credentials from AWS Secrets Manager: {e}")
+        # Fallback to environment variables only (no hardcoded secrets)
+        return {
+            "base_url": os.getenv("SAP_BASE_URL", ""),
+            "client_id": os.getenv("SAP_CLIENT_ID", ""),
+            "client_secret": os.getenv("SAP_CLIENT_SECRET", ""),
+            "token_url": os.getenv("SAP_TOKEN_URL", ""),
+            "tenant_name": os.getenv("SAP_TENANT_NAME", ""),
+            "authorization_url": os.getenv("SAP_AUTHORIZATION_URL", ""),
+            "oauth_token_url": os.getenv("SAP_OAUTH_TOKEN_URL", ""),
+            "saml_audience": os.getenv("SAP_SAML_AUDIENCE", "")
+        }
 
 def get_glue_config() -> Dict[str, Any]:
-    """Get AWS Glue configuration"""
+    """Get AWS Glue configuration with Web Dashboard table-level display settings"""
     
     config = {
         "region": os.getenv("AWS_REGION", "us-east-1"),
-        "profile_name": os.getenv("AWS_PROFILE", None)
+        "profile_name": os.getenv("AWS_PROFILE", None),
+        # Web Dashboard configuration for table-level display
+        "primary_database": "datasphere_real_assets",  # Focus on this database for Web Dashboard
+        "target_databases": [
+            "datasphere_real_assets",        # Primary database with 36 real SAP assets
+            "datasphere_discovered_assets",  # Secondary database with other assets
+            "datasphere_web_dashboard",      # Tertiary database
+            "sap_datasphere_assets"          # Quaternary database
+        ]
     }
     
     return config
