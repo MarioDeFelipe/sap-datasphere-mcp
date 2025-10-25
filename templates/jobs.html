@@ -1,0 +1,699 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="fas fa-tasks me-2"></i>
+        Sync Jobs
+    </h1>
+    <div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createJobModal">
+            <i class="fas fa-plus me-2"></i>
+            Create Job
+        </button>
+        <button class="btn btn-outline-secondary" onclick="refreshJobs()">
+            <i class="fas fa-sync-alt me-2"></i>
+            Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Job Statistics -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-primary" id="total-jobs">-</div>
+            <div class="metric-label">Total Jobs</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-info" id="running-jobs">-</div>
+            <div class="metric-label">Running</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-warning" id="pending-jobs">-</div>
+            <div class="metric-label">Pending</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-success" id="completed-jobs">-</div>
+            <div class="metric-label">Completed</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-danger" id="failed-jobs">-</div>
+            <div class="metric-label">Failed</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card text-center">
+            <div class="metric-value text-secondary" id="cancelled-jobs">-</div>
+            <div class="metric-label">Cancelled</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-end">
+            <div class="col-md-3">
+                <label for="statusFilter" class="form-label">Status</label>
+                <select class="form-select" id="statusFilter" onchange="applyFilters()">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="running">Running</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="priorityFilter" class="form-label">Priority</label>
+                <select class="form-select" id="priorityFilter" onchange="applyFilters()">
+                    <option value="">All Priorities</option>
+                    <option value="CRITICAL">Critical</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="sourceSystemFilter" class="form-label">Source System</label>
+                <select class="form-select" id="sourceSystemFilter" onchange="applyFilters()">
+                    <option value="">All Systems</option>
+                    <option value="datasphere">Datasphere</option>
+                    <option value="glue">AWS Glue</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="fas fa-times me-2"></i>
+                    Clear Filters
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Jobs Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list me-2"></i>
+            Job List
+            <span class="badge bg-secondary ms-2" id="jobs-count">0</span>
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Asset</th>
+                        <th>Priority</th>
+                        <th>Source → Target</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-table-body">
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="loading-spinner spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-2">Loading jobs...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create Job Modal -->
+<div class="modal fade" id="createJobModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>
+                    Create Sync Job
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createJobForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="assetId" class="form-label">Asset ID *</label>
+                                <input type="text" class="form-control" id="assetId" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="assetType" class="form-label">Asset Type *</label>
+                                <select class="form-select" id="assetType" required>
+                                    <option value="">Select Type</option>
+                                    <option value="analytical_model">Analytical Model</option>
+                                    <option value="table">Table</option>
+                                    <option value="view">View</option>
+                                    <option value="data_flow">Data Flow</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="sourceSystem" class="form-label">Source System *</label>
+                                <select class="form-select" id="sourceSystem" required>
+                                    <option value="">Select Source</option>
+                                    <option value="datasphere">SAP Datasphere</option>
+                                    <option value="glue">AWS Glue</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="targetSystem" class="form-label">Target System *</label>
+                                <select class="form-select" id="targetSystem" required>
+                                    <option value="">Select Target</option>
+                                    <option value="datasphere">SAP Datasphere</option>
+                                    <option value="glue">AWS Glue</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority">
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="CRITICAL">Critical</option>
+                                    <option value="HIGH">High</option>
+                                    <option value="LOW">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="owner" class="form-label">Owner</label>
+                                <input type="text" class="form-control" id="owner" value="dashboard_user">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="technicalName" class="form-label">Technical Name</label>
+                        <input type="text" class="form-control" id="technicalName">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="businessName" class="form-label">Business Name</label>
+                        <input type="text" class="form-control" id="businessName">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tags" class="form-label">Tags (comma-separated)</label>
+                        <input type="text" class="form-control" id="tags" placeholder="e.g., finance, critical, production">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createJob()">
+                    <i class="fas fa-plus me-2"></i>
+                    Create Job
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Job Details Modal -->
+<div class="modal fade" id="jobDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Job Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="jobDetailsContent">
+                <!-- Job details will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // API helper function (ensure it's available)
+    async function apiCall(url, options = {}) {
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                },
+                ...options
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('API call failed:', error);
+            throw error;
+        }
+    }
+    
+    // Utility functions
+    function formatDateTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString();
+    }
+    
+    function formatDuration(seconds) {
+        if (seconds < 60) {
+            return `${seconds}s`;
+        } else if (seconds < 3600) {
+            return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+        } else {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${hours}h ${minutes}m`;
+        }
+    }
+    
+    function getStatusBadgeClass(status) {
+        if (!status || typeof status !== 'string') {
+            return 'bg-secondary';
+        }
+        switch (status.toLowerCase()) {
+            case 'completed': return 'bg-success';
+            case 'running': return 'bg-primary';
+            case 'pending': return 'bg-warning';
+            case 'failed': return 'bg-danger';
+            case 'cancelled': return 'bg-secondary';
+            default: return 'bg-secondary';
+        }
+    }
+    
+    function getPriorityString(priority) {
+        // Convert priority number to string for display
+        if (typeof priority === 'number') {
+            switch (priority) {
+                case 1: return 'CRITICAL';
+                case 2: return 'HIGH';
+                case 3: return 'MEDIUM';
+                case 4: return 'LOW';
+                default: return 'MEDIUM';
+            }
+        } else if (typeof priority === 'string') {
+            return priority.toUpperCase();
+        }
+        return 'MEDIUM';
+    }
+    
+    function getPriorityClass(priority) {
+        // Convert priority to string if it's a number (from enum)
+        let priorityStr = '';
+        if (typeof priority === 'number') {
+            switch (priority) {
+                case 1: priorityStr = 'critical'; break;
+                case 2: priorityStr = 'high'; break;
+                case 3: priorityStr = 'medium'; break;
+                case 4: priorityStr = 'low'; break;
+                default: priorityStr = 'medium'; break;
+            }
+        } else if (typeof priority === 'string') {
+            priorityStr = priority.toLowerCase();
+        } else {
+            return '';
+        }
+        
+        switch (priorityStr) {
+            case 'critical': return 'text-danger';
+            case 'high': return 'text-warning';
+            case 'medium': return 'text-info';
+            case 'low': return 'text-success';
+            default: return '';
+        }
+    }
+    
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
+    
+    // Jobs page variables
+    let allJobs = [];
+    let filteredJobs = [];
+    
+    // Initialize jobs page
+    document.addEventListener('DOMContentLoaded', function() {
+        loadJobs();
+        
+        // Auto-refresh every 10 seconds
+        setInterval(loadJobs, 10000);
+    });
+    
+    // Load jobs data
+    async function loadJobs() {
+        try {
+            console.log('Loading jobs...');
+            const response = await apiCall('/api/jobs?limit=100');
+            console.log('Jobs API response:', response);
+            allJobs = response.jobs || [];
+            console.log('All jobs:', allJobs);
+            applyFilters();
+            updateJobStatistics();
+            
+        } catch (error) {
+            console.error('Failed to load jobs:', error);
+            document.getElementById('jobs-table-body').innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load jobs: ${error.message}
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    // Apply filters
+    function applyFilters() {
+        const statusFilter = document.getElementById('statusFilter').value;
+        const priorityFilter = document.getElementById('priorityFilter').value;
+        const sourceSystemFilter = document.getElementById('sourceSystemFilter').value;
+        
+        filteredJobs = allJobs.filter(job => {
+            if (statusFilter && job.status !== statusFilter) return false;
+            if (priorityFilter && getPriorityString(job.priority) !== priorityFilter) return false;
+            if (sourceSystemFilter && job.source_system !== sourceSystemFilter) return false;
+            return true;
+        });
+        
+        renderJobsTable();
+    }
+    
+    // Clear filters
+    function clearFilters() {
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('priorityFilter').value = '';
+        document.getElementById('sourceSystemFilter').value = '';
+        applyFilters();
+    }
+    
+    // Render jobs table
+    function renderJobsTable() {
+        const tbody = document.getElementById('jobs-table-body');
+        const countBadge = document.getElementById('jobs-count');
+        
+        countBadge.textContent = filteredJobs.length;
+        
+        if (filteredJobs.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">
+                        <i class="fas fa-inbox me-2"></i>
+                        No jobs found
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        const rows = filteredJobs.map(job => {
+            const statusBadge = getStatusBadgeClass(job.status);
+            const priorityClass = getPriorityClass(job.priority);
+            const duration = calculateDuration(job);
+            const createdTime = formatDateTime(job.created_time);
+            
+            return `
+                <tr>
+                    <td>
+                        <code class="text-primary">${job.job_id.substring(0, 8)}...</code>
+                    </td>
+                    <td>
+                        <div class="fw-bold">${job.asset_id}</div>
+                        <small class="text-muted">${job.asset_type}</small>
+                    </td>
+                    <td>
+                        <span class="fw-bold ${priorityClass}">${getPriorityString(job.priority)}</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark">${job.source_system}</span>
+                        <i class="fas fa-arrow-right mx-1 text-muted"></i>
+                        <span class="badge bg-light text-dark">${job.target_system}</span>
+                    </td>
+                    <td>
+                        <span class="badge ${statusBadge}">${job.status}</span>
+                    </td>
+                    <td>
+                        <small>${createdTime}</small>
+                    </td>
+                    <td>
+                        <small>${duration}</small>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary btn-action" 
+                                onclick="showJobDetails('${job.job_id}')" 
+                                title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${job.status === 'pending' || job.status === 'running' ? `
+                            <button class="btn btn-sm btn-outline-danger btn-action" 
+                                    onclick="cancelJob('${job.job_id}')" 
+                                    title="Cancel Job">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        tbody.innerHTML = rows;
+    }
+    
+    // Update job statistics
+    function updateJobStatistics() {
+        const stats = {
+            total: allJobs.length,
+            running: 0,
+            pending: 0,
+            completed: 0,
+            failed: 0,
+            cancelled: 0
+        };
+        
+        allJobs.forEach(job => {
+            switch (job.status) {
+                case 'running': stats.running++; break;
+                case 'pending': stats.pending++; break;
+                case 'completed': stats.completed++; break;
+                case 'failed': stats.failed++; break;
+                case 'cancelled': stats.cancelled++; break;
+            }
+        });
+        
+        document.getElementById('total-jobs').textContent = stats.total;
+        document.getElementById('running-jobs').textContent = stats.running;
+        document.getElementById('pending-jobs').textContent = stats.pending;
+        document.getElementById('completed-jobs').textContent = stats.completed;
+        document.getElementById('failed-jobs').textContent = stats.failed;
+        document.getElementById('cancelled-jobs').textContent = stats.cancelled;
+    }
+    
+    // Calculate job duration
+    function calculateDuration(job) {
+        if (job.status === 'pending') {
+            return 'Not started';
+        }
+        
+        const startTime = job.started_time ? new Date(job.started_time) : null;
+        const endTime = job.completed_time ? new Date(job.completed_time) : new Date();
+        
+        if (!startTime) {
+            return 'Unknown';
+        }
+        
+        const durationMs = endTime - startTime;
+        const durationSeconds = Math.floor(durationMs / 1000);
+        
+        return formatDuration(durationSeconds);
+    }
+    
+    // Show job details
+    async function showJobDetails(jobId) {
+        try {
+            const job = await apiCall(`/api/jobs/${jobId}`);
+            
+            const detailsHtml = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Job Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Job ID:</strong></td><td><code>${job.job_id}</code></td></tr>
+                            <tr><td><strong>Asset ID:</strong></td><td>${job.asset_id}</td></tr>
+                            <tr><td><strong>Asset Type:</strong></td><td>${job.asset_type}</td></tr>
+                            <tr><td><strong>Priority:</strong></td><td><span class="${getPriorityClass(job.priority)}">${getPriorityString(job.priority)}</span></td></tr>
+                            <tr><td><strong>Status:</strong></td><td><span class="badge ${getStatusBadgeClass(job.status)}">${job.status}</span></td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Timing Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Created:</strong></td><td>${formatDateTime(job.created_time)}</td></tr>
+                            <tr><td><strong>Started:</strong></td><td>${job.started_time ? formatDateTime(job.started_time) : 'Not started'}</td></tr>
+                            <tr><td><strong>Completed:</strong></td><td>${job.completed_time ? formatDateTime(job.completed_time) : 'Not completed'}</td></tr>
+                            <tr><td><strong>Duration:</strong></td><td>${calculateDuration(job)}</td></tr>
+                            <tr><td><strong>Retry Count:</strong></td><td>${job.retry_count || 0}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>System Information</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Source System:</strong></td><td>${job.source_system}</td></tr>
+                            <tr><td><strong>Target System:</strong></td><td>${job.target_system}</td></tr>
+                            <tr><td><strong>Frequency:</strong></td><td>${job.frequency || 'Manual'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                
+                ${job.error_message ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Error Information</h6>
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                ${job.error_message}
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${job.result ? `
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Result</h6>
+                            <pre class="bg-light p-3 rounded"><code>${JSON.stringify(job.result, null, 2)}</code></pre>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('jobDetailsContent').innerHTML = detailsHtml;
+            new bootstrap.Modal(document.getElementById('jobDetailsModal')).show();
+            
+        } catch (error) {
+            showNotification('Failed to load job details', 'danger');
+        }
+    }
+    
+    // Create new job
+    async function createJob() {
+        try {
+            const formData = {
+                asset_id: document.getElementById('assetId').value,
+                asset_type: document.getElementById('assetType').value,
+                source_system: document.getElementById('sourceSystem').value,
+                target_system: document.getElementById('targetSystem').value,
+                priority: document.getElementById('priority').value,
+                owner: document.getElementById('owner').value,
+                technical_name: document.getElementById('technicalName').value,
+                business_name: document.getElementById('businessName').value,
+                description: document.getElementById('description').value,
+                tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t)
+            };
+            
+            // Validate required fields
+            if (!formData.asset_id || !formData.asset_type || !formData.source_system || !formData.target_system) {
+                showNotification('Please fill in all required fields', 'warning');
+                return;
+            }
+            
+            const result = await apiCall('/api/jobs', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+            
+            showNotification(`Job created successfully: ${result.job_id}`, 'success');
+            
+            // Close modal and refresh
+            bootstrap.Modal.getInstance(document.getElementById('createJobModal')).hide();
+            document.getElementById('createJobForm').reset();
+            loadJobs();
+            
+        } catch (error) {
+            showNotification('Failed to create job', 'danger');
+        }
+    }
+    
+    // Cancel job
+    async function cancelJob(jobId) {
+        if (!confirm('Are you sure you want to cancel this job?')) {
+            return;
+        }
+        
+        try {
+            await apiCall(`/api/jobs/${jobId}`, { method: 'DELETE' });
+            showNotification('Job cancelled successfully', 'success');
+            loadJobs();
+            
+        } catch (error) {
+            showNotification('Failed to cancel job', 'danger');
+        }
+    }
+    
+    // Refresh jobs (called from WebSocket updates)
+    function refreshJobs() {
+        loadJobs();
+    }
+</script>
+{% endblock %}
