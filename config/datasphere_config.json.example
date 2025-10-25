@@ -1,0 +1,8 @@
+{
+  "base_url": "https://your-tenant.eu20.hcs.cloud.sap",
+  "client_id": "your-oauth-client-id",
+  "client_secret": "your-oauth-client-secret",
+  "token_url": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token",
+  "environment_name": "production",
+  "timeout": 30
+}

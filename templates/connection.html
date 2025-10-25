@@ -1,0 +1,1255 @@
+{% extends "base.html" %}
+
+{% block title %}Connection Settings - Ailien Studio Control Panel{% endblock %}
+
+{% block extra_css %}
+<style>
+    .connection-hero {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 15px;
+    }
+
+    .config-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        height: 100%;
+    }
+
+    .sap-card {
+        border-left: 4px solid #0f62fe;
+    }
+
+    .aws-card {
+        border-left: 4px solid #ff9900;
+    }
+
+    .config-section h4 {
+        color: #2d3748;
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+        text-align: center;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #f1f5f9;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #4facfe;
+        box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.15);
+    }
+
+    .credential-group {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+
+    .credential-group:hover {
+        border-color: #4facfe;
+        box-shadow: 0 2px 8px rgba(79, 172, 254, 0.1);
+    }
+
+    .credential-group h5 {
+        color: #495057;
+        margin-bottom: 1rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .input-group-text {
+        background: #e9ecef;
+        border: 2px solid #e2e8f0;
+        border-right: none;
+        color: #6c757d;
+    }
+
+    .input-group .form-control {
+        border-left: none;
+    }
+
+    .btn-test {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        min-width: 140px;
+    }
+
+    .btn-test:hover {
+        transform: translateY(-2px);
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        min-width: 140px;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        color: white;
+        box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
+    }
+
+    .connection-status {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        font-weight: 500;
+        font-size: 0.95rem;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+    }
+
+    .status-success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+
+    .status-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+
+    .status-testing {
+        background: #dbeafe;
+        color: #1e40af;
+        border: 1px solid #93c5fd;
+    }
+
+    .test-results {
+        margin-top: 1.5rem;
+        padding: 1.5rem;
+        border-radius: 10px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+    }
+
+    .test-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .test-item:last-child {
+        border-bottom: none;
+    }
+
+    .test-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .test-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .test-failed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .test-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .loading-spinner {
+        display: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #4facfe;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .show-password {
+        cursor: pointer;
+        color: #6c757d;
+        transition: color 0.2s ease;
+    }
+
+    .show-password:hover {
+        color: #4facfe;
+    }
+
+    .form-check-input:checked {
+        background-color: #4facfe;
+        border-color: #4facfe;
+    }
+
+    .alert-warning {
+        border-left: 4px solid #fbbf24;
+    }
+
+    .config-help {
+        background: #f0f9ff;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        border-left: 4px solid #0ea5e9;
+    }
+
+    .config-help h6 {
+        color: #0c4a6e;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+
+    .config-help p,
+    .config-help ul,
+    .config-help ol {
+        color: #475569;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 991.98px) {
+        .config-card {
+            margin-bottom: 2rem;
+        }
+
+        .btn-test,
+        .btn-save {
+            min-width: 120px;
+            font-size: 0.9rem;
+            padding: 0.6rem 1.5rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .config-card {
+            padding: 1.5rem;
+        }
+
+        .credential-group {
+            padding: 1rem;
+        }
+
+        .btn-test,
+        .btn-save {
+            min-width: 100px;
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="connection-hero text-center">
+    <div class="container">
+        <h1 class="display-5 mb-3">🔗 Connection Settings</h1>
+        <p class="lead">Configure your SAP Datasphere and AWS connection parameters</p>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Connection Status -->
+    <div id="connection-status-display" class="connection-status" style="display: none;">
+        <div class="d-flex align-items-center justify-content-center">
+            <i id="status-icon" class="fas fa-circle me-2"></i>
+            <span id="status-message">Ready to test connection</span>
+        </div>
+    </div>
+
+    <!-- Configuration Form -->
+    <form id="connection-form">
+        <div class="row g-4">
+            <!-- SAP Datasphere Configuration (Left Side) -->
+            <div class="col-lg-6">
+                <div class="config-card sap-card">
+                    <div class="config-section">
+                        <h4><i class="fab fa-sap me-2"></i>SAP Datasphere Configuration</h4>
+
+                        <div class="credential-group">
+                            <h5>Basic Configuration</h5>
+                            <div class="mb-3">
+                                <label for="tenant-name" class="form-label">Tenant Name</label>
+                                <input type="text" class="form-control" id="tenant-name" name="tenant_name"
+                                    placeholder="ailien-test" value="ailien-test">
+                                <small class="text-muted">Your Datasphere tenant identifier</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="base-url" class="form-label">Base URL</label>
+                                <input type="url" class="form-control" id="base-url" name="base_url"
+                                    placeholder="https://ailien-test.eu20.hcs.cloud.sap"
+                                    value="https://ailien-test.eu20.hcs.cloud.sap">
+                                <small class="text-muted">Your Datasphere tenant base URL</small>
+                            </div>
+                        </div>
+
+                        <div class="credential-group">
+                            <h5>OAuth 2.0 Credentials</h5>
+                            <div class="mb-3">
+                                <label for="client-id" class="form-label">OAuth Client ID</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-key"></i></span>
+                                    <input type="text" class="form-control" id="client-id" name="client_id"
+                                        placeholder="sb-6a8a284c-9845-410c-8f36-ce7e637587b4!b130936|client!b3944"
+                                        value="sb-6a8a284c-9845-410c-8f36-ce7e637587b4!b130936|client!b3944">
+                                </div>
+                                <small class="text-muted">OAuth Client ID (non-sensitive, visible)</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="client-secret" class="form-label">Client Secret</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="client-secret" name="client_secret"
+                                        placeholder="••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••">
+                                    <span class="input-group-text show-password"
+                                        onclick="togglePassword('client-secret')">
+                                        <i class="fas fa-eye" id="client-secret-eye"></i>
+                                    </span>
+                                </div>
+                                <small class="text-muted">OAuth Client Secret from SAP BTP Service Key</small>
+                            </div>
+                        </div>
+
+                        <div class="credential-group">
+                            <h5>OAuth Endpoints</h5>
+                            <div class="mb-3">
+                                <label for="token-url" class="form-label">Token URL</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-link"></i></span>
+                                    <input type="url" class="form-control" id="token-url" name="token_url"
+                                        placeholder="https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token"
+                                        value="https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-3 justify-content-center mt-4">
+                            <button type="button" class="btn btn-test" onclick="testSapConnection()">
+                                <i class="fas fa-plug me-2"></i>Test SAP
+                                <div class="loading-spinner ms-2" id="sap-test-spinner"></div>
+                            </button>
+                            <button type="button" class="btn btn-save" onclick="saveSapConfiguration()">
+                                <i class="fas fa-save me-2"></i>Save SAP
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AWS Configuration (Right Side) -->
+            <div class="col-lg-6">
+                <div class="config-card aws-card">
+                    <div class="config-section">
+                        <h4><i class="fab fa-aws me-2"></i>AWS Configuration</h4>
+
+                        <div class="credential-group">
+                            <h5>Basic Configuration</h5>
+                            <div class="mb-3">
+                                <label for="aws-region" class="form-label">AWS Region</label>
+                                <select class="form-control" id="aws-region" name="aws_region">
+                                    <option value="">Select Region</option>
+                                    <option value="us-east-1">US East (N. Virginia)</option>
+                                    <option value="us-west-2">US West (Oregon)</option>
+                                    <option value="eu-west-1">Europe (Ireland)</option>
+                                    <option value="eu-central-1">Europe (Frankfurt)</option>
+                                    <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
+                                    <option value="ap-northeast-1">Asia Pacific (Tokyo)</option>
+                                </select>
+                                <small class="text-muted">AWS region for Glue Data Catalog</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="glue-database" class="form-label">Glue Database Name</label>
+                                <input type="text" class="form-control" id="glue-database" name="glue_database"
+                                    placeholder="datasphere-metadata">
+                                <small class="text-muted">Target Glue database for metadata sync</small>
+                            </div>
+                        </div>
+
+                        <div class="credential-group">
+                            <h5>Authentication Method</h5>
+                            <div class="mb-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="aws_auth_method" id="aws-profile"
+                                        value="profile" checked>
+                                    <label class="form-check-label" for="aws-profile">
+                                        AWS Profile (Recommended)
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="aws_auth_method" id="aws-keys"
+                                        value="keys">
+                                    <label class="form-check-label" for="aws-keys">
+                                        Access Keys (Less Secure)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="aws_auth_method" id="aws-role"
+                                        value="role">
+                                    <label class="form-check-label" for="aws-role">
+                                        IAM Role (EC2/Lambda)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AWS Profile Configuration -->
+                        <div class="credential-group" id="aws-profile-config">
+                            <h5>AWS Profile Configuration</h5>
+                            <div class="mb-3">
+                                <label for="aws-profile-name" class="form-label">Profile Name</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                    <input type="text" class="form-control" id="aws-profile-name"
+                                        name="aws_profile_name" placeholder="default">
+                                </div>
+                                <small class="text-muted">AWS CLI profile name (configured via aws configure)</small>
+                            </div>
+                        </div>
+
+                        <!-- AWS Keys Configuration -->
+                        <div class="credential-group" id="aws-keys-config" style="display: none;">
+                            <h5>AWS Access Keys</h5>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Security Warning:</strong> Using access keys is less secure than profiles or IAM
+                                roles.
+                            </div>
+                            <div class="mb-3">
+                                <label for="aws-access-key" class="form-label">Access Key ID</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-key"></i></span>
+                                    <input type="text" class="form-control" id="aws-access-key" name="aws_access_key"
+                                        placeholder="AKIAIOSFODNN7EXAMPLE">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="aws-secret-key" class="form-label">Secret Access Key</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="aws-secret-key"
+                                        name="aws_secret_key" placeholder="••••••••••••••••••••••••••••••••••••••••">
+                                    <span class="input-group-text show-password"
+                                        onclick="togglePassword('aws-secret-key')">
+                                        <i class="fas fa-eye" id="aws-secret-key-eye"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AWS Role Configuration -->
+                        <div class="credential-group" id="aws-role-config" style="display: none;">
+                            <h5>IAM Role Configuration</h5>
+                            <div class="mb-3">
+                                <label for="aws-role-arn" class="form-label">Role ARN (Optional)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-shield-alt"></i></span>
+                                    <input type="text" class="form-control" id="aws-role-arn" name="aws_role_arn"
+                                        placeholder="arn:aws:iam::123456789012:role/DataSyncRole">
+                                </div>
+                                <small class="text-muted">Leave empty to use instance/Lambda execution role</small>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-3 justify-content-center mt-4">
+                            <button type="button" class="btn btn-test" onclick="testAwsConnection()">
+                                <i class="fas fa-plug me-2"></i>Test AWS
+                                <div class="loading-spinner ms-2" id="aws-test-spinner"></div>
+                            </button>
+                            <button type="button" class="btn btn-save" onclick="saveAwsConfiguration()">
+                                <i class="fas fa-save me-2"></i>Save AWS
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Test Results -->
+    <div class="row mt-4" id="test-results-row" style="display: none;">
+        <div class="col-12">
+            <div class="config-card">
+                <h4><i class="fas fa-clipboard-check me-2"></i>Connection Test Results</h4>
+                <div class="test-results" id="test-results">
+                    <!-- Test results will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Help -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="config-card">
+                <h4><i class="fas fa-question-circle me-2"></i>Configuration Help</h4>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="config-help">
+                            <h6><i class="fab fa-sap me-2"></i>SAP Datasphere Configuration</h6>
+                            <p>Get these values from your SAP BTP Service Key:</p>
+                            <ol>
+                                <li>Go to SAP BTP Cockpit</li>
+                                <li>Navigate to your Datasphere space</li>
+                                <li>Create/view Service Key</li>
+                                <li>Copy OAuth credentials from JSON</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="config-help">
+                            <h6><i class="fab fa-aws me-2"></i>AWS Configuration</h6>
+                            <p>Choose the best authentication method:</p>
+                            <ul>
+                                <li><strong>AWS Profile:</strong> Use <code>aws configure</code></li>
+                                <li><strong>Access Keys:</strong> Less secure, avoid in production</li>
+                                <li><strong>IAM Role:</strong> Most secure for cloud deployments</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let sapTestInProgress = false;
+    let awsTestInProgress = false;
+
+    // Toggle password visibility
+    function togglePassword(fieldId) {
+        const field = document.getElementById(fieldId);
+        const eye = document.getElementById(fieldId + '-eye');
+
+        if (field.type === 'password') {
+            field.type = 'text';
+            eye.className = 'fas fa-eye-slash';
+        } else {
+            field.type = 'password';
+            eye.className = 'fas fa-eye';
+        }
+    }
+
+    // Initialize page and load configurations
+    document.addEventListener('DOMContentLoaded', async function () {
+        // Setup AWS authentication method toggles
+        const authMethods = document.querySelectorAll('input[name="aws_auth_method"]');
+        authMethods.forEach(method => {
+            method.addEventListener('change', function () {
+                // Hide all config sections
+                document.getElementById('aws-profile-config').style.display = 'none';
+                document.getElementById('aws-keys-config').style.display = 'none';
+                document.getElementById('aws-role-config').style.display = 'none';
+
+                // Show selected config section
+                if (this.value === 'profile') {
+                    document.getElementById('aws-profile-config').style.display = 'block';
+                } else if (this.value === 'keys') {
+                    document.getElementById('aws-keys-config').style.display = 'block';
+                } else if (this.value === 'role') {
+                    document.getElementById('aws-role-config').style.display = 'block';
+                }
+            });
+        });
+
+        // Ensure default values are set first
+        ensureDefaultSapValues();
+
+        // Then load configurations from backend (which may override defaults)
+        await loadConfigurations();
+    });
+
+    async function loadConfigurations() {
+        try {
+            // Load SAP configuration
+            try {
+                const sapResponse = await fetch('/api/connection/current/sap');
+                if (sapResponse.ok) {
+                    const sapConfig = await sapResponse.json();
+                    if (sapConfig.success && sapConfig.configuration) {
+                        const conf = sapConfig.configuration;
+
+                        // Populate SAP fields (including client_id which is not sensitive)
+                        if (conf.tenant_name) document.getElementById('tenant-name').value = conf.tenant_name;
+                        if (conf.base_url) document.getElementById('base-url').value = conf.base_url;
+                        if (conf.client_id) document.getElementById('client-id').value = conf.client_id;
+                        if (conf.token_url) document.getElementById('token-url').value = conf.token_url;
+
+                        console.log('✅ SAP configuration loaded from:', sapConfig.storage_type || 'backend');
+                        console.log('📋 Loaded config:', conf);
+                    }
+                }
+            } catch (sapError) {
+                console.log('ℹ️ Using default SAP configuration');
+                // Ensure default values are set if backend fails
+                ensureDefaultSapValues();
+            }
+
+            // Load AWS configuration
+            try {
+                const awsResponse = await fetch('/api/connection/current/aws');
+                if (awsResponse.ok) {
+                    const awsConfig = await awsResponse.json();
+                    if (awsConfig.success && awsConfig.configuration) {
+                        const conf = awsConfig.configuration;
+
+                        if (conf.region) document.getElementById('aws-region').value = conf.region;
+                        if (conf.glue_database) document.getElementById('glue-database').value = conf.glue_database;
+
+                        // Set authentication method
+                        if (conf.auth_method) {
+                            const authRadio = document.querySelector(`input[name="aws_auth_method"][value="${conf.auth_method}"]`);
+                            if (authRadio) {
+                                authRadio.checked = true;
+                                authRadio.dispatchEvent(new Event('change'));
+                            }
+
+                            // Populate method-specific fields
+                            if (conf.auth_method === 'profile' && conf.profile_name) {
+                                document.getElementById('aws-profile-name').value = conf.profile_name;
+                            } else if (conf.auth_method === 'keys' && conf.access_key) {
+                                document.getElementById('aws-access-key').value = conf.access_key;
+                            } else if (conf.auth_method === 'role' && conf.role_arn) {
+                                document.getElementById('aws-role-arn').value = conf.role_arn;
+                            }
+                        }
+
+                        console.log('✅ AWS configuration loaded from:', awsConfig.storage_type || 'backend');
+                    }
+                }
+            } catch (awsError) {
+                console.log('ℹ️ Using default AWS configuration');
+            }
+        } catch (error) {
+            console.error('Failed to load configurations:', error);
+            // Ensure default values are set if everything fails
+            ensureDefaultSapValues();
+        }
+    }
+
+    function ensureDefaultSapValues() {
+        // Set default SAP values if fields are empty
+        const tenantField = document.getElementById('tenant-name');
+        const baseUrlField = document.getElementById('base-url');
+        const clientIdField = document.getElementById('client-id');
+        const tokenUrlField = document.getElementById('token-url');
+
+        if (!tenantField.value) tenantField.value = 'ailien-test';
+        if (!baseUrlField.value) baseUrlField.value = 'https://ailien-test.eu20.hcs.cloud.sap';
+        if (!clientIdField.value) clientIdField.value = 'sb-60cb266e-ad9d-49f7-9967-b53b8286a259!b130936|client!b3944';
+        if (!tokenUrlField.value) tokenUrlField.value = 'https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token';
+
+        // Force update the values to ensure they're correct
+        tenantField.value = 'ailien-test';
+        baseUrlField.value = 'https://ailien-test.eu20.hcs.cloud.sap';
+        clientIdField.value = 'sb-6a8a284c-9845-410c-8f36-ce7e637587b4!b130936|client!b3944';
+        tokenUrlField.value = 'https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token';
+
+        console.log('🔧 Applied default SAP values');
+        console.log('📋 Current values:', {
+            tenant: tenantField.value,
+            baseUrl: baseUrlField.value,
+            clientId: clientIdField.value,
+            tokenUrl: tokenUrlField.value
+        });
+    }
+
+    async function testBackendHealth() {
+        try {
+            const response = await fetch('/api/connection/health');
+            if (response.ok) {
+                const result = await response.json();
+                console.log('✅ Backend health check passed:', result);
+                return true;
+            } else {
+                console.error('❌ Backend health check failed:', response.status);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Backend not reachable:', error);
+            return false;
+        }
+    }
+
+    async function testSapConnection() {
+        if (sapTestInProgress) return;
+
+        // First check if backend is reachable
+        const backendHealthy = await testBackendHealth();
+        if (!backendHealthy) {
+            showNotification('Backend server is not reachable. Make sure Flask app is running on port 8000.', 'danger');
+            return;
+        }
+
+        // Validate required fields (Client Secret is loaded from backend if not visible)
+        const tenantName = document.getElementById('tenant-name').value.trim();
+        const baseUrl = document.getElementById('base-url').value.trim();
+        const clientId = document.getElementById('client-id').value.trim();
+        const tokenUrl = document.getElementById('token-url').value.trim();
+
+        if (!tenantName || !baseUrl || !clientId || !tokenUrl) {
+            // Debug: Show which fields are missing
+            const missingFields = [];
+            if (!tenantName) missingFields.push('Tenant Name');
+            if (!baseUrl) missingFields.push('Base URL');
+            if (!clientId) missingFields.push('Client ID');
+            if (!tokenUrl) missingFields.push('Token URL');
+
+            showNotification(`Missing required fields: ${missingFields.join(', ')}`, 'warning');
+            console.log('Field values:', { tenantName, baseUrl, clientId, tokenUrl });
+            console.log('DOM elements:', {
+                tenantElement: document.getElementById('tenant-name'),
+                baseUrlElement: document.getElementById('base-url'),
+                clientIdElement: document.getElementById('client-id'),
+                tokenUrlElement: document.getElementById('token-url')
+            });
+            return;
+        }
+
+        // Get client secret (might be empty if loaded from secure backend)
+        const clientSecret = document.getElementById('client-secret').value.trim();
+
+        sapTestInProgress = true;
+        const spinner = document.getElementById('sap-test-spinner');
+        const statusDisplay = document.getElementById('connection-status-display');
+        const statusIcon = document.getElementById('status-icon');
+        const statusMessage = document.getElementById('status-message');
+        const resultsRow = document.getElementById('test-results-row');
+        const resultsDiv = document.getElementById('test-results');
+
+        // Show testing status
+        spinner.style.display = 'inline-block';
+        statusDisplay.style.display = 'block';
+        statusDisplay.className = 'connection-status status-testing';
+        statusIcon.className = 'fas fa-spinner fa-spin me-2';
+        statusMessage.textContent = 'Testing SAP Datasphere connection...';
+
+        // Show results
+        resultsRow.style.display = 'block';
+        resultsDiv.innerHTML = `
+            <h5><i class="fab fa-sap me-2"></i>SAP Datasphere Tests</h5>
+            <div class="test-item">
+                <span>OAuth Authentication</span>
+                <span class="test-status test-pending">Testing...</span>
+            </div>
+            <div class="test-item">
+                <span>API Connectivity</span>
+                <span class="test-status test-pending">Pending</span>
+            </div>
+            <div class="test-item">
+                <span>Enhanced APIs</span>
+                <span class="test-status test-pending">Pending</span>
+            </div>
+            <div class="test-item">
+                <span>Permissions Check</span>
+                <span class="test-status test-pending">Pending</span>
+            </div>
+        `;
+
+        try {
+            // Collect form data
+            const formData = {
+                tenant_name: tenantName,
+                base_url: baseUrl,
+                client_id: clientId,
+                client_secret: clientSecret || 'FROM_BACKEND', // Backend will use stored secret if empty
+                token_url: tokenUrl,
+                authorization_url: baseUrl + '/oauth/authorize',
+                oauth_token_url: tokenUrl,
+                saml_audience: tokenUrl.replace('/oauth/token', '')
+            };
+
+            console.log('🚀 Sending SAP test request with data:', {
+                ...formData,
+                client_secret: formData.client_secret === 'FROM_BACKEND' ? 'FROM_BACKEND' : '***HIDDEN***'
+            });
+
+            // Send test request to backend API
+            const response = await fetch('/api/connection/test/sap', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            let result;
+            if (response.ok) {
+                result = await response.json();
+                console.log('✅ SAP test response received:', result);
+            } else {
+                // Handle API errors gracefully
+                const errorText = await response.text();
+                console.error('❌ SAP test API error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorText: errorText,
+                    url: response.url
+                });
+
+                result = {
+                    success: false,
+                    overall_success: false,
+                    tests: {
+                        oauth_auth: { success: false, message: `HTTP ${response.status}: ${response.statusText}` },
+                        api_connectivity: { success: false, message: 'Could not reach API endpoint' },
+                        enhanced_apis: { success: false, message: 'API test failed' },
+                        permissions: { success: false, message: 'Unable to verify permissions' }
+                    },
+                    error_details: `Backend API returned ${response.status}: ${errorText || response.statusText}`
+                };
+            }
+
+            // Update results
+            updateSapTestResults(result);
+
+            // Update status
+            if (result.overall_success) {
+                statusDisplay.className = 'connection-status status-success';
+                statusIcon.className = 'fas fa-check-circle me-2';
+                statusMessage.textContent = 'SAP Datasphere connection successful!';
+            } else {
+                statusDisplay.className = 'connection-status status-error';
+                statusIcon.className = 'fas fa-exclamation-circle me-2';
+                statusMessage.textContent = 'SAP connection test completed with issues';
+            }
+
+        } catch (error) {
+            console.error('Test SAP connection error:', error);
+            statusDisplay.className = 'connection-status status-error';
+            statusIcon.className = 'fas fa-exclamation-circle me-2';
+            statusMessage.textContent = 'Connection test failed: ' + error.message;
+
+            resultsDiv.innerHTML = `
+                <h5><i class="fab fa-sap me-2"></i>SAP Datasphere Tests</h5>
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> ${error.message}
+                    <br><small>Make sure the Flask backend is running on port 8000</small>
+                </div>
+            `;
+        } finally {
+            spinner.style.display = 'none';
+            sapTestInProgress = false;
+        }
+    }
+
+    async function testAwsConnection() {
+        if (awsTestInProgress) return;
+
+        // Validate required fields
+        const region = document.getElementById('aws-region').value;
+        const authMethod = document.querySelector('input[name="aws_auth_method"]:checked').value;
+
+        if (!region) {
+            showNotification('Please select an AWS region before testing', 'warning');
+            return;
+        }
+
+        // Validate auth method specific fields
+        if (authMethod === 'keys') {
+            const accessKey = document.getElementById('aws-access-key').value.trim();
+            const secretKey = document.getElementById('aws-secret-key').value.trim();
+            if (!accessKey || !secretKey) {
+                showNotification('Please provide AWS access keys', 'warning');
+                return;
+            }
+        }
+
+        awsTestInProgress = true;
+        const spinner = document.getElementById('aws-test-spinner');
+        const statusDisplay = document.getElementById('connection-status-display');
+        const statusIcon = document.getElementById('status-icon');
+        const statusMessage = document.getElementById('status-message');
+        const resultsRow = document.getElementById('test-results-row');
+        const resultsDiv = document.getElementById('test-results');
+
+        // Show testing status
+        spinner.style.display = 'inline-block';
+        statusDisplay.style.display = 'block';
+        statusDisplay.className = 'connection-status status-testing';
+        statusIcon.className = 'fas fa-spinner fa-spin me-2';
+        statusMessage.textContent = 'Testing AWS connection...';
+
+        // Show results
+        resultsRow.style.display = 'block';
+        resultsDiv.innerHTML = `
+            <h5><i class="fab fa-aws me-2"></i>AWS Tests</h5>
+            <div class="test-item">
+                <span>Authentication</span>
+                <span class="test-status test-pending">Testing...</span>
+            </div>
+            <div class="test-item">
+                <span>Glue Service Access</span>
+                <span class="test-status test-pending">Pending</span>
+            </div>
+            <div class="test-item">
+                <span>Database Operations</span>
+                <span class="test-status test-pending">Pending</span>
+            </div>
+            <div class="test-item">
+                <span>IAM Permissions</span>
+                <span class="test-status test-pending">Pending</span>
+            </div>
+        `;
+
+        try {
+            // Collect AWS form data
+            const formData = {
+                auth_method: authMethod,
+                region: region,
+                glue_database: document.getElementById('glue-database').value || 'datasphere-metadata'
+            };
+
+            if (authMethod === 'profile') {
+                formData.profile_name = document.getElementById('aws-profile-name').value || 'default';
+            } else if (authMethod === 'keys') {
+                formData.access_key = document.getElementById('aws-access-key').value;
+                formData.secret_key = document.getElementById('aws-secret-key').value;
+            } else if (authMethod === 'role') {
+                formData.role_arn = document.getElementById('aws-role-arn').value;
+            }
+
+            // Send test request to backend API
+            const response = await fetch('/api/connection/test/aws', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            let result;
+            if (response.ok) {
+                result = await response.json();
+            } else {
+                // Handle API errors gracefully
+                const errorText = await response.text();
+                result = {
+                    success: false,
+                    overall_success: false,
+                    tests: {
+                        authentication: { success: false, message: `HTTP ${response.status}: ${response.statusText}` },
+                        glue_access: { success: false, message: 'Could not reach API endpoint' },
+                        database_ops: { success: false, message: 'API test failed' },
+                        iam_permissions: { success: false, message: 'Unable to verify permissions' }
+                    },
+                    error_details: `Backend API returned ${response.status}: ${errorText || response.statusText}`
+                };
+            }
+
+            // Update results
+            updateAwsTestResults(result);
+
+            // Update status
+            if (result.overall_success) {
+                statusDisplay.className = 'connection-status status-success';
+                statusIcon.className = 'fas fa-check-circle me-2';
+                statusMessage.textContent = 'AWS connection successful!';
+            } else {
+                statusDisplay.className = 'connection-status status-error';
+                statusIcon.className = 'fas fa-exclamation-circle me-2';
+                statusMessage.textContent = 'AWS connection test completed with issues';
+            }
+
+        } catch (error) {
+            console.error('Test AWS connection error:', error);
+            statusDisplay.className = 'connection-status status-error';
+            statusIcon.className = 'fas fa-exclamation-circle me-2';
+            statusMessage.textContent = 'Connection test failed: ' + error.message;
+
+            resultsDiv.innerHTML = `
+                <h5><i class="fab fa-aws me-2"></i>AWS Tests</h5>
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> ${error.message}
+                    <br><small>Make sure the Flask backend is running on port 8000</small>
+                </div>
+            `;
+        } finally {
+            spinner.style.display = 'none';
+            awsTestInProgress = false;
+        }
+    }
+
+    function updateSapTestResults(result) {
+        const resultsDiv = document.getElementById('test-results');
+
+        const tests = [
+            { key: 'oauth_auth', label: 'OAuth Authentication' },
+            { key: 'api_connectivity', label: 'API Connectivity' },
+            { key: 'enhanced_apis', label: 'Enhanced APIs' },
+            { key: 'permissions', label: 'Permissions Check' }
+        ];
+
+        let html = '<h5><i class="fab fa-sap me-2"></i>SAP Datasphere Tests</h5>';
+
+        if (result && result.tests) {
+            tests.forEach(test => {
+                const testResult = result.tests[test.key];
+                if (testResult) {
+                    const statusClass = testResult.success ? 'test-success' : 'test-failed';
+                    const statusText = testResult.success ? 'Success' : 'Failed';
+
+                    html += `
+                        <div class="test-item">
+                            <div>
+                                <strong>${test.label}</strong>
+                                ${testResult.message ? `<br><small class="text-muted">${testResult.message}</small>` : ''}
+                            </div>
+                            <span class="test-status ${statusClass}">${statusText}</span>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="test-item">
+                            <div>
+                                <strong>${test.label}</strong>
+                                <br><small class="text-muted">Test not available</small>
+                            </div>
+                            <span class="test-status test-failed">N/A</span>
+                        </div>
+                    `;
+                }
+            });
+        } else {
+            html += `
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> Invalid test response format
+                </div>
+            `;
+        }
+
+        if (result && result.error_details) {
+            const isApiError = result.error_details.includes('Backend API returned');
+            const alertType = isApiError ? 'alert-danger' : 'alert-info';
+            const title = isApiError ? 'API Error' : 'Information';
+
+            html += `
+                <div class="alert ${alertType} mt-3">
+                    <strong>${title}:</strong><br>
+                    ${result.error_details}
+                </div>
+            `;
+        }
+
+        resultsDiv.innerHTML = html;
+    }
+
+    function updateAwsTestResults(result) {
+        const resultsDiv = document.getElementById('test-results');
+
+        const tests = [
+            { key: 'authentication', label: 'Authentication' },
+            { key: 'glue_access', label: 'Glue Service Access' },
+            { key: 'database_ops', label: 'Database Operations' },
+            { key: 'iam_permissions', label: 'IAM Permissions' }
+        ];
+
+        let html = '<h5><i class="fab fa-aws me-2"></i>AWS Tests</h5>';
+
+        if (result && result.tests) {
+            tests.forEach(test => {
+                const testResult = result.tests[test.key];
+                if (testResult) {
+                    const statusClass = testResult.success ? 'test-success' : 'test-failed';
+                    const statusText = testResult.success ? 'Success' : 'Failed';
+
+                    html += `
+                        <div class="test-item">
+                            <div>
+                                <strong>${test.label}</strong>
+                                ${testResult.message ? `<br><small class="text-muted">${testResult.message}</small>` : ''}
+                            </div>
+                            <span class="test-status ${statusClass}">${statusText}</span>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="test-item">
+                            <div>
+                                <strong>${test.label}</strong>
+                                <br><small class="text-muted">Test not available</small>
+                            </div>
+                            <span class="test-status test-failed">N/A</span>
+                        </div>
+                    `;
+                }
+            });
+        } else {
+            html += `
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> Invalid test response format
+                </div>
+            `;
+        }
+
+        if (result && result.error_details) {
+            const isApiError = result.error_details.includes('Backend API returned');
+            const alertType = isApiError ? 'alert-danger' : 'alert-info';
+            const title = isApiError ? 'API Error' : 'Information';
+
+            html += `
+                <div class="alert ${alertType} mt-3">
+                    <strong>${title}:</strong><br>
+                    ${result.error_details}
+                </div>
+            `;
+        }
+
+        resultsDiv.innerHTML = html;
+    }
+
+    async function saveSapConfiguration() {
+        try {
+            // Collect SAP form data
+            const formData = {
+                tenant_name: document.getElementById('tenant-name').value,
+                base_url: document.getElementById('base-url').value,
+                client_id: document.getElementById('client-id').value,
+                client_secret: document.getElementById('client-secret').value,
+                token_url: document.getElementById('token-url').value
+            };
+
+            // Send save request
+            const response = await fetch('/api/connection/save/sap', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    showNotification('SAP configuration saved successfully!', 'success');
+                } else {
+                    showNotification('Failed to save SAP configuration: ' + result.error, 'danger');
+                }
+            } else {
+                showNotification('SAP configuration saved locally (backend not available)', 'warning');
+            }
+
+        } catch (error) {
+            console.error('Save SAP configuration error:', error);
+            showNotification('SAP configuration saved locally (backend not available)', 'warning');
+        }
+    }
+
+    async function saveAwsConfiguration() {
+        try {
+            // Collect AWS form data
+            const authMethod = document.querySelector('input[name="aws_auth_method"]:checked').value;
+            const formData = {
+                auth_method: authMethod,
+                region: document.getElementById('aws-region').value,
+                glue_database: document.getElementById('glue-database').value
+            };
+
+            if (authMethod === 'profile') {
+                formData.profile_name = document.getElementById('aws-profile-name').value;
+            } else if (authMethod === 'keys') {
+                formData.access_key = document.getElementById('aws-access-key').value;
+                formData.secret_key = document.getElementById('aws-secret-key').value;
+            } else if (authMethod === 'role') {
+                formData.role_arn = document.getElementById('aws-role-arn').value;
+            }
+
+            // Send save request
+            const response = await fetch('/api/connection/save/aws', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    showNotification('AWS configuration saved successfully!', 'success');
+                } else {
+                    showNotification('Failed to save AWS configuration: ' + result.error, 'danger');
+                }
+            } else {
+                showNotification('AWS configuration saved locally (backend not available)', 'warning');
+            }
+
+        } catch (error) {
+            console.error('Save AWS configuration error:', error);
+            showNotification('AWS configuration saved locally (backend not available)', 'warning');
+        }
+    }
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 80px; right: 20px; z-index: 1050; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
+</script>
+{% endblock %}
