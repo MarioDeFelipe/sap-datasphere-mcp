@@ -1,0 +1,58 @@
+{
+  "/api/v1/spaces": {
+    "status_code": 404,
+    "accessible": false,
+    "content_type": "unknown",
+    "response_size": 0,
+    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+  },
+  "/api/v1/catalog": {
+    "status_code": 404,
+    "accessible": false,
+    "content_type": "unknown",
+    "response_size": 0,
+    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+  },
+  "/api/v1/metadata": {
+    "status_code": 404,
+    "accessible": false,
+    "content_type": "unknown",
+    "response_size": 0,
+    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+  },
+  "/odata/v4/catalog": {
+    "status_code": 404,
+    "accessible": false,
+    "content_type": "unknown",
+    "response_size": 0,
+    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+  },
+  "/$metadata": {
+    "status_code": 404,
+    "accessible": false,
+    "content_type": "unknown",
+    "response_size": 0,
+    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+  },
+  "/": {
+    "status_code": 404,
+    "accessible": false,
+    "content_type": "unknown",
+    "response_size": 0,
+    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+  },
+  "/health": {
+    "status_code": 200,
+    "accessible": true,
+    "content_type": "application/json",
+    "response_size": 20,
+    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+  },
+  "/api": {
+    "status_code": 404,
+    "accessible": false,
+    "content_type": "unknown",
+    "response_size": 0,
+    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap"
+  }
+}

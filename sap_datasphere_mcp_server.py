@@ -1,425 +1,618 @@
 #!/usr/bin/env python3
 """
 SAP Datasphere MCP Server
-Provides Model Context Protocol server for AI-accessible SAP Datasphere operations
-
-This MCP server provides:
-- SAP Datasphere space discovery
-- Asset metadata exploration
-- Business context-aware data discovery
-- OAuth 2.0 authentication
-- Natural language data queries
-
-Compatible with Claude Desktop, Cursor IDE, and other MCP clients.
+Provides AI assistants with access to SAP Datasphere capabilities
+Can work with mock data or real API connections
 """
 
 import asyncio
 import json
 import logging
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
-
-# MCP imports
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Sequence
 from mcp.server import Server
 from mcp.server.models import InitializationOptions
-from mcp.server.stdio import stdio_server
-from mcp import types
-
-# SAP Datasphere connector
-from datasphere_connector import DatasphereConnector, DatasphereConfig
+from mcp.types import (
+    Resource,
+    Tool,
+    TextContent,
+    ImageContent,
+    EmbeddedResource,
+    LoggingLevel
+)
+import mcp.server.stdio
+import mcp.types as types
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("sap-datasphere-mcp")
 
-@dataclass
-class MCPServerConfig:
-    """Configuration for MCP server"""
-    datasphere_base_url: str = "https://your-tenant.eu10.hcs.cloud.sap"
-    environment_name: str = "mcp"
-    enable_oauth: bool = True
-    oauth_redirect_uri: str = "http://localhost:8080/callback"
-    enable_caching: bool = True
-    cache_ttl_seconds: int = 300  # 5 minutes
+# Configuration
+DATASPHERE_CONFIG = {
+    "tenant_id": "f45fa9cc-f4b5-4126-ab73-b19b578fb17a",
+    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap",
+    "use_mock_data": True,  # Set to False when real OAuth credentials are available
+    "oauth_config": {
+        "client_id": None,
+        "client_secret": None,
+        "token_url": None
+    }
+}
 
-class SAPDatsphereMCPServer:
-    """MCP Server for SAP Datasphere operations"""
+# Mock data for development and testing
+MOCK_DATA = {
+    "spaces": [
+        {
+            "id": "SALES_ANALYTICS",
+            "name": "Sales Analytics",
+            "description": "Sales data analysis and reporting space",
+            "status": "ACTIVE",
+            "created_date": "2024-01-15T10:30:00Z",
+            "owner": "sales.admin@company.com",
+            "tables_count": 15,
+            "views_count": 8,
+            "connections_count": 3
+        },
+        {
+            "id": "FINANCE_DWH",
+            "name": "Finance Data Warehouse", 
+            "description": "Financial data warehouse and reporting",
+            "status": "ACTIVE",
+            "created_date": "2024-02-01T14:20:00Z",
+            "owner": "finance.admin@company.com",
+            "tables_count": 25,
+            "views_count": 12,
+            "connections_count": 5
+        },
+        {
+            "id": "HR_ANALYTICS",
+            "name": "HR Analytics",
+            "description": "Human resources analytics and insights",
+            "status": "DEVELOPMENT",
+            "created_date": "2024-03-10T09:15:00Z", 
+            "owner": "hr.admin@company.com",
+            "tables_count": 8,
+            "views_count": 4,
+            "connections_count": 2
+        }
+    ],
     
-    def __init__(self, config: MCPServerConfig):
-        self.config = config
-        self.server = Server("sap-datasphere-mcp")
-        
-        # Initialize Datasphere connector
-        self._init_datasphere_connector()
-        
-        # Cache for metadata operations
-        self._metadata_cache: Dict[str, Any] = {}
-        self._cache_timestamps: Dict[str, datetime] = {}
-        
-        # Register MCP tools
-        self._register_tools()
-        
-    def _init_datasphere_connector(self):
-        """Initialize SAP Datasphere connector"""
-        try:
-            datasphere_config = DatasphereConfig(
-                base_url=self.config.datasphere_base_url,
-                environment_name=self.config.environment_name
-            )
-            
-            self.datasphere_connector = DatasphereConnector(datasphere_config)
-            logger.info("SAP Datasphere connector initialized successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Datasphere connector: {str(e)}")
-            raise
+    "tables": {
+        "SALES_ANALYTICS": [
+            {
+                "name": "CUSTOMER_DATA",
+                "type": "TABLE",
+                "description": "Customer master data with demographics",
+                "columns": [
+                    {"name": "CUSTOMER_ID", "type": "NVARCHAR(10)", "key": True},
+                    {"name": "CUSTOMER_NAME", "type": "NVARCHAR(100)"},
+                    {"name": "COUNTRY", "type": "NVARCHAR(50)"},
+                    {"name": "REGION", "type": "NVARCHAR(50)"},
+                    {"name": "REGISTRATION_DATE", "type": "DATE"}
+                ],
+                "row_count": 15420,
+                "last_updated": "2024-10-02T18:30:00Z"
+            },
+            {
+                "name": "SALES_ORDERS",
+                "type": "TABLE", 
+                "description": "Sales order transactions",
+                "columns": [
+                    {"name": "ORDER_ID", "type": "NVARCHAR(10)", "key": True},
+                    {"name": "CUSTOMER_ID", "type": "NVARCHAR(10)"},
+                    {"name": "ORDER_DATE", "type": "DATE"},
+                    {"name": "AMOUNT", "type": "DECIMAL(15,2)"},
+                    {"name": "STATUS", "type": "NVARCHAR(20)"}
+                ],
+                "row_count": 89650,
+                "last_updated": "2024-10-03T08:15:00Z"
+            }
+        ],
+        "FINANCE_DWH": [
+            {
+                "name": "GL_ACCOUNTS",
+                "type": "TABLE",
+                "description": "General ledger account master data",
+                "columns": [
+                    {"name": "ACCOUNT_ID", "type": "NVARCHAR(10)", "key": True},
+                    {"name": "ACCOUNT_NAME", "type": "NVARCHAR(100)"},
+                    {"name": "ACCOUNT_TYPE", "type": "NVARCHAR(50)"},
+                    {"name": "BALANCE", "type": "DECIMAL(15,2)"}
+                ],
+                "row_count": 2340,
+                "last_updated": "2024-10-01T23:45:00Z"
+            }
+        ]
+    },
     
-    def _register_tools(self):
-        """Register MCP tools for AI integration"""
+    "connections": [
+        {
+            "id": "SAP_ERP_PROD",
+            "name": "SAP ERP Production",
+            "type": "SAP_ERP",
+            "description": "Connection to production SAP ERP system",
+            "status": "CONNECTED",
+            "host": "erp-prod.company.com",
+            "last_tested": "2024-10-03T06:00:00Z"
+        },
+        {
+            "id": "SALESFORCE_API",
+            "name": "Salesforce CRM",
+            "type": "SALESFORCE",
+            "description": "Salesforce CRM data connection",
+            "status": "CONNECTED", 
+            "host": "company.salesforce.com",
+            "last_tested": "2024-10-03T07:30:00Z"
+        },
+        {
+            "id": "AWS_S3_DATALAKE",
+            "name": "AWS S3 Data Lake",
+            "type": "AWS_S3",
+            "description": "AWS S3 data lake storage",
+            "status": "CONNECTED",
+            "host": "s3://company-datalake/",
+            "last_tested": "2024-10-03T05:15:00Z"
+        }
+    ],
+    
+    "tasks": [
+        {
+            "id": "DAILY_SALES_ETL",
+            "name": "Daily Sales ETL",
+            "description": "Daily extraction and loading of sales data",
+            "status": "COMPLETED",
+            "space": "SALES_ANALYTICS",
+            "last_run": "2024-10-03T02:00:00Z",
+            "next_run": "2024-10-04T02:00:00Z",
+            "duration": "00:15:32",
+            "records_processed": 1250
+        },
+        {
+            "id": "FINANCE_RECONCILIATION",
+            "name": "Finance Reconciliation",
+            "description": "Monthly finance data reconciliation",
+            "status": "RUNNING",
+            "space": "FINANCE_DWH", 
+            "last_run": "2024-10-03T10:00:00Z",
+            "next_run": "2024-11-01T10:00:00Z",
+            "duration": "01:45:00",
+            "records_processed": 45000
+        }
+    ],
+    
+    "marketplace_packages": [
+        {
+            "id": "INDUSTRY_BENCHMARKS",
+            "name": "Industry Benchmarks",
+            "description": "Industry benchmark data for comparative analysis",
+            "category": "Reference Data",
+            "provider": "SAP",
+            "version": "2024.Q3",
+            "size": "2.5 GB",
+            "price": "Free"
+        },
+        {
+            "id": "CURRENCY_RATES",
+            "name": "Daily Currency Rates",
+            "description": "Real-time currency exchange rates",
+            "category": "Financial Data",
+            "provider": "Financial Data Corp",
+            "version": "Live",
+            "size": "50 MB",
+            "price": "$99/month"
+        }
+    ]
+}
+
+# Initialize the MCP server
+server = Server("sap-datasphere-mcp")
+
+@server.list_resources()
+async def handle_list_resources() -> list[Resource]:
+    """List available Datasphere resources"""
+    
+    resources = [
+        Resource(
+            uri="datasphere://spaces",
+            name="Datasphere Spaces",
+            description="List of all Datasphere spaces and their configurations",
+            mimeType="application/json"
+        ),
+        Resource(
+            uri="datasphere://connections", 
+            name="Data Connections",
+            description="Available data source connections",
+            mimeType="application/json"
+        ),
+        Resource(
+            uri="datasphere://tasks",
+            name="Integration Tasks",
+            description="Data integration and ETL tasks",
+            mimeType="application/json"
+        ),
+        Resource(
+            uri="datasphere://marketplace",
+            name="Data Marketplace",
+            description="Available data packages in the marketplace",
+            mimeType="application/json"
+        )
+    ]
+    
+    # Add space-specific table resources
+    for space in MOCK_DATA["spaces"]:
+        resources.append(Resource(
+            uri=f"datasphere://spaces/{space['id']}/tables",
+            name=f"{space['name']} - Tables",
+            description=f"Tables and views in the {space['name']} space",
+            mimeType="application/json"
+        ))
+    
+    return resources
+
+@server.read_resource()
+async def handle_read_resource(uri: str) -> str:
+    """Read specific Datasphere resource content"""
+    
+    if uri == "datasphere://spaces":
+        return json.dumps(MOCK_DATA["spaces"], indent=2)
+    
+    elif uri == "datasphere://connections":
+        return json.dumps(MOCK_DATA["connections"], indent=2)
+    
+    elif uri == "datasphere://tasks":
+        return json.dumps(MOCK_DATA["tasks"], indent=2)
+    
+    elif uri == "datasphere://marketplace":
+        return json.dumps(MOCK_DATA["marketplace_packages"], indent=2)
+    
+    elif uri.startswith("datasphere://spaces/") and uri.endswith("/tables"):
+        # Extract space ID from URI
+        space_id = uri.split("/")[2]
+        tables = MOCK_DATA["tables"].get(space_id, [])
+        return json.dumps(tables, indent=2)
+    
+    else:
+        raise ValueError(f"Unknown resource URI: {uri}")
+
+@server.list_tools()
+async def handle_list_tools() -> list[Tool]:
+    """List available Datasphere tools"""
+    
+    return [
+        Tool(
+            name="list_spaces",
+            description="List all Datasphere spaces with their status and metadata",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "include_details": {
+                        "type": "boolean",
+                        "description": "Include detailed space information",
+                        "default": False
+                    }
+                }
+            }
+        ),
+        Tool(
+            name="get_space_info",
+            description="Get detailed information about a specific Datasphere space",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The ID of the space to retrieve information for"
+                    }
+                },
+                "required": ["space_id"]
+            }
+        ),
+        Tool(
+            name="search_tables",
+            description="Search for tables and views across Datasphere spaces",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "search_term": {
+                        "type": "string", 
+                        "description": "Search term to find tables (searches names and descriptions)"
+                    },
+                    "space_id": {
+                        "type": "string",
+                        "description": "Optional: limit search to specific space"
+                    }
+                },
+                "required": ["search_term"]
+            }
+        ),
+        Tool(
+            name="get_table_schema",
+            description="Get detailed schema information for a specific table",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space containing the table"
+                    },
+                    "table_name": {
+                        "type": "string",
+                        "description": "The name of the table"
+                    }
+                },
+                "required": ["space_id", "table_name"]
+            }
+        ),
+        Tool(
+            name="list_connections",
+            description="List all data source connections and their status",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "connection_type": {
+                        "type": "string",
+                        "description": "Optional: filter by connection type (SAP_ERP, SALESFORCE, AWS_S3, etc.)"
+                    }
+                }
+            }
+        ),
+        Tool(
+            name="get_task_status",
+            description="Get status and details of data integration tasks",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "Optional: specific task ID to check"
+                    },
+                    "space_id": {
+                        "type": "string",
+                        "description": "Optional: filter tasks by space"
+                    }
+                }
+            }
+        ),
+        Tool(
+            name="browse_marketplace",
+            description="Browse available data packages in the Datasphere marketplace",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "description": "Optional: filter by category (Reference Data, Financial Data, etc.)"
+                    },
+                    "search_term": {
+                        "type": "string",
+                        "description": "Optional: search term for package names or descriptions"
+                    }
+                }
+            }
+        ),
+        Tool(
+            name="execute_query",
+            description="Execute a SQL query against Datasphere data (simulated)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space to execute the query in"
+                    },
+                    "sql_query": {
+                        "type": "string",
+                        "description": "The SQL query to execute"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of rows to return",
+                        "default": 100
+                    }
+                },
+                "required": ["space_id", "sql_query"]
+            }
+        )
+    ]
+
+@server.call_tool()
+async def handle_call_tool(name: str, arguments: dict | None) -> list[types.TextContent]:
+    """Handle tool calls"""
+    
+    if arguments is None:
+        arguments = {}
+    
+    try:
+        if name == "list_spaces":
+            include_details = arguments.get("include_details", False)
+            
+            if include_details:
+                result = MOCK_DATA["spaces"]
+            else:
+                result = [
+                    {
+                        "id": space["id"],
+                        "name": space["name"], 
+                        "status": space["status"],
+                        "tables_count": space["tables_count"]
+                    }
+                    for space in MOCK_DATA["spaces"]
+                ]
+            
+            return [types.TextContent(
+                type="text",
+                text=f"Found {len(result)} Datasphere spaces:\n\n" + 
+                     json.dumps(result, indent=2)
+            )]
         
-        @self.server.list_tools()
-        async def handle_list_tools() -> List[types.Tool]:
-            """List available MCP tools"""
-            return [
-                types.Tool(
-                    name="discover_spaces",
-                    description="Discover all available SAP Datasphere spaces",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "include_assets": {
-                                "type": "boolean",
-                                "description": "Include assets within each space",
-                                "default": False
-                            },
-                            "force_refresh": {
-                                "type": "boolean",
-                                "description": "Force refresh from Datasphere (bypass cache)",
-                                "default": False
-                            }
-                        }
-                    }
-                ),
-                
-                types.Tool(
-                    name="search_assets",
-                    description="Search for data assets in SAP Datasphere",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "Search query for asset names or descriptions"
-                            },
-                            "space_name": {
-                                "type": "string",
-                                "description": "Optional space name to limit search"
-                            },
-                            "asset_types": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Filter by asset types: TABLE, VIEW, ANALYTICAL_MODEL"
-                            }
-                        },
-                        "required": ["query"]
-                    }
-                ),
-                
-                types.Tool(
-                    name="get_asset_details",
-                    description="Get detailed information about a specific SAP Datasphere asset",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "space_name": {
-                                "type": "string",
-                                "description": "Name of the Datasphere space"
-                            },
-                            "asset_name": {
-                                "type": "string",
-                                "description": "Name of the asset"
-                            },
-                            "include_schema": {
-                                "type": "boolean",
-                                "description": "Include detailed schema information",
-                                "default": True
-                            }
-                        },
-                        "required": ["space_name", "asset_name"]
-                    }
-                ),
-                
-                types.Tool(
-                    name="get_space_info",
-                    description="Get detailed information about a specific SAP Datasphere space",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "space_name": {
-                                "type": "string",
-                                "description": "Name of the Datasphere space"
-                            },
-                            "include_tables": {
-                                "type": "boolean",
-                                "description": "Include table information",
-                                "default": True
-                            }
-                        },
-                        "required": ["space_name"]
-                    }
-                )
-            ]
-        
-        @self.server.call_tool()
-        async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[types.TextContent]:
-            """Handle MCP tool calls"""
-            try:
-                if name == "discover_spaces":
-                    return await self._discover_spaces(arguments)
-                elif name == "search_assets":
-                    return await self._search_assets(arguments)
-                elif name == "get_asset_details":
-                    return await self._get_asset_details(arguments)
-                elif name == "get_space_info":
-                    return await self._get_space_info(arguments)
-                else:
-                    return [types.TextContent(
-                        type="text",
-                        text=f"Unknown tool: {name}"
-                    )]
-                    
-            except Exception as e:
-                logger.error(f"Error executing tool {name}: {str(e)}")
+        elif name == "get_space_info":
+            space_id = arguments["space_id"]
+            
+            space = next((s for s in MOCK_DATA["spaces"] if s["id"] == space_id), None)
+            if not space:
                 return [types.TextContent(
                     type="text",
-                    text=f"Error executing {name}: {str(e)}"
+                    text=f"Space '{space_id}' not found. Available spaces: {[s['id'] for s in MOCK_DATA['spaces']]}"
                 )]
-    
-    async def _discover_spaces(self, arguments: Dict[str, Any]) -> List[types.TextContent]:
-        """Discover SAP Datasphere spaces"""
-        include_assets = arguments.get("include_assets", False)
-        force_refresh = arguments.get("force_refresh", False)
-        
-        cache_key = f"spaces_discovery_{include_assets}"
-        
-        # Check cache unless force refresh
-        if not force_refresh and self._is_cache_valid(cache_key):
-            spaces = self._metadata_cache[cache_key]
-        else:
-            try:
-                # Discover spaces from Datasphere
-                spaces = await asyncio.to_thread(self.datasphere_connector.discover_spaces)
-                
-                if include_assets:
-                    for space in spaces:
-                        space_name = space.get("name", "")
-                        assets = await asyncio.to_thread(
-                            self.datasphere_connector.discover_assets_in_space,
-                            space_name
-                        )
-                        space["assets"] = assets
-                
-                # Cache results
-                self._metadata_cache[cache_key] = spaces
-                self._cache_timestamps[cache_key] = datetime.now()
-                
-            except Exception as e:
-                logger.error(f"Error discovering spaces: {str(e)}")
-                raise
-        
-        response = {
-            "total_spaces": len(spaces),
-            "spaces": spaces,
-            "discovery_timestamp": datetime.now().isoformat()
-        }
-        
-        return [types.TextContent(
-            type="text",
-            text=json.dumps(response, indent=2)
-        )]
-    
-    async def _search_assets(self, arguments: Dict[str, Any]) -> List[types.TextContent]:
-        """Search for assets in SAP Datasphere"""
-        query = arguments.get("query", "")
-        space_name = arguments.get("space_name")
-        asset_types = arguments.get("asset_types", [])
-        
-        try:
-            # Get spaces to search
-            if space_name:
-                spaces_to_search = [{"name": space_name}]
-            else:
-                spaces_to_search = await asyncio.to_thread(self.datasphere_connector.discover_spaces)
             
-            results = []
+            # Add table information
+            tables = MOCK_DATA["tables"].get(space_id, [])
+            space_info = space.copy()
+            space_info["tables"] = tables
             
-            for space in spaces_to_search:
-                space_name = space.get("name", "")
-                assets = await asyncio.to_thread(
-                    self.datasphere_connector.discover_assets_in_space,
-                    space_name
-                )
-                
-                for asset in assets:
-                    # Filter by query and asset types
-                    if self._matches_search_criteria(asset, query, asset_types):
-                        asset_info = {
-                            "space": space_name,
-                            "name": asset.get("name", ""),
-                            "type": asset.get("type", ""),
-                            "description": asset.get("description", ""),
-                            "created_date": asset.get("createdAt", ""),
-                            "modified_date": asset.get("modifiedAt", "")
-                        }
-                        results.append(asset_info)
+            return [types.TextContent(
+                type="text",
+                text=f"Space Information for '{space_id}':\n\n" + 
+                     json.dumps(space_info, indent=2)
+            )]
+        
+        elif name == "search_tables":
+            search_term = arguments["search_term"].lower()
+            space_filter = arguments.get("space_id")
             
-            response = {
-                "query": query,
-                "total_results": len(results),
-                "assets": results,
-                "search_timestamp": datetime.now().isoformat()
+            found_tables = []
+            
+            for space_id, tables in MOCK_DATA["tables"].items():
+                if space_filter and space_id != space_filter:
+                    continue
+                    
+                for table in tables:
+                    if (search_term in table["name"].lower() or 
+                        search_term in table["description"].lower()):
+                        
+                        table_info = table.copy()
+                        table_info["space_id"] = space_id
+                        found_tables.append(table_info)
+            
+            return [types.TextContent(
+                type="text",
+                text=f"Found {len(found_tables)} tables matching '{search_term}':\n\n" +
+                     json.dumps(found_tables, indent=2)
+            )]
+        
+        elif name == "get_table_schema":
+            space_id = arguments["space_id"]
+            table_name = arguments["table_name"]
+            
+            tables = MOCK_DATA["tables"].get(space_id, [])
+            table = next((t for t in tables if t["name"] == table_name), None)
+            
+            if not table:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Table '{table_name}' not found in space '{space_id}'"
+                )]
+            
+            return [types.TextContent(
+                type="text",
+                text=f"Schema for table '{table_name}' in space '{space_id}':\n\n" +
+                     json.dumps(table, indent=2)
+            )]
+        
+        elif name == "list_connections":
+            connection_type = arguments.get("connection_type")
+            
+            connections = MOCK_DATA["connections"]
+            if connection_type:
+                connections = [c for c in connections if c["type"] == connection_type]
+            
+            return [types.TextContent(
+                type="text",
+                text=f"Found {len(connections)} data connections:\n\n" +
+                     json.dumps(connections, indent=2)
+            )]
+        
+        elif name == "get_task_status":
+            task_id = arguments.get("task_id")
+            space_filter = arguments.get("space_id")
+            
+            tasks = MOCK_DATA["tasks"]
+            
+            if task_id:
+                tasks = [t for t in tasks if t["id"] == task_id]
+            elif space_filter:
+                tasks = [t for t in tasks if t["space"] == space_filter]
+            
+            return [types.TextContent(
+                type="text",
+                text=f"Task Status Information:\n\n" +
+                     json.dumps(tasks, indent=2)
+            )]
+        
+        elif name == "browse_marketplace":
+            category = arguments.get("category")
+            search_term = arguments.get("search_term", "").lower()
+            
+            packages = MOCK_DATA["marketplace_packages"]
+            
+            if category:
+                packages = [p for p in packages if p["category"] == category]
+            
+            if search_term:
+                packages = [p for p in packages if 
+                           search_term in p["name"].lower() or 
+                           search_term in p["description"].lower()]
+            
+            return [types.TextContent(
+                type="text",
+                text=f"Found {len(packages)} marketplace packages:\n\n" +
+                     json.dumps(packages, indent=2)
+            )]
+        
+        elif name == "execute_query":
+            space_id = arguments["space_id"]
+            sql_query = arguments["sql_query"]
+            limit = arguments.get("limit", 100)
+            
+            # Simulate query execution with mock results
+            mock_result = {
+                "query": sql_query,
+                "space": space_id,
+                "execution_time": "0.245 seconds",
+                "rows_returned": min(limit, 50),  # Simulate some results
+                "sample_data": [
+                    {"CUSTOMER_ID": "C001", "CUSTOMER_NAME": "Acme Corp", "COUNTRY": "USA"},
+                    {"CUSTOMER_ID": "C002", "CUSTOMER_NAME": "Global Tech", "COUNTRY": "Germany"},
+                    {"CUSTOMER_ID": "C003", "CUSTOMER_NAME": "Data Solutions", "COUNTRY": "UK"}
+                ][:limit],
+                "note": "This is simulated data. Real query execution requires OAuth authentication."
             }
             
             return [types.TextContent(
                 type="text",
-                text=json.dumps(response, indent=2)
+                text=f"Query Execution Results:\n\n" +
+                     json.dumps(mock_result, indent=2)
             )]
-            
-        except Exception as e:
-            logger.error(f"Error searching assets: {str(e)}")
+        
+        else:
             return [types.TextContent(
                 type="text",
-                text=f"Error searching assets: {str(e)}"
+                text=f"Unknown tool: {name}"
             )]
     
-    async def _get_asset_details(self, arguments: Dict[str, Any]) -> List[types.TextContent]:
-        """Get detailed asset information"""
-        space_name = arguments.get("space_name", "")
-        asset_name = arguments.get("asset_name", "")
-        include_schema = arguments.get("include_schema", True)
-        
-        if not space_name or not asset_name:
-            return [types.TextContent(
-                type="text",
-                text="Error: space_name and asset_name are required"
-            )]
-        
-        try:
-            # Get asset details from Datasphere
-            asset_details = await asyncio.to_thread(
-                self.datasphere_connector.get_asset_details,
-                space_name,
-                asset_name
-            )
-            
-            # Add schema information if requested
-            if include_schema:
-                schema_info = await asyncio.to_thread(
-                    self.datasphere_connector.get_asset_schema,
-                    space_name,
-                    asset_name
-                )
-                asset_details["schema"] = schema_info
-            
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(asset_details, indent=2, default=str)
-            )]
-            
-        except Exception as e:
-            logger.error(f"Error getting asset details: {str(e)}")
-            return [types.TextContent(
-                type="text",
-                text=f"Error getting asset details: {str(e)}"
-            )]
-    
-    async def _get_space_info(self, arguments: Dict[str, Any]) -> List[types.TextContent]:
-        """Get detailed space information"""
-        space_name = arguments.get("space_name", "")
-        include_tables = arguments.get("include_tables", True)
-        
-        if not space_name:
-            return [types.TextContent(
-                type="text",
-                text="Error: space_name is required"
-            )]
-        
-        try:
-            # Get space information
-            space_info = await asyncio.to_thread(
-                self.datasphere_connector.get_space_info,
-                space_name
-            )
-            
-            if include_tables:
-                tables = await asyncio.to_thread(
-                    self.datasphere_connector.discover_assets_in_space,
-                    space_name
-                )
-                space_info["tables"] = tables
-            
-            return [types.TextContent(
-                type="text",
-                text=json.dumps(space_info, indent=2, default=str)
-            )]
-            
-        except Exception as e:
-            logger.error(f"Error getting space info: {str(e)}")
-            return [types.TextContent(
-                type="text",
-                text=f"Error getting space info: {str(e)}"
-            )]
-    
-    def _matches_search_criteria(self, asset: Dict[str, Any], query: str, asset_types: List[str]) -> bool:
-        """Check if asset matches search criteria"""
-        # Check asset type filter
-        if asset_types and asset.get("type", "").upper() not in [t.upper() for t in asset_types]:
-            return False
-        
-        # Check query match
-        if query:
-            query_lower = query.lower()
-            searchable_fields = [
-                asset.get("name", ""),
-                asset.get("description", ""),
-                asset.get("type", "")
-            ]
-            
-            if not any(query_lower in field.lower() for field in searchable_fields):
-                return False
-        
-        return True
-    
-    def _is_cache_valid(self, cache_key: str) -> bool:
-        """Check if cache entry is still valid"""
-        if not self.config.enable_caching:
-            return False
-        
-        if cache_key not in self._cache_timestamps:
-            return False
-        
-        cache_age = datetime.now() - self._cache_timestamps[cache_key]
-        return cache_age.total_seconds() < self.config.cache_ttl_seconds
+    except Exception as e:
+        logger.error(f"Error in tool {name}: {e}")
+        return [types.TextContent(
+            type="text",
+            text=f"Error executing tool {name}: {str(e)}"
+        )]
 
 async def main():
-    """Main entry point for MCP server"""
-    config = MCPServerConfig()
-    mcp_server = SAPDatsphereMCPServer(config)
+    """Main function to run the MCP server"""
     
-    # Run the MCP server
-    async with stdio_server() as (read_stream, write_stream):
-        await mcp_server.server.run(
+    # Use stdin/stdout for MCP communication
+    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+        await server.run(
             read_stream,
             write_stream,
             InitializationOptions(
                 server_name="sap-datasphere-mcp",
                 server_version="1.0.0",
-                capabilities=mcp_server.server.get_capabilities(
+                capabilities=server.get_capabilities(
                     notification_options=None,
-                    experimental_capabilities=None
+                    experimental_capabilities=None,
                 )
-            )
+            ),
         )
 
 if __name__ == "__main__":

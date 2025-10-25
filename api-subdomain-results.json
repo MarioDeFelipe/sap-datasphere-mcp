@@ -1,0 +1,260 @@
+{
+  "api-f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap": {
+    "/api/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/metadata": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/models": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/connections": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/odata/v4/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/odata/v4/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/$metadata": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/rest/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/rest/v1/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/dwc/api/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/dwc/api/v1/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/sap/bc/rest/dwaas/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/sap/opu/odata/sap/DWC_CATALOG_SRV": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    }
+  },
+  "f45fa9cc-f4b5-4126-ab73-b19b578fb17a-api.eu10.hcs.cloud.sap": {
+    "/api/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/metadata": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/models": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/connections": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/odata/v4/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/odata/v4/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/$metadata": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/rest/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/rest/v1/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/dwc/api/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/dwc/api/v1/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/sap/bc/rest/dwaas/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/sap/opu/odata/sap/DWC_CATALOG_SRV": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    }
+  },
+  "rest-f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap": {
+    "/api/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/metadata": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/models": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/api/v1/connections": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/odata/v4/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/odata/v4/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/$metadata": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/rest/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/rest/v1/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/dwc/api/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/dwc/api/v1/catalog": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/sap/bc/rest/dwaas/v1/spaces": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    },
+    "/sap/opu/odata/sap/DWC_CATALOG_SRV": {
+      "status_code": 404,
+      "accessible": false,
+      "content_type": "unknown",
+      "response_size": 0
+    }
+  }
+}
