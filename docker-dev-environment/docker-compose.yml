@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  sap-datasphere-app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    container_name: sap-datasphere-dev
+    
+  # Optional: Add a database for future development
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: datasphere_dev
+      POSTGRES_USER: developer
+      POSTGRES_PASSWORD: devpass123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    container_name: sap-datasphere-db
+    
+volumes:
+  postgres_data:

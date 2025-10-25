@@ -24,7 +24,6 @@ from sync_logging import SyncLogger, EventType
 from asset_mapper import AssetMapper, MappingResult
 from datasphere_connector import DatasphereConnector
 from glue_connector import GlueConnector
-from incremental_sync import IncrementalSyncEngine, ChangeDetectionResult, DeltaSyncResult
 
 class SyncPriority(Enum):
     """Synchronization priority levels"""
@@ -202,7 +201,7 @@ class SyncMetrics:
 class SyncOrchestrator:
     """Advanced priority-based synchronization orchestrator"""
     
-    def __init__(self, max_workers: int = 5, enable_incremental_sync: bool = True):
+    def __init__(self, max_workers: int = 5):
         self.logger = SyncLogger("sync_orchestrator")
         self.max_workers = max_workers
         
@@ -210,10 +209,6 @@ class SyncOrchestrator:
         self.asset_mapper = AssetMapper()
         self.datasphere_connector = None
         self.glue_connector = None
-        
-        # Incremental sync engine
-        self.enable_incremental_sync = enable_incremental_sync
-        self.incremental_sync_engine = IncrementalSyncEngine() if enable_incremental_sync else None
         
         # Job management
         self.job_queue = PriorityQueue()
@@ -237,8 +232,7 @@ class SyncOrchestrator:
             'job_timeout_seconds': 300,
             'retry_delay_seconds': 60,
             'cleanup_completed_jobs_after_hours': 24,
-            'metrics_update_interval_seconds': 30,
-            'incremental_sync_enabled': enable_incremental_sync
+            'metrics_update_interval_seconds': 30
         }
         
         # Initialize default sync rules
@@ -389,125 +383,6 @@ class SyncOrchestrator:
         )
         
         return job_ids
-    
-    def schedule_incremental_sync(self, source_system: SourceSystem, target_system: SourceSystem) -> Dict[str, Any]:
-        """Schedule incremental synchronization based on change detection"""
-        if not self.enable_incremental_sync or not self.incremental_sync_engine:
-            return {
-                'success': False,
-                'error': 'Incremental sync is not enabled'
-            }
-        
-        try:
-            # Get current assets from source system
-            current_assets = self._get_all_assets_from_source(source_system)
-            
-            # Analyze changes
-            change_results = self.incremental_sync_engine.analyze_sync_requirements(current_assets)
-            
-            # Schedule sync jobs for changed assets
-            job_ids = []
-            for change_result in change_results:
-                if change_result.sync_required:
-                    # Determine priority based on change type
-                    priority = SyncPriority.MEDIUM
-                    if change_result.priority_boost:
-                        priority = SyncPriority.HIGH
-                    if change_result.change_type.value in ['created', 'schema_changed']:
-                        priority = SyncPriority.CRITICAL
-                    
-                    if change_result.current_asset:
-                        job_id = self.schedule_asset_sync(
-                            asset=change_result.current_asset,
-                            target_system=target_system,
-                            priority=priority
-                        )
-                        if job_id:
-                            job_ids.append(job_id)
-            
-            self.logger.log_event(
-                event_type=EventType.INCREMENTAL_SYNC_COMPLETED,
-                source_system=source_system.value,
-                operation="schedule_incremental_sync",
-                status="completed",
-                details={
-                    'assets_analyzed': len(current_assets),
-                    'changes_detected': len(change_results),
-                    'jobs_scheduled': len(job_ids),
-                    'target_system': target_system.value
-                }
-            )
-            
-            return {
-                'success': True,
-                'assets_analyzed': len(current_assets),
-                'changes_detected': len(change_results),
-                'jobs_scheduled': len(job_ids),
-                'job_ids': job_ids,
-                'change_summary': self._summarize_changes(change_results)
-            }
-            
-        except Exception as e:
-            self.logger.logger.error(f"Failed to schedule incremental sync: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e)
-            }
-    
-    def _get_all_assets_from_source(self, source_system: SourceSystem) -> List[MetadataAsset]:
-        """Get all assets from a source system"""
-        all_assets = []
-        
-        try:
-            if source_system == SourceSystem.DATASPHERE:
-                if not self.datasphere_connector:
-                    raise Exception("Datasphere connector not initialized")
-                
-                # Get all asset types
-                for asset_type in AssetType:
-                    assets = self.datasphere_connector.get_assets(asset_type)
-                    all_assets.extend(assets)
-            
-            elif source_system == SourceSystem.GLUE:
-                if not self.glue_connector:
-                    raise Exception("Glue connector not initialized")
-                
-                # Get all asset types
-                for asset_type in AssetType:
-                    assets = self.glue_connector.get_assets(asset_type)
-                    all_assets.extend(assets)
-            
-            return all_assets
-            
-        except Exception as e:
-            self.logger.logger.error(f"Failed to get assets from {source_system.value}: {str(e)}")
-            return []
-    
-    def _summarize_changes(self, change_results: List[ChangeDetectionResult]) -> Dict[str, int]:
-        """Summarize detected changes by type"""
-        summary = {}
-        for result in change_results:
-            change_type = result.change_type.value
-            summary[change_type] = summary.get(change_type, 0) + 1
-        return summary
-    
-    def get_incremental_sync_status(self) -> Dict[str, Any]:
-        """Get status of incremental synchronization"""
-        if not self.enable_incremental_sync or not self.incremental_sync_engine:
-            return {
-                'enabled': False,
-                'message': 'Incremental sync is not enabled'
-            }
-        
-        stats = self.incremental_sync_engine.get_sync_statistics()
-        report = self.incremental_sync_engine.create_sync_report()
-        
-        return {
-            'enabled': True,
-            'statistics': stats,
-            'report': report,
-            'checkpoint_count': len(self.incremental_sync_engine.checkpoint_manager._checkpoint_cache)
-        }
     
     def start_orchestrator(self) -> bool:
         """Start the synchronization orchestrator"""
@@ -755,41 +630,23 @@ class SyncOrchestrator:
     def _get_asset_from_source(self, job: SyncJob) -> Optional[MetadataAsset]:
         """Retrieve asset from source system"""
         try:
-            self.logger.logger.info(f"Looking for asset {job.asset_id} of type {job.asset_type.value} in {job.source_system.value}")
-            
             if job.source_system == SourceSystem.DATASPHERE:
                 if not self.datasphere_connector:
                     raise Exception("Datasphere connector not initialized")
                 
                 # Extract asset based on type using the correct method
                 assets = self.datasphere_connector.get_assets(job.asset_type)
-                self.logger.logger.info(f"Found {len(assets)} assets of type {job.asset_type.value} from Datasphere")
-                
                 for asset in assets:
-                    self.logger.logger.debug(f"Checking asset: {asset.asset_id}")
                     if asset.asset_id == job.asset_id:
-                        self.logger.logger.info(f"Found matching asset: {asset.asset_id}")
                         return asset
-                
-                self.logger.logger.warning(f"Asset {job.asset_id} not found in {len(assets)} available assets")
             
             elif job.source_system == SourceSystem.GLUE:
                 if not self.glue_connector:
                     raise Exception("Glue connector not initialized")
                 
-                # Extract asset from Glue using the correct method
-                assets = self.glue_connector.get_assets(job.asset_type)
-                self.logger.logger.info(f"Found {len(assets)} assets of type {job.asset_type.value} from Glue")
-                
-                for asset in assets:
-                    self.logger.logger.debug(f"Checking asset: {asset.asset_id}")
-                    if asset.asset_id == job.asset_id:
-                        self.logger.logger.info(f"Found matching asset: {asset.asset_id}")
-                        return asset
-                
-                self.logger.logger.warning(f"Asset {job.asset_id} not found in {len(assets)} available assets")
+                # Extract from Glue (implementation would depend on Glue connector methods)
+                pass
             
-            self.logger.logger.error(f"Asset {job.asset_id} not found in source system {job.source_system.value}")
             return None
             
         except Exception as e:
@@ -799,12 +656,9 @@ class SyncOrchestrator:
     def _create_asset_in_target(self, asset: MetadataAsset, target_system: SourceSystem) -> Dict[str, Any]:
         """Create asset in target system"""
         try:
-            self.logger.logger.info(f"Creating asset {asset.asset_id} in target system {target_system.value}")
             if target_system == SourceSystem.GLUE:
                 if not self.glue_connector:
                     raise Exception("Glue connector not initialized")
-                
-                self.logger.logger.info(f"Creating {asset.asset_type.value} in AWS Glue")
                 
                 if asset.asset_type == AssetType.ANALYTICAL_MODEL:
                     # Create as Glue table
@@ -828,20 +682,10 @@ class SyncOrchestrator:
                     return result
             
             elif target_system == SourceSystem.DATASPHERE:
-                if not self.datasphere_connector:
-                    raise Exception("Datasphere connector not initialized")
-                
-                # For now, Datasphere doesn't support creating assets via API
-                # This is a metadata sync, so we'll log the sync completion
-                self.logger.logger.info(f"Metadata sync completed for asset {asset.asset_id} to Datasphere")
-                return {
-                    'success': True, 
-                    'message': 'Metadata synchronized to Datasphere catalog',
-                    'asset_id': asset.asset_id,
-                    'target_system': 'datasphere'
-                }
+                # Implementation for creating in Datasphere would go here
+                pass
             
-            return {'success': False, 'error': f'Target system {target_system.value} not supported'}
+            return {'success': False, 'error': 'Target system not supported'}
             
         except Exception as e:
             return {'success': False, 'error': str(e)}
@@ -898,18 +742,6 @@ class SyncOrchestrator:
             frequency=SyncFrequency.HOURLY
         )
         
-        # High priority for core tables
-        core_table_rule = SyncRule(
-            rule_id="high_priority_core_tables",
-            rule_name="High Priority Core Tables Sync",
-            asset_type=AssetType.TABLE,
-            source_system=SourceSystem.DATASPHERE,
-            target_system=SourceSystem.GLUE,
-            priority=SyncPriority.HIGH,
-            frequency=SyncFrequency.HOURLY,
-            conditions={'tags': ['core', 'master_data', 'critical']}
-        )
-        
         # Medium priority for regular tables
         table_sync_rule = SyncRule(
             rule_id="medium_priority_tables",
@@ -921,24 +753,10 @@ class SyncOrchestrator:
             frequency=SyncFrequency.DAILY
         )
         
-        # Medium priority for data flows
-        data_flow_rule = SyncRule(
-            rule_id="medium_priority_data_flows",
-            rule_name="Medium Priority Data Flows Sync",
-            asset_type=AssetType.DATA_FLOW,
-            source_system=SourceSystem.DATASPHERE,
-            target_system=SourceSystem.GLUE,
-            priority=SyncPriority.MEDIUM,
-            frequency=SyncFrequency.DAILY,
-            conditions={'tags': ['transformation', 'pipeline']}
-        )
-        
         # Register default rules
         self.register_sync_rule(analytical_model_rule)
         self.register_sync_rule(view_sync_rule)
-        self.register_sync_rule(core_table_rule)
         self.register_sync_rule(table_sync_rule)
-        self.register_sync_rule(data_flow_rule)
     
     def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get status of a specific job"""
