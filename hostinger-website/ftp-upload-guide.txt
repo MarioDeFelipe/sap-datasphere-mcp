@@ -1,0 +1,68 @@
+FTP Upload Guide for Hostinger
+=====================================
+
+OPTION A: Using FileZilla (Recommended)
+---------------------------------------
+1. Download FileZilla Client (free): https://filezilla-project.org/
+2. Get your FTP credentials from Hostinger:
+   - Host: Your domain or IP address
+   - Username: Your FTP username
+   - Password: Your FTP password
+   - Port: 21 (or as specified by Hostinger)
+
+3. Connect to your server
+4. Navigate to public_html folder on the server
+5. Drag and drop these files from local folder:
+   ✓ index.html
+   ✓ services.html
+   ✓ styles.css
+   ✓ script.js
+
+OPTION B: Using WinSCP (Windows)
+--------------------------------
+1. Download WinSCP: https://winscp.net/
+2. Create new session with your Hostinger FTP details
+3. Connect and navigate to public_html
+4. Upload the 4 website files
+
+OPTION C: Using Command Line FTP
+---------------------------------
+1. Open Command Prompt
+2. Type: ftp your-domain.com
+3. Enter your FTP username and password
+4. Navigate: cd public_html
+5. Upload files: put index.html, put services.html, etc.
+
+Your Hostinger FTP Details (fill in):
+====================================
+Host: ________________________
+Username: ____________________
+Password: ____________________
+Port: 21 (default)
+
+Files to Upload:
+===============
+□ index.html (Main homepage)
+□ services.html (Services page)
+□ styles.css (All website styling)
+□ script.js (Interactive functionality)
+
+After Upload:
+============
+1. Visit your domain to test
+2. Check all pages load correctly
+3. Test contact forms
+4. Verify mobile responsiveness
+
+Troubleshooting:
+===============
+- If files don't appear, check you're in public_html folder
+- If styling is missing, ensure styles.css uploaded correctly
+- If forms don't work, check script.js is uploaded
+- Clear browser cache if changes don't appear
+
+Need Help?
+==========
+- Hostinger has excellent documentation and support
+- Their File Manager is often easier than FTP for beginners
+- Contact Hostinger support if you encounter issues

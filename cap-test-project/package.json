@@ -1,0 +1,22 @@
+{
+  "name": "cap-test-project",
+  "version": "1.0.0",
+  "description": "Test CAP project for MCP tools",
+  "main": "index.js",
+  "scripts": {
+    "start": "cds run"
+  },
+  "dependencies": {
+    "@sap/cds": "^7.0.0"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "url": ":memory:"
+        }
+      }
+    }
+  }
+}

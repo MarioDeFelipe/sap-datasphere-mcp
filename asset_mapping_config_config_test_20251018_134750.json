@@ -1,0 +1,127 @@
+{
+  "environment": "config_test",
+  "export_timestamp": "2025-10-18T13:47:50.981412",
+  "mapping_rules": [
+    {
+      "rule_id": "datasphere_space_to_database",
+      "rule_type": "naming_convention",
+      "source_field": "technical_name",
+      "target_field": "database_name",
+      "transformation_logic": "datasphere_to_glue_name",
+      "conditions": {},
+      "priority": 100,
+      "is_active": true,
+      "description": "Map Datasphere space to Glue database with naming convention"
+    },
+    {
+      "rule_id": "analytical_model_to_table",
+      "rule_type": "field_mapping",
+      "source_field": "technical_name",
+      "target_field": "table_name",
+      "transformation_logic": "sanitize",
+      "conditions": {
+        "asset_type": "analytical_model"
+      },
+      "priority": 100,
+      "is_active": true,
+      "description": "Map analytical model name to Glue table name"
+    },
+    {
+      "rule_id": "business_name_preservation",
+      "rule_type": "business_rule",
+      "source_field": "business_name",
+      "target_field": "display_name",
+      "transformation_logic": "preserve_business_context",
+      "conditions": {},
+      "priority": 100,
+      "is_active": true,
+      "description": "Preserve business names and context"
+    },
+    {
+      "rule_id": "dimensions_to_parameters",
+      "rule_type": "value_transformation",
+      "source_field": "business_context.dimensions",
+      "target_field": "parameters.dimensions",
+      "transformation_logic": "join_with_comma",
+      "conditions": {},
+      "priority": 100,
+      "is_active": true,
+      "description": "Convert dimensions list to comma-separated parameter"
+    },
+    {
+      "rule_id": "measures_to_parameters",
+      "rule_type": "value_transformation",
+      "source_field": "business_context.measures",
+      "target_field": "parameters.measures",
+      "transformation_logic": "join_with_comma",
+      "conditions": {},
+      "priority": 100,
+      "is_active": true,
+      "description": "Convert measures list to comma-separated parameter"
+    }
+  ],
+  "naming_conventions": [
+    {
+      "convention_id": "datasphere_space_naming",
+      "pattern": "^(.+)$",
+      "replacement": "datasphere_\\1_config_test",
+      "asset_types": [
+        "space"
+      ],
+      "environment_prefix": true,
+      "description": "Add datasphere prefix and environment suffix to spaces"
+    },
+    {
+      "convention_id": "analytical_model_naming",
+      "pattern": "^(.+)$",
+      "replacement": "\\1_model",
+      "asset_types": [
+        "analytical_model"
+      ],
+      "environment_prefix": true,
+      "description": "Add model suffix to analytical models"
+    }
+  ],
+  "conflict_resolutions": [
+    {
+      "conflict_id": "schema_conflict",
+      "conflict_type": "schema_mismatch",
+      "strategy": "source_wins",
+      "custom_logic": null,
+      "priority_rules": {},
+      "description": "Source system wins for schema conflicts"
+    },
+    {
+      "conflict_id": "naming_conflict",
+      "conflict_type": "name_collision",
+      "strategy": "custom_rule",
+      "custom_logic": "append_timestamp",
+      "priority_rules": {},
+      "description": "Append timestamp for naming conflicts"
+    },
+    {
+      "conflict_id": "schema_type_mismatch",
+      "conflict_type": "schema_conflict",
+      "strategy": "source_wins",
+      "custom_logic": null,
+      "priority_rules": {},
+      "description": "Source system wins for schema type mismatches"
+    },
+    {
+      "conflict_id": "business_owner_conflict",
+      "conflict_type": "business_metadata_conflict",
+      "strategy": "merge",
+      "custom_logic": null,
+      "priority_rules": {},
+      "description": "Merge business metadata from both sources"
+    },
+    {
+      "conflict_id": "name_collision_timestamp",
+      "conflict_type": "naming_conflict",
+      "strategy": "custom_rule",
+      "custom_logic": "append_timestamp_and_environment",
+      "priority_rules": {},
+      "description": "Append timestamp and environment for name collisions"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sap-datasphere-mcp-server"
+version = "1.0.0"
+description = "MCP Server for SAP Datasphere integration"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "pydantic>=2.0.0",
+    "requests>=2.31.0"
+]
+readme = "README.md"
+requires-python = ">=3.10"
+
+[project.scripts]
+sap-datasphere-mcp-server = "sap_datasphere_mcp_server:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0"
+]

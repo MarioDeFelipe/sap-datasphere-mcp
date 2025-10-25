@@ -1,0 +1,30 @@
+# Enhanced SAP Datasphere Metadata Extractor Requirements
+
+# Core dependencies
+requests>=2.31.0
+boto3>=1.34.0
+python-dotenv>=1.0.0
+
+# Optional but recommended
+loguru>=0.7.0  # Better logging (can use standard logging if not available)
+
+# For XML parsing (usually included in Python standard library)
+# xml.etree.ElementTree - included in Python
+
+# For JSON handling (included in Python standard library)
+# json - included in Python
+
+# For data classes (Python 3.7+)
+# dataclasses - included in Python 3.7+
+
+# Development/testing dependencies (optional)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=23.0.0
+flake8>=6.0.0
+
+# Installation instructions:
+# pip install -r requirements_metadata_extractor.txt
+#
+# Or install just the core dependencies:
+# pip install requests boto3 python-dotenv

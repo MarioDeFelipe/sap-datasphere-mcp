@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sap-datasphere": {
+      "command": "python",
+      "args": [
+        "sap_datasphere_mcp_simple.py"
+      ],
+      "env": {}
+    }
+  }
+}
