@@ -28,10 +28,10 @@
 ### AI-Accessible Tools
 - **`search_metadata`** - Search assets across Datasphere and AWS Glue with business context
 - **`discover_spaces`** - OAuth-enabled discovery of all Datasphere spaces
-- **`get_asset_details`** - Detailed asset information with schema and lineage
-- **`trigger_sync`** - Initiate metadata synchronization operations
-- **`explore_data_lineage`** - Trace data relationships and dependencies
-- **`get_sync_status`** - Monitor synchronization health and performance
+- **`get_asset_details`** - Detailed asset information with schema and metadata
+- **`query_asset_data`** - Execute OData queries on SAP Datasphere assets
+- **`search_metadata`** - Search across metadata with intelligent filtering
+- **`get_connection_status`** - Monitor SAP Datasphere connectivity and health
 
 ### Supported AI Assistants
 - **Claude Desktop** - Full MCP integration with configuration examples
@@ -122,31 +122,29 @@ python start_mcp_server.py
 
 ## 📋 **Core Components**
 
-### 🤖 **MCP Server**
-- **`sap_datasphere_mcp_server.py`**: Model Context Protocol server for AI integration
-- **OAuth 2.0 authentication** with SAP Datasphere
-- **Unified metadata search** across Datasphere and AWS Glue
-- **Business context preservation** and lineage tracking
+### 🤖 **MCP Server Implementation**
+- **`sap_datasphere_mcp_server.py`**: Main MCP server with all tools and resources
+- **Model Context Protocol compliance** for AI assistant integration
+- **Tool definitions** for metadata discovery and data querying
+- **Resource management** for SAP Datasphere connections
 
-### 🔄 **Data Integration**
-- **Enhanced connectors** for SAP Datasphere and AWS Glue
-- **Metadata extraction** utilities for comprehensive asset information
-- **OAuth 2.0 authentication** with automatic token refresh
+### 🔐 **Authentication & Connection**
+- **`enhanced_datasphere_connector.py`**: OAuth 2.0 SAP Datasphere connector
+- **Automatic token refresh** and session management
+- **Connection pooling** for efficient resource usage
+- **Error handling** with retry logic and exponential backoff
 
-### 🔌 **Enhanced Connectors**
-- **`enhanced_datasphere_connector.py`**: OAuth 2.0, enhanced API access
-- **`enhanced_glue_connector.py`**: Rich metadata, business context preservation
-- **`enhanced_metadata_extractor.py`**: CSDL metadata and business annotations
-
-### 🎯 **Orchestration Engine**
-- **`sync_orchestrator.py`**: Multi-threaded job processing
-- **`metadata_sync_core.py`**: Core synchronization logic
-- **`asset_mapper.py`**: Cross-system asset mapping and transformation
+### 📊 **Metadata & Query Engine**
+- **`enhanced_metadata_extractor.py`**: SAP Datasphere metadata extraction
+- **OData query execution** for data retrieval
+- **Schema discovery** and asset information parsing
+- **Intelligent caching** for improved performance
 
 ### 🧪 **Testing & Development**
 - **`test_mcp_server.py`**: Comprehensive MCP server tests
+- **`test_simple_server.py`**: Basic functionality tests
 - **MCP Inspector integration** for development and debugging
-- **Multiple test scenarios** for various SAP Datasphere configurations
+- **Configuration validation** and connection testing
 
 ## 📊 **MCP Server Features**
 
@@ -204,9 +202,9 @@ Once configured, you can ask your AI assistant:
 "List all SAP Datasphere spaces and their assets"
 "Search for tables containing customer data"
 "Show me the schema for SAP_SC_FI_T_Products"
-"What's the sync status between Datasphere and AWS?"
-"Trigger a high-priority sync for financial data assets"
-"Explore the data lineage for the sales analytics model"
+"What's the connection status to SAP Datasphere?"
+"Execute a query to get financial data from SAP_SC_FI_T_Products"
+"Show me all analytical models in the SAP_SC_FI_AM space"
 ```
 
 ### Cursor IDE Integration
@@ -276,9 +274,9 @@ python mcp_server_config.py
 search_metadata(query, asset_types, source_systems)     # Search across systems
 discover_spaces(include_assets, force_refresh)          # OAuth space discovery  
 get_asset_details(asset_id, source_system)             # Detailed asset info
-get_sync_status(asset_id, detailed)                    # Sync monitoring
-explore_data_lineage(asset_id, direction, max_depth)   # Lineage tracing
-trigger_sync(asset_ids, priority, dry_run)             # Sync control
+get_connection_status(detailed)                       # Connection monitoring
+query_asset_data(asset_id, odata_query)               # Data querying
+search_metadata(query, filters)                       # Metadata search
 ```
 
 ### MCP Protocol Interface
@@ -311,8 +309,8 @@ WS     /ws                     # WebSocket for real-time updates
 
 ### AI-Powered Data Discovery
 - **Natural Language Queries**: Ask AI assistants about your data assets
-- **Intelligent Recommendations**: AI-guided integration pattern selection
-- **Automated Documentation**: AI-generated data catalogs and lineage
+- **Intelligent Recommendations**: AI-guided query optimization and data exploration
+- **Automated Documentation**: AI-generated data catalogs and asset descriptions
 
 ### Enterprise Data Access
 - **Metadata Discovery**: Explore and understand your SAP Datasphere assets
@@ -336,7 +334,7 @@ sap-datasphere-mcp/
 ├── 📄 sap_datasphere_mcp_server.py     # Main MCP server implementation
 ├── 📄 start_mcp_server.py              # MCP server launcher
 ├── 📄 enhanced_datasphere_connector.py  # OAuth-enabled SAP connector
-├── 📄 enhanced_glue_connector.py       # AWS Glue integration
+├── 📄 enhanced_glue_connector.py       # AWS integration (optional)
 ├── 📄 enhanced_metadata_extractor.py   # Metadata extraction utilities
 ├── 📄 test_mcp_server.py               # MCP server tests
 └── 📄 requirements.txt                 # Dependencies
@@ -391,7 +389,7 @@ npx @modelcontextprotocol/inspector python sap_datasphere_mcp_server.py
 ### AI-Powered Operations
 - **Natural Language Queries**: Ask questions about your data in plain English
 - **Smart Query Optimization**: AI-guided query optimization and caching strategies
-- **Automated Documentation**: AI-generated data catalogs and lineage diagrams
+- **Automated Documentation**: AI-generated data catalogs and schema documentation
 - **Intelligent Error Resolution**: AI-assisted troubleshooting and optimization
 
 ## 🤝 **Contributing**
@@ -449,7 +447,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Enhanced AI Agents**: Specialized agents for different integration patterns
 - **Vector Database Integration**: Semantic search across metadata
 - **Real-time Event Streaming**: Live data change notifications
-- **Advanced Lineage Visualization**: Interactive data flow diagrams
+- **Advanced Schema Visualization**: Interactive metadata exploration
 
 ### Future Vision
 - **Multi-Cloud Support**: Azure Synapse, Google BigQuery integration
