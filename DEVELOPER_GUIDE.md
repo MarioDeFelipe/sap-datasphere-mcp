@@ -9,7 +9,7 @@ This guide covers development setup and workflows for the SAP Datasphere MCP ser
 - [Git](https://git-scm.com/)
 - SAP Datasphere account with Technical User configured
 - OAuth 2.0 application setup for the Technical User
-- (optional) [AWS CLI](https://aws.amazon.com/cli/) for AWS Glue integration
+
 
 ### SAP Datasphere Technical User Setup
 
@@ -89,7 +89,7 @@ The main components of the MCP server:
 
 - `sap_datasphere_mcp_server.py` - Main MCP server implementation
 - `enhanced_datasphere_connector.py` - SAP Datasphere OAuth connector
-- `enhanced_glue_connector.py` - AWS Glue integration (optional)
+
 - `enhanced_metadata_extractor.py` - Metadata extraction utilities
 - `config/` - Configuration files
 - `tests/` - Unit tests
@@ -187,10 +187,9 @@ uv run --frozen pytest --cov --cov-branch --cov-report=term-missing
 │ (Claude, Cursor)│    │                  │    │   (OAuth 2.0)   │
 └─────────────────┘    │ • Metadata Ops   │    └─────────────────┘
                        │ • Asset Discovery│    
-                       │ • Data Queries   │    ┌─────────────────┐
-                       │ • Space Explorer │◄──►│   AWS Glue      │
-                       └──────────────────┘    │ (Optional)      │
-                                               └─────────────────┘
+                       │ • Data Queries   │    
+                       │ • Space Explorer │    
+                       └──────────────────┘
 ```
 
 ### Available MCP Tools
