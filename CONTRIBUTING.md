@@ -2,6 +2,10 @@
 
 Thank you for your interest in contributing to the SAP Datasphere MCP Server! This document provides guidelines and information for contributors.
 
+## 📋 **About This Project**
+
+> **Note**: This repository was originally forked from [AWS Labs MCP Servers](https://github.com/awslabs/mcp) but has been completely rewritten as a specialized SAP Datasphere MCP server. All current development focuses exclusively on SAP Datasphere integration and MCP server functionality.
+
 ## 🎯 How to Contribute
 
 ### Reporting Issues
