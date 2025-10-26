@@ -20,7 +20,7 @@ Convert the SAP Datasphere MCP server design into a series of implementation tas
   - Create configuration validation and error reporting
   - _Requirements: 6.1, 6.2_
 
-- [ ]* 1.3 Set up project testing framework
+- [ ] 1.3 Set up project testing framework
   - Configure pytest with coverage reporting
   - Create test fixtures for MCP protocol testing
   - Set up mock SAP Datasphere responses for testing
@@ -50,7 +50,7 @@ Convert the SAP Datasphere MCP server design into a series of implementation tas
   - Create connection health monitoring and failover
   - _Requirements: 5.5, 6.4, 9.3_
 
-- [ ]* 2.4 Create authentication unit tests
+- [ ] 2.4 Create authentication unit tests
   - Write tests for OAuth 2.0 client credentials flow
   - Test token refresh and expiration handling
   - Validate Technical User permission scenarios
@@ -80,7 +80,7 @@ Convert the SAP Datasphere MCP server design into a series of implementation tas
   - Create memory-efficient caching with compression
   - _Requirements: 9.1, 9.5_
 
-- [ ]* 3.4 Create metadata extraction tests
+- [ ] 3.4 Create metadata extraction tests
   - Write tests for space and asset metadata extraction
   - Test CSDL metadata parsing and schema discovery
   - Validate caching behavior and invalidation logic
@@ -110,7 +110,7 @@ Convert the SAP Datasphere MCP server design into a series of implementation tas
   - Create query performance monitoring and optimization
   - _Requirements: 9.1, 9.2, 9.4_
 
-- [ ]* 4.4 Create query engine unit tests
+- [ ] 4.4 Create query engine unit tests
   - Write tests for OData query construction and validation
   - Test query execution with various data types and filters
   - Validate pagination and error handling scenarios
@@ -146,7 +146,7 @@ Convert the SAP Datasphere MCP server design into a series of implementation tas
   - Add comprehensive error reporting and diagnostics
   - _Requirements: 1.5, 3.2, 8.1, 8.2_
 
-- [ ]* 5.5 Create MCP tools integration tests
+- [ ] 5.5 Create MCP tools integration tests
   - Write end-to-end tests for all MCP tools
   - Test tool parameter validation and error responses
   - Validate JSON response formatting and schema compliance
@@ -176,7 +176,7 @@ Convert the SAP Datasphere MCP server design into a series of implementation tas
   - Add memory usage monitoring and intelligent cache eviction
   - _Requirements: 9.4, 9.5_
 
-- [ ]* 6.4 Create error handling and logging tests
+- [ ] 6.4 Create error handling and logging tests
   - Write tests for error categorization and response formatting
   - Test audit logging functionality and log export capabilities
   - Validate performance monitoring and alerting mechanisms
@@ -206,7 +206,7 @@ Convert the SAP Datasphere MCP server design into a series of implementation tas
   - Add environment-specific configuration override capabilities
   - _Requirements: 6.1, 6.2_
 
-- [ ]* 7.4 Create deployment and monitoring tests
+- [ ] 7.4 Create deployment and monitoring tests
   - Write tests for multi-environment configuration loading
   - Test health check endpoints and monitoring integration
   - Validate configuration validation and error reporting
@@ -236,7 +236,7 @@ Convert the SAP Datasphere MCP server design into a series of implementation tas
   - Validate security boundaries and permission enforcement
   - _Requirements: 9.3, 9.4, 9.5_
 
-- [ ]* 8.4 Create documentation and usage examples
+- [ ] 8.4 Create documentation and usage examples
   - Write comprehensive setup and configuration documentation
   - Create AI assistant integration examples and troubleshooting guides
   - Add API documentation and MCP tool reference
