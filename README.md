@@ -26,7 +26,7 @@
 ## 🤖 **MCP Server for AI Assistants**
 
 ### AI-Accessible Tools
-- **`search_metadata`** - Search assets across Datasphere and AWS Glue with business context
+- **`search_metadata`** - Search assets across SAP Datasphere with business context
 - **`discover_spaces`** - OAuth-enabled discovery of all Datasphere spaces
 - **`get_asset_details`** - Detailed asset information with schema and metadata
 - **`query_asset_data`** - Execute OData queries on SAP Datasphere assets
@@ -105,10 +105,9 @@ python start_mcp_server.py
 │ (Claude, Cursor)│    │                  │    │   (OAuth 2.0)   │
 └─────────────────┘    │ • Metadata Ops   │    └─────────────────┘
                        │ • Asset Discovery│    
-                       │ • Data Queries   │    ┌─────────────────┐
-                       │ • Space Explorer │◄──►│   AWS Glue      │
-                       └──────────────────┘    │ (Optional)      │
-                                               └─────────────────┘
+                       │ • Data Queries   │    
+                       │ • Space Explorer │    
+                       └──────────────────┘
 ```
 
 ### Core MCP Tools
@@ -335,7 +334,7 @@ sap-datasphere-mcp/
 ├── 📄 sap_datasphere_mcp_server.py     # Main MCP server implementation
 ├── 📄 start_mcp_server.py              # MCP server launcher
 ├── 📄 enhanced_datasphere_connector.py  # OAuth-enabled SAP connector
-├── 📄 enhanced_glue_connector.py       # AWS integration (optional)
+
 ├── 📄 enhanced_metadata_extractor.py   # Metadata extraction utilities
 ├── 📄 test_mcp_server.py               # MCP server tests
 └── 📄 requirements.txt                 # Dependencies
