@@ -34,19 +34,19 @@
 - **Cursor IDE** - Native MCP support for development workflows
 - **Custom AI Tools** - Standard MCP protocol for any AI assistant
 
-## 📊 **Enterprise Data Replication**
+## 📊 **MCP Server Capabilities**
 
-### Selective Replication Features
-- **User-Controlled Selection** - Choose specific assets for replication
-- **Apache Iceberg Format** - ACID transactions and schema evolution
-- **AWS S3 Tables** - Serverless analytics-ready storage
-- **Real-time Progress** - Live monitoring with detailed status updates
-- **Data Validation** - Comprehensive quality checks and business rule validation
+### AI-Accessible Operations
+- **Metadata Discovery** - Explore spaces, assets, and schema information
+- **Data Querying** - Execute OData queries through natural language
+- **Asset Management** - Detailed asset information and relationships
+- **Connection Monitoring** - Real-time connectivity and health checks
+- **Search & Filter** - Intelligent metadata search across all objects
 
-### Integration Patterns
-- **Federation Pattern** - Real-time queries from AWS to SAP Datasphere
-- **Replication Pattern** - Data movement to AWS S3 Tables with Glue ETL
-- **Direct Query Pattern** - On-demand access without data movement
+### Integration Benefits
+- **Natural Language Interface** - Ask questions about your data in plain English
+- **Real-time Access** - Direct connection to live SAP Datasphere data
+- **Secure Authentication** - OAuth 2.0 integration with proper token management
 
 ## 🚀 **Quick Start**
 
@@ -70,57 +70,51 @@ cd sap-datasphere-mcp
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Configure MCP Server for AI Assistants
-python mcp_server_config.py
+# 3. Configure SAP Datasphere credentials
+# Edit config/datasphere_config.json
 
-# 4. Start MCP Server (for AI integration)
-python start_mcp_server.py --environment dog
-
-# 5. Start Web Dashboard (for manual management)
-python web_dashboard.py
+# 4. Start MCP Server
+python start_mcp_server.py
 ```
 
-### Access Points
-- **🤖 MCP Server**: Available for Claude Desktop and Cursor IDE
-- **🌐 Web Dashboard**: http://localhost:8001 (Dog), http://localhost:5000 (Wolf)
-- **☁️ Production API**: https://krb7735xufadsj233kdnpaabta0eatck.lambda-url.us-east-1.on.aws
-- **📚 API Docs**: http://localhost:8001/docs
+### Quick Start
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/MarioDeFelipe/sap-datasphere-mcp.git
+cd sap-datasphere-mcp
+uv venv && uv sync --all-groups
+
+# 2. Configure SAP Datasphere credentials
+# Edit config/datasphere_config.json with your OAuth credentials
+
+# 3. Start MCP Server
+python start_mcp_server.py
+```
 
 ## 🏗️ **Architecture Overview**
 
-### Three-Environment Architecture
-```
-🐕 DOG Environment (Development)     🐺 WOLF Environment (Testing)      🐻 BEAR Environment (Production)
-├── FastAPI Web Dashboard           ├── FastAPI Application            ├── AWS Lambda Serverless
-├── Port: 8001                      ├── Port: 5000                     ├── Auto-scaling
-├── Real SAP Integration            ├── Production-like Testing        ├── Enterprise Monitoring
-└── Hot-reload Development          └── Performance Benchmarking       └── High Availability
-```
-
-### MCP Server Integration
+### MCP Server Architecture
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   AI Assistant  │◄──►│   MCP Server     │◄──►│  SAP Datasphere │
 │ (Claude, Cursor)│    │                  │    │   (OAuth 2.0)   │
 └─────────────────┘    │ • Metadata Ops   │    └─────────────────┘
                        │ • Asset Discovery│    
-                       │ • Sync Control   │    ┌─────────────────┐
-                       │ • Lineage Trace  │◄──►│   AWS Services  │
-                       └──────────────────┘    │ • S3 Tables     │
-                                               │ • Glue ETL      │
-                                               │ • Data Catalog  │
+                       │ • Data Queries   │    ┌─────────────────┐
+                       │ • Space Explorer │◄──►│   AWS Glue      │
+                       └──────────────────┘    │ (Optional)      │
                                                └─────────────────┘
 ```
 
-### Data Replication Pipeline
+### Core MCP Tools
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│ SAP Datasphere  │    │  Glue ETL Jobs   │    │  AWS S3 Tables  │
-│                 │    │                  │    │                 │
-│ • OData APIs    │───►│ • Spark Engine   │───►│ • Apache Iceberg│
-│ • OAuth Auth    │    │ • Schema Mapping │    │ • ACID Txns     │
-│ • CSDL Metadata │    │ • Data Transform │    │ • Query Ready   │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
+🔍 discover_spaces      → List all accessible Datasphere spaces
+📋 get_space_assets     → Get assets within a specific space  
+📊 get_asset_details    → Retrieve detailed asset information
+🔎 query_asset_data     → Execute OData queries on assets
+🔍 search_metadata      → Search across metadata with filters
+🔗 get_connection_status → Check SAP Datasphere connectivity
 ```
 
 ## 📋 **Core Components**
@@ -351,18 +345,13 @@ sap-datasphere-mcp/
 ### Running Tests
 ```bash
 # MCP Server tests
-python test_mcp_server.py --environment dog
+python test_mcp_server.py
 
-# Integration tests with real APIs
-python test_enhanced_glue_integration.py
-python test_comprehensive_saml2_bearer_validation.py
+# Simple server tests
+python test_simple_server.py
 
-# Data replication tests
-python test_real_asset_discovery.py
-python comprehensive_interactive_test.py
-
-# End-to-end validation
-python test_sync_orchestrator.py
+# Test with MCP Inspector
+npx @modelcontextprotocol/inspector python sap_datasphere_mcp_server.py
 ```
 
 ## 📈 **Monitoring & Observability**

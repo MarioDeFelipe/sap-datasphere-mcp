@@ -1,120 +1,252 @@
-# Developer guide
+# SAP Datasphere MCP Server - Developer Guide
 
-At the moment, there is no dedicated development container, thus you need to configure your local development environment following the steps described below.
+This guide covers development setup and workflows for the SAP Datasphere MCP server.
 
-## Pre-requisites
+## Prerequisites
 
-- [pre-commit](https://pre-commit.com/)
-- [uv](https://docs.astral.sh/uv/getting-started/installation/)
-- [Python](Python) 3.10. You can install it through uv using `uv python install 3.10`
-- [Git](https://git-scm.com/) (if using code repository)
-- (optional) [AWS CLI](https://aws.amazon.com/cli/). Some servers will require to use your AWS credentials to interact with your AWS account. Configure your credentials:
+- [Python 3.10+](https://www.python.org/downloads/)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) - Python package manager
+- [Git](https://git-scm.com/)
+- SAP Datasphere account with OAuth application configured
+- (optional) [AWS CLI](https://aws.amazon.com/cli/) for AWS Glue integration
 
-```shell
-aws configure --profile [your-profile]
-AWS Access Key ID [None]: xxxxxx
-AWS Secret Access Key [None]:yyyyyyyyyy
-Default region name [None]: us-east-1
-Default output format [None]: json
+### SAP Datasphere OAuth Setup
+
+Configure OAuth credentials for SAP Datasphere access:
+
+```json
+{
+  "base_url": "https://your-tenant.eu20.hcs.cloud.sap",
+  "client_id": "your-oauth-client-id",
+  "client_secret": "your-oauth-client-secret",
+  "token_url": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token"
+}
 ```
 
-## Preparing your Build Environment
+## Development Setup
 
-| Action                                                                                                               | Explanation                                                                                                                                                                                                                                 |
-| :--------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Open the [repository](https://github.com/awslabs/mcp). | As you are reading this file from the repo, you are probably already there.                                                                                                                       |
-| Using the [fork](https://github.com/awslabs/mcp/fork) button in the upper right, fork the repo into your GitHub account.                                    | Some git/GitHub expertise is assumed.                                                                            |
-| Clone the forked repo to your local development environment.                                                              | If you wish to work off a branch in your repository, create and clone that branch. You will create a PR back to `main` in the awslabs/mcp repository eventually, you can do that from fork/main or fork/*branch* |
-| `cd mcp`                                                                        | This is the home directory of the repo and where you will open your text editor, run builds, etc.                                                                                                                           |
-| `code .`                                                                                                             | Opens the project in VSCode. You can use the editor of your choice, just adapt this step to your specific use case.                                                                                                              |
-| `pre-commit install`                                                                                                             | Install the pre-commit hooks. Pre-commit checks are crucial for a fast feedback loop while ensuring security practices at the individual change level. To prevent scenarios where these checks are accidentally omitted at the client side, we run it at [CI level](https://github.com/awslabs/mcp/tree/main/.github) too.                                                                                                             |
+### 1. Clone and Setup
 
-## Working on your server
+```bash
+# Clone the repository
+git clone https://github.com/MarioDeFelipe/sap-datasphere-mcp.git
+cd sap-datasphere-mcp
 
-| Action                                            | Explanation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| :-------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| (optional)<br/>`git checkout -b your-branch-name` | If you're working in a different branch than main in your forked repo and haven't changed your local branch, now is a good time to do so. |
-| (optional) `uvx cookiecutter https://github.com/awslabs/mcp.git --checkout cookiecutters --output-dir ./src --directory python`                                                                                                         | If you want to add a new server to the repository, this command will run [cookiecutter](https://cookiecutter.readthedocs.io/en/stable/index.html) to generate a new project using a template.                                                                                                                      |
-| Answer the CLI prompted questions                                                                                                         | In case you created a new server using the previous command. Once you answer the different questions, your new server files will be generated under src/<SERVER_NAME>-mcp-server                                                                                                                      |
-| `cd src/example-mcp-server`                                                                                                       | This is the directory containing your server files.                                                                                                                      |
-| `uv add {your dependencies}` or directly update ```pyproject.toml``` to add your MCP server's dependencies, under `dependencies =[]`                                                                                                     | Add dependencies required for your server.                                                                                                                      |
-| ```uv venv && uv sync --all-groups```                                                                                                    | Create a Python virtual environment and install the dependencies.                                                                                                                      |
-| (optional) Relative imports checks                                                                                                    | (Optional) If you are migrating your existing MCP server from another path, open two editors, one in the fork, one in your current MCP Server. Ensure your relative imports are correct.                                                                                                                      |
-| *Do all your code editing*                        | Open your code editor and edit the files for your server or perform your edits on an existing server. Your server code must be located in the src folder. Use an existing server as an example of the structure that is expected.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Create your MCP Server's documentation                       | Ensure your README conforms to the style of other READMEs, as these will be used for GitHub Pages. Add a new page for your MCP server under `docusaurus/docs/servers` with a .mdx extension. Update the following Docusaurus files: <br>1. Edit `docusaurus/sidebars.ts` to add your server to the appropriate category in the sidebar navigation.<br>2. Add your server to `docusaurus/static/assets/server-cards.json` following the existing format.<br>Finally, you can run `cd docusaurus && npm start` to locally build and view the site.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `git commit -m 'chore(doc): update main README.md'`                                                                                                             | Commit to your fork using clear commit messages. We highly recommend using [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) semantic. We do not enforce conventional commits on contributors to lower the entry bar. Pre-commit will run automatically before each commit. You can also run pre-commit manually on all files using `pre-commit run --all-files`. If any hook fails, the commit will be aborted, and you will need to fix the issues before committing again.                                                                                                           |
+# Create virtual environment and install dependencies
+uv venv
+uv sync --all-groups
+
+# Install pre-commit hooks
+pre-commit install
+```
+
+### 2. Configuration
+
+Create a `config/datasphere_config.json` file with your SAP Datasphere credentials:
+
+```json
+{
+  "base_url": "https://your-tenant.eu20.hcs.cloud.sap",
+  "client_id": "your-oauth-client-id",
+  "client_secret": "your-oauth-client-secret",
+  "token_url": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token"
+}
+```
+
+## Development Workflow
+
+### 3. Running the MCP Server
+
+```bash
+# Start the MCP server for development
+python start_mcp_server.py
+
+# Or run directly
+python sap_datasphere_mcp_server.py
+```
+
+### 4. Code Structure
+
+The main components of the MCP server:
+
+- `sap_datasphere_mcp_server.py` - Main MCP server implementation
+- `enhanced_datasphere_connector.py` - SAP Datasphere OAuth connector
+- `enhanced_glue_connector.py` - AWS Glue integration (optional)
+- `enhanced_metadata_extractor.py` - Metadata extraction utilities
+- `config/` - Configuration files
+- `tests/` - Unit tests
+
+### 5. Making Changes
+
+```bash
+# Create a feature branch
+git checkout -b feature/your-feature-name
+
+# Make your changes to the MCP server code
+# Edit sap_datasphere_mcp_server.py or related files
+
+# Run tests
+python test_mcp_server.py
+
+# Commit your changes
+git add .
+git commit -m "feat: add new MCP tool for asset discovery"
+
+# Push to your fork
+git push origin feature/your-feature-name
+```
 
 ## Testing
 
-### Testing with a Local Development MCP Server
+### Testing with MCP Inspector
 
-You can modify the settings of your MCP client to run your local server. Open the your client json settings file and update it as needed. For instance:
+Use the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) to test your server:
 
-```
-"awslabs.aws-documentation-mcp-server": {
-    "command": "uv",
-    "args": [
-    "--directory",
-    "<absolute path to your server code>",
-    "run",
-    "server.py"
-    ],
-    "env": {
-    "FASTMCP_LOG_LEVEL": "ERROR"
-    },
-    "disabled": false,
-    "autoApprove": []
-},
+```bash
+# Install and run MCP Inspector
+npx @modelcontextprotocol/inspector python sap_datasphere_mcp_server.py
 ```
 
-where `<absolute path to your server code>` is the absolute path to the server code, for instance `/Users/myuser/mcp/src/aws-documentation-mcp-server/awslabs/aws_documentation_mcp_server`.
+### Testing with AI Clients
 
-Also, the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/introduction) provides [Inspector](https://github.com/modelcontextprotocol/inspector), a developer tool for testing and debugging MCP servers. More information on Inspector can be found in the [documentation](https://modelcontextprotocol.io/docs/tools/inspector).
+#### Claude Desktop Integration
 
-The Inspector runs directly through npx without requiring installation:
+Add to your Claude Desktop `mcp.json` configuration:
 
-```shell
-   $ npx @modelcontextprotocol/inspector <command> <args>
+```json
+{
+  "mcpServers": {
+    "sap-datasphere": {
+      "command": "python",
+      "args": ["sap_datasphere_mcp_server.py"],
+      "cwd": "/path/to/sap-datasphere-mcp",
+      "env": {
+        "SAP_CLIENT_ID": "your_oauth_client_id",
+        "SAP_CLIENT_SECRET": "your_oauth_client_secret"
+      }
+    }
+  }
+}
 ```
 
-For instance, to inspect your locally developed server, you can run:
+#### Cursor IDE Integration
+
+Add to your Cursor settings:
+
+```json
+{
+  "mcp.servers": {
+    "sap-datasphere": {
+      "command": ["python", "sap_datasphere_mcp_server.py"],
+      "env": {
+        "SAP_CLIENT_ID": "your_oauth_client_id",
+        "SAP_CLIENT_SECRET": "your_oauth_client_secret"
+      }
+    }
+  }
+}
+```
+
+### Unit Tests
+
+Run the test suite:
+
+```bash
+# Run all tests
+python test_mcp_server.py
+
+# Run with coverage
+uv run --frozen pytest --cov --cov-branch --cov-report=term-missing
+```
+
+## MCP Server Architecture
+
+### Core Components
 
 ```
-npx @modelcontextprotocol/inspector \
-  uv \
-  --directory <absolute path to your server code> \
-  run \
-  server.py
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   AI Assistant  │◄──►│   MCP Server     │◄──►│  SAP Datasphere │
+│ (Claude, Cursor)│    │                  │    │   (OAuth 2.0)   │
+└─────────────────┘    │ • Metadata Ops   │    └─────────────────┘
+                       │ • Asset Discovery│    
+                       │ • Data Queries   │    ┌─────────────────┐
+                       │ • Space Explorer │◄──►│   AWS Glue      │
+                       └──────────────────┘    │ (Optional)      │
+                                               └─────────────────┘
 ```
-where `<absolute path to your server code>` is the absolute path to the server code, for instance `/Users/myuser/mcp/src/aws-documentation-mcp-server/awslabs/aws_documentation_mcp_server`.
 
-Inspector will run your server on locahost (for instance: http://127.0.0.1:6274). You can then open your browser and connect to the server. For up to date instructions on how to use Inspector, please refer to the [official documentation](https://modelcontextprotocol.io/docs/tools/inspector).
+### Available MCP Tools
 
-### Unit tests
+The server provides these tools for AI assistants:
 
-![Codecov](https://img.shields.io/codecov/c/github/awslabs/mcp?link=https%3A%2F%2Fapp.codecov.io%2Fgh%2Fawslabs%2Fmcp)
+- `discover_spaces` - List all accessible SAP Datasphere spaces
+- `get_space_assets` - Get assets within a specific space
+- `get_asset_details` - Retrieve detailed asset information
+- `query_asset_data` - Execute OData queries on assets
+- `search_metadata` - Search across metadata with filters
+- `get_connection_status` - Check SAP Datasphere connectivity
 
-Each MCP server is expected to have a `tests` folder containing unit tests that should meet or exceed merged our reported test coverage (see our "coverage" badge above). For instance, you can refer to an existing server like [AWS Documentation Server](src/aws-documentation-mcp-server/tests/).
+## Contributing
 
-| Action            | Explanation                                |
-| :------------------ | :------------------------------------------- |
-| `cd src/example-mcp-server` | This is the directory containing your server files. |
-| `uv run --frozen pytest --cov --cov-branch --cov-report=term-missing` | This will run all unit tests for the server and display code coverage. |
+### Code Quality
 
-## Opening your Pull Request
+- Follow PEP 8 style guidelines
+- Add type hints to all functions
+- Include docstrings for all public methods
+- Write unit tests for new functionality
 
-| Action                                            | Explanation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| :-------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Open your Pull Request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) | Once all your local tests and branch CI passes, send us a pull request with a conventional semantic title, and answer any default questions in the pull request interface. |
-| Fix issues | Pay attention to any automated CI failures reported in the pull request, and stay involved in the conversation. |
-| Merge ! | Once your PR is merged, the changes will be available on the main branch. If you created a new MCP server, the team will take care of the necessary steps to publish the server to the correct package manager. |
+### Pre-commit Hooks
 
-### Remediating Detected Secrets
+The project uses pre-commit hooks for code quality:
 
-Running `pre-commit run --all-files` at the top-level may show "Failed" when secrets are detected.
-Run the scanner against the baseline and then audit the findings and commit `.secrets.baseline`.
+```bash
+# Run pre-commit on all files
+pre-commit run --all-files
 
-```shell
-% detect-secrets scan --baseline .secrets.baseline # which might add detected secrets to the baseline.
-% detect-secrets audit .secrets.baseline # to remediate updates in the baseline.
+# Run specific hooks
+pre-commit run ruff
+pre-commit run mypy
 ```
+
+### Pull Request Process
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Ensure all tests pass
+5. Submit a pull request with clear description
+
+## Troubleshooting
+
+### Common Issues
+
+**OAuth Authentication Errors**
+- Verify your client credentials are correct
+- Check that the OAuth application is properly configured in SAP Datasphere
+- Ensure the token URL matches your tenant's authentication endpoint
+
+**Connection Timeouts**
+- Check network connectivity to SAP Datasphere
+- Verify firewall settings allow HTTPS traffic
+- Consider increasing timeout values in the connector
+
+**MCP Client Integration Issues**
+- Verify the MCP server starts without errors
+- Check that the client configuration points to the correct server path
+- Review client logs for connection errors
+
+### Debug Mode
+
+Enable debug logging:
+
+```bash
+# Set environment variable for verbose logging
+export MCP_LOG_LEVEL=DEBUG
+python sap_datasphere_mcp_server.py
+```
+
+### Getting Help
+
+- Check the [MCP Protocol Documentation](https://modelcontextprotocol.io/)
+- Review SAP Datasphere API documentation
+- Open an issue on GitHub for bugs or feature requests
