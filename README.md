@@ -1,12 +1,11 @@
-# 🚀 SAP Datasphere MCP Server & AWS Integration Platform
+# 🚀 SAP Datasphere MCP Server
 
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Compatible-purple.svg)](https://modelcontextprotocol.io/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
 
-> **Enterprise-grade SAP Datasphere integration platform featuring Model Context Protocol (MCP) server for AI assistants, comprehensive metadata synchronization, and intelligent data replication to AWS services.**
+> **Professional Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for metadata discovery, data exploration, and analytics operations.**
 
 ![Platform Overview](https://via.placeholder.com/800x400/0066cc/ffffff?text=SAP+Datasphere+MCP+%26+AWS+Integration+Platform)
 
@@ -337,18 +336,15 @@ WS     /ws                     # WebSocket for real-time updates
 ```
 sap-datasphere-mcp/
 ├── 📁 .kiro/                           # Kiro specs and steering rules
-│   └── specs/sap-aws-data-sync/        # Comprehensive project specifications
+│   └── specs/sap-datasphere-mcp-server/ # MCP server specifications
 ├── 📁 config/                          # Configuration files
-├── 📁 templates/                       # Web UI templates  
-├── 📁 tests/                           # Unit and integration tests
-├── 📄 sap_datasphere_mcp_server.py     # MCP server for AI integration
+├── 📁 src/                             # Source code modules
+├── 📄 sap_datasphere_mcp_server.py     # Main MCP server implementation
 ├── 📄 start_mcp_server.py              # MCP server launcher
-├── 📄 comprehensive_asset_discovery_and_sync.py  # Data replication engine
 ├── 📄 enhanced_datasphere_connector.py  # OAuth-enabled SAP connector
-├── 📄 enhanced_glue_connector.py       # Rich metadata AWS connector
-├── 📄 web_dashboard.py                 # Multi-environment web dashboard
-├── 📄 sync_orchestrator.py             # Job orchestration engine
-├── 📄 metadata_sync_core.py            # Core synchronization logic
+├── 📄 enhanced_glue_connector.py       # AWS Glue integration
+├── 📄 enhanced_metadata_extractor.py   # Metadata extraction utilities
+├── 📄 test_mcp_server.py               # MCP server tests
 └── 📄 requirements.txt                 # Dependencies
 ```
 
