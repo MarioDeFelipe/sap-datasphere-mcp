@@ -7,18 +7,36 @@ This guide covers development setup and workflows for the SAP Datasphere MCP ser
 - [Python 3.10+](https://www.python.org/downloads/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) - Python package manager
 - [Git](https://git-scm.com/)
-- SAP Datasphere account with OAuth application configured
+- SAP Datasphere account with Technical User configured
+- OAuth 2.0 application setup for the Technical User
 - (optional) [AWS CLI](https://aws.amazon.com/cli/) for AWS Glue integration
 
-### SAP Datasphere OAuth Setup
+### SAP Datasphere Technical User Setup
 
-Configure OAuth credentials for SAP Datasphere access:
+**Step 1: Create Technical User in SAP Datasphere**
+1. Log into SAP Datasphere as an administrator
+2. Navigate to System → Security → Users
+3. Create a new Technical User with appropriate permissions:
+   - Space access permissions for metadata discovery
+   - Data access permissions for querying assets
+   - API access permissions for consumption APIs
+
+**Step 2: Configure OAuth Application**
+1. In SAP Datasphere, go to System → Security → App Integration
+2. Create a new OAuth 2.0 Client for the Technical User
+3. Configure the OAuth application with:
+   - Grant Type: Client Credentials
+   - Scopes: Required API access scopes
+   - Redirect URI: Not required for client credentials flow
+
+**Step 3: Configure MCP Server Credentials**
+Create `config/datasphere_config.json` with the Technical User's OAuth credentials:
 
 ```json
 {
   "base_url": "https://your-tenant.eu20.hcs.cloud.sap",
-  "client_id": "your-oauth-client-id",
-  "client_secret": "your-oauth-client-secret",
+  "client_id": "technical-user-oauth-client-id",
+  "client_secret": "technical-user-oauth-client-secret",
   "token_url": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token"
 }
 ```
@@ -220,10 +238,18 @@ pre-commit run mypy
 
 ### Common Issues
 
-**OAuth Authentication Errors**
-- Verify your client credentials are correct
-- Check that the OAuth application is properly configured in SAP Datasphere
-- Ensure the token URL matches your tenant's authentication endpoint
+**Technical User Authentication Errors**
+- Verify the Technical User exists in SAP Datasphere
+- Check that the Technical User has appropriate permissions for spaces and assets
+- Ensure the OAuth application is properly configured for the Technical User
+- Verify the client credentials (client_id, client_secret) are correct
+- Check that the token URL matches your tenant's authentication endpoint
+
+**Permission Denied Errors**
+- Verify the Technical User has access to the required SAP Datasphere spaces
+- Check that the Technical User has data access permissions for querying assets
+- Ensure the Technical User has API consumption permissions
+- Review space-level security settings in SAP Datasphere
 
 **Connection Timeouts**
 - Check network connectivity to SAP Datasphere
