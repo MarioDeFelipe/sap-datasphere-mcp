@@ -58,7 +58,8 @@
 ```bash
 # Required
 Python 3.10+
-SAP Datasphere account with OAuth application configured
+SAP Datasphere account with Technical User configured
+OAuth 2.0 application setup in SAP Datasphere for the Technical User
 
 # Optional for AI Integration
 Claude Desktop or Cursor IDE
