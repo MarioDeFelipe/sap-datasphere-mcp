@@ -7,17 +7,21 @@
 
 > **Professional Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for metadata discovery, data exploration, and analytics operations.**
 
-![Platform Overview](https://via.placeholder.com/800x400/0066cc/ffffff?text=SAP+Datasphere+MCP+%26+AWS+Integration+Platform)
+## 📋 **Project History**
+
+> **Note**: This repository was originally forked from [AWS Labs MCP Servers](https://github.com/awslabs/mcp) but has been completely rewritten and repurposed as a specialized SAP Datasphere MCP server. The contributor list includes developers from the original AWS Labs project, but the current codebase is entirely focused on SAP Datasphere integration and was developed independently.
+
+
 
 ## 🌟 **Key Highlights**
 
-- 🤖 **MCP Server**: AI-accessible metadata operations via Model Context Protocol
-- 🎯 **Production Tested**: Successfully syncing **14 real assets** with **197K+ records**
-- 🚀 **Three Environments**: Dog (Dev), Wolf (Test), Bear (Production) architecture
-- 🔄 **Intelligent Replication**: User-controlled selective data replication to AWS S3 Tables
-- 🏗️ **Enterprise Architecture**: Scalable, robust, production-ready with Apache Iceberg
-- 📊 **Live Monitoring**: Real-time job tracking and system health
-- 🧠 **AI Integration**: Claude, Cursor, and other AI assistants ready
+- 🤖 **MCP Server**: AI-accessible SAP Datasphere operations via Model Context Protocol
+- 🔐 **OAuth 2.0 Integration**: Secure authentication with SAP Datasphere
+- 🔍 **Metadata Discovery**: Explore spaces, assets, and schema information
+- 📊 **Data Querying**: Execute OData queries through natural language
+- 🧠 **AI Integration**: Claude Desktop, Cursor IDE, and other AI assistants ready
+- 🛠️ **Developer Friendly**: Comprehensive testing and development tools
+- 📚 **Well Documented**: Complete setup guides and API documentation
 
 ## 🤖 **MCP Server for AI Assistants**
 
@@ -54,8 +58,7 @@
 ```bash
 # Required
 Python 3.10+
-SAP Datasphere account with OAuth application
-AWS account with Glue and S3 Tables permissions
+SAP Datasphere account with OAuth application configured
 
 # Optional for AI Integration
 Claude Desktop or Cursor IDE
@@ -125,11 +128,10 @@ python start_mcp_server.py
 - **Unified metadata search** across Datasphere and AWS Glue
 - **Business context preservation** and lineage tracking
 
-### 🔄 **Data Replication Engine**
-- **`comprehensive_asset_discovery_and_sync.py`**: User-controlled selective replication
-- **Apache Iceberg integration** with AWS S3 Tables
-- **Glue ETL jobs** for scalable data processing
-- **Real-time progress monitoring** and validation
+### 🔄 **Data Integration**
+- **Enhanced connectors** for SAP Datasphere and AWS Glue
+- **Metadata extraction** utilities for comprehensive asset information
+- **OAuth 2.0 authentication** with automatic token refresh
 
 ### 🔌 **Enhanced Connectors**
 - **`enhanced_datasphere_connector.py`**: OAuth 2.0, enhanced API access
@@ -141,38 +143,37 @@ python start_mcp_server.py
 - **`metadata_sync_core.py`**: Core synchronization logic
 - **`asset_mapper.py`**: Cross-system asset mapping and transformation
 
-### 🌐 **Web Dashboard**
-- **`web_dashboard.py`**: FastAPI server with WebSocket support
-- **Three-environment deployment** (Dog/Wolf/Bear)
-- **Real-time replication monitoring** and job management
+### 🧪 **Testing & Development**
+- **`test_mcp_server.py`**: Comprehensive MCP server tests
+- **MCP Inspector integration** for development and debugging
+- **Multiple test scenarios** for various SAP Datasphere configurations
 
-## 📊 **Real Production Data & AI Integration**
+## 📊 **MCP Server Features**
 
-### MCP Server Capabilities:
+### Available MCP Tools:
 ```
-🤖 AI Assistant Integration  → Claude Desktop, Cursor IDE ready
-🔍 Metadata Search          → Unified search across SAP and AWS
-📋 Asset Discovery          → OAuth-enabled space and asset discovery
-🔄 Sync Management          → AI-controlled synchronization operations
-📈 Lineage Exploration      → Trace data relationships and dependencies
-💼 Business Context         → Rich metadata with governance information
-```
-
-### Successfully Integrated Assets:
-```
-📊 SAP_SC_FI_T_Products     → 2.5M records (replicated to S3 Tables)
-📅 Time Dimension Table     → 197,136 records  
-🏷️ Product Categories       → 222 records
-👥 Customer Data            → Multiple tables with business context
-📈 Analytical Models        → Financial & operational with hierarchies
-🏢 Datasphere Spaces        → SAP_CONTENT, SAP_SC_FI_AM, SAP_SC_HR_AM
+🔍 discover_spaces      → List all accessible SAP Datasphere spaces
+📋 get_space_assets     → Get assets within a specific space
+📊 get_asset_details    → Retrieve detailed asset information and schema
+🔎 query_asset_data     → Execute OData queries through natural language
+🔍 search_metadata      → Search across metadata with intelligent filtering
+🔗 get_connection_status → Check SAP Datasphere connectivity and health
 ```
 
-### Performance Metrics:
-- ⚡ **MCP Response Time**: Sub-100ms for AI assistant queries
-- 🔄 **Concurrent Operations**: Up to 10 simultaneous MCP requests
-- 📈 **Replication Throughput**: 2.5M records via Glue ETL jobs
-- 🛡️ **Reliability**: 99.9% uptime with auto-recovery and OAuth refresh
+### AI Assistant Integration:
+```
+🤖 Claude Desktop       → Full MCP integration with configuration examples
+🎯 Cursor IDE          → Native MCP support for development workflows
+🔧 Custom AI Tools     → Standard MCP protocol for any AI assistant
+📝 Natural Language    → Ask questions about your data in plain English
+🔐 Secure Access       → OAuth 2.0 authentication with automatic token refresh
+```
+
+### Performance Characteristics:
+- ⚡ **Response Time**: Sub-100ms for metadata queries
+- 🔄 **Concurrent Operations**: Multiple simultaneous MCP requests supported
+- 🛡️ **Reliability**: Automatic error handling and OAuth token refresh
+- 📊 **Scalability**: Efficient caching and connection pooling
 
 ## 🤖 **MCP Server for AI Assistants**
 
@@ -249,25 +250,22 @@ python mcp_server_config.py
 }
 ```
 
-### AWS Services Setup
+### Optional AWS Integration
 ```json
 {
   "region": "us-east-1",
-  "s3_tables_bucket": "sap-datasphere-s3-tables",
-  "glue_database": "sap_datasphere_s3_tables",
-  "glue_job_role": "GlueServiceRole-SAP-Replication"
+  "aws_profile": "default"
 }
 ```
 
-### Data Replication Configuration
+### MCP Server Configuration
 ```python
-# Example: Replicate SAP_SC_FI_T_Products to S3 Tables
+# Example MCP server configuration
 {
-  "source_asset": "SAP_SC_FI_T_Products",
-  "target_format": "ICEBERG",
-  "partition_strategy": "BY_DATE_AND_COMPANY",
-  "replication_mode": "INCREMENTAL",
-  "data_validation": true
+  "server_name": "sap-datasphere",
+  "log_level": "INFO",
+  "cache_ttl": 300,
+  "max_connections": 10
 }
 ```
 
@@ -283,13 +281,15 @@ explore_data_lineage(asset_id, direction, max_depth)   # Lineage tracing
 trigger_sync(asset_ids, priority, dry_run)             # Sync control
 ```
 
-### Web Dashboard API
-```http
-GET    /api/assets              # List all discovered assets
-POST   /api/replicate/start     # Start data replication job
-GET    /api/replicate/status/{job_id}  # Get replication progress
-GET    /api/replicate/logs/{job_id}    # Get live replication logs
-POST   /api/replicate/cancel/{job_id}  # Cancel replication job
+### MCP Protocol Interface
+```python
+# Available MCP tools for AI assistants
+discover_spaces()           # List SAP Datasphere spaces
+get_space_assets(space_id)  # Get assets in a space
+get_asset_details(asset_id) # Get detailed asset information
+query_asset_data(query)     # Execute OData queries
+search_metadata(terms)      # Search across metadata
+get_connection_status()     # Check connectivity
 ```
 
 ### System Health & Monitoring
@@ -314,10 +314,10 @@ WS     /ws                     # WebSocket for real-time updates
 - **Intelligent Recommendations**: AI-guided integration pattern selection
 - **Automated Documentation**: AI-generated data catalogs and lineage
 
-### Enterprise Data Integration
-- **Selective Replication**: User-controlled data movement to AWS S3 Tables
-- **Real-time Federation**: Direct queries from AWS to SAP Datasphere
-- **Hybrid Analytics**: Unified analytics across SAP and AWS platforms
+### Enterprise Data Access
+- **Metadata Discovery**: Explore and understand your SAP Datasphere assets
+- **Natural Language Queries**: Ask questions about your data through AI assistants
+- **Real-time Access**: Direct connection to live SAP Datasphere data
 
 ### Advanced Data Governance
 - **Business Context Preservation**: Maintain rich metadata across systems
@@ -362,17 +362,17 @@ npx @modelcontextprotocol/inspector python sap_datasphere_mcp_server.py
 - 🔍 **Cache Performance**: Hit/miss rates and optimization metrics
 - 📝 **Audit Logs**: Complete AI assistant interaction history
 
-### Data Replication Monitoring
-- 🔄 **Real-time Progress**: Live job status with WebSocket updates
-- 📈 **Throughput Metrics**: Records per second and data volume tracking
-- 🛡️ **Data Validation**: Quality checks and business rule compliance
-- 🚨 **Error Handling**: Automatic retry with exponential backoff
+### MCP Server Monitoring
+- 📊 **Request Tracking**: Monitor MCP tool usage and performance
+- 🔐 **OAuth Management**: Automatic token refresh and expiration tracking
+- 📝 **Audit Logs**: Complete AI assistant interaction history
+- 🚨 **Error Handling**: Robust error handling with detailed logging
 
 ### Integration Options
-- **AWS CloudWatch**: Native monitoring for Lambda and Glue jobs
-- **Prometheus**: Metrics export for MCP server performance
-- **Grafana**: Custom dashboards for replication and sync metrics
-- **ELK Stack**: Centralized logging for all components
+- **Logging**: Structured logging with configurable levels
+- **Metrics**: Performance metrics for MCP operations
+- **Health Checks**: Built-in health monitoring endpoints
+- **Debugging**: MCP Inspector integration for development
 
 ## ✨ **Advanced Features**
 
@@ -382,15 +382,15 @@ npx @modelcontextprotocol/inspector python sap_datasphere_mcp_server.py
 - **Multi-language Support**: Global deployment with localized metadata
 - **Hierarchical Relationships**: Preserve analytical model structures
 
-### Intelligent Data Replication
-- **Apache Iceberg Integration**: ACID transactions and schema evolution
-- **Glue ETL Automation**: Spark-based scalable data processing
-- **Real-time Validation**: Comprehensive data quality and business rule checks
-- **Incremental Synchronization**: Efficient change detection and processing
+### Advanced MCP Features
+- **Intelligent Caching**: Optimized metadata caching with TTL management
+- **Connection Pooling**: Efficient SAP Datasphere connection management
+- **Error Recovery**: Automatic retry logic with exponential backoff
+- **Schema Discovery**: Dynamic discovery of asset schemas and relationships
 
 ### AI-Powered Operations
 - **Natural Language Queries**: Ask questions about your data in plain English
-- **Integration Pattern Recommendations**: AI-guided federation vs replication decisions
+- **Smart Query Optimization**: AI-guided query optimization and caching strategies
 - **Automated Documentation**: AI-generated data catalogs and lineage diagrams
 - **Intelligent Error Resolution**: AI-assisted troubleshooting and optimization
 
@@ -420,7 +420,7 @@ python test_mcp_server.py --environment dog
 ### Contribution Areas
 - **MCP Tools**: Add new AI-accessible operations
 - **Data Connectors**: Enhance SAP and AWS integrations
-- **Replication Patterns**: Implement new integration strategies
+- **Query Patterns**: Implement new data access strategies
 - **AI Agents**: Develop specialized data integration assistants
 
 ## 📄 **License**
@@ -431,8 +431,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Model Context Protocol** for enabling AI assistant integration
 - **SAP Datasphere Team** for comprehensive API capabilities
-- **AWS Glue & S3 Tables Teams** for robust analytics infrastructure
-- **Apache Iceberg Community** for ACID-compliant data lake format
+- **Python Community** for excellent development tools and libraries
 - **FastAPI Community** for the excellent web framework
 - **Kiro AI Assistant** for accelerating development workflows
 
