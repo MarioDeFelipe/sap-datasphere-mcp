@@ -5,6 +5,104 @@ All notable changes to the SAP Datasphere MCP Server & AWS Integration Platform 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2024-10-25
+
+### 🚀 Major Platform Vision Evolution
+
+#### Comprehensive SAP-to-AWS Integration Platform
+- **NEW**: Platform vision expanded from metadata sync to full SAP-to-AWS integration platform
+- **NEW**: Multi-pattern integration support (Federation, Replication, Direct Query)
+- **NEW**: AI-powered integration agent for SAP Datasphere expertise
+- **NEW**: Comprehensive asset discovery and cataloging with business context
+- **NEW**: RAG-powered metadata chatbot for intelligent data discovery
+
+#### Intelligent Data Replication with AWS Glue ETL
+- **NEW**: AWS Glue ETL-based replication replacing Lambda approach for better performance
+- **NEW**: Apache Iceberg integration with S3 Tables for ACID transactions
+- **NEW**: Dynamic Glue ETL script generation for SAP Datasphere OData extraction
+- **NEW**: Real-time monitoring and validation system with cost tracking
+- **NEW**: Intelligent partitioning strategies and schema evolution support
+
+#### Web Dashboard Enhancements
+- **ENHANCED**: Port configuration updated from 8000 to 8001 for DOG environment
+- **ENHANCED**: Connection testing interface with real SAP Datasphere and AWS Glue validation
+- **ENHANCED**: Features page with comprehensive capability overview
+- **ENHANCED**: Connection page with OAuth configuration and testing
+- **ENHANCED**: Real-time asset discovery showing 57 live assets from AWS Glue
+
+#### RAG-Powered Metadata Chatbot System
+- **NEW**: Vector database integration for semantic metadata search
+- **NEW**: Automated metadata ingestion pipeline from all SAP APIs
+- **NEW**: Natural language interface for fundamental data questions
+- **NEW**: Real-time synchronization between APIs and vector database
+- **NEW**: Business context preservation in conversational format
+
+### 🔧 Technical Improvements
+
+#### Architecture Updates
+- **IMPROVED**: Three-environment architecture clarification (DOG with live connections)
+- **IMPROVED**: Design document updated to reflect AWS Glue ETL approach
+- **IMPROVED**: Requirements expanded to include platform vision and RAG capabilities
+- **IMPROVED**: Task structure reorganized with 9 new major task categories (16-24)
+
+#### Connection and Authentication
+- **FIXED**: Port mismatch issues between frontend and backend (8000 vs 8001)
+- **ENHANCED**: Health check endpoint for connection validation
+- **ENHANCED**: Client secret handling for "FROM_BACKEND" placeholder
+- **ENHANCED**: Connection testing with comprehensive validation results
+
+#### Web Dashboard Functionality
+- **ADDED**: Missing navigation links for Features and Connection pages
+- **ADDED**: API endpoints for connection testing and configuration management
+- **ADDED**: Real-time connection validation with detailed test results
+- **ADDED**: Comprehensive feature overview with development timeline
+
+### 📊 Platform Capabilities Added
+
+#### Asset Discovery and Cataloging
+- **NEW**: Unified asset discovery engine with business context
+- **NEW**: Integration pattern recommendation engine
+- **NEW**: Asset cataloging and classification system
+- **NEW**: Performance and cost impact analysis
+
+#### AI-Powered Integration Agent
+- **NEW**: SAP Datasphere integration expert knowledge base
+- **NEW**: Replication flow design assistance
+- **NEW**: Manual guidance system for API limitations
+- **NEW**: Agent learning and improvement system
+
+#### Multi-Pattern Integration Support
+- **NEW**: Federation pattern for real-time queries
+- **NEW**: Direct Query pattern for on-demand access
+- **NEW**: Hybrid pattern orchestration
+- **NEW**: Pattern governance and monitoring
+
+#### Enterprise Governance and Monitoring
+- **NEW**: Unified governance framework
+- **NEW**: Comprehensive monitoring and alerting
+- **NEW**: Data lineage and impact analysis
+- **NEW**: Enterprise reporting and analytics
+
+### 🎯 Business Value Delivered
+
+#### Intelligent Data Discovery
+- **ACHIEVED**: Natural language search across all Datasphere assets
+- **ACHIEVED**: Business terminology mapping to technical names
+- **ACHIEVED**: Contextual recommendations and explanations
+- **ACHIEVED**: Multi-turn conversations with memory
+
+#### Real-time Knowledge Management
+- **ACHIEVED**: 15-minute sync between APIs and vector database
+- **ACHIEVED**: Live integration status monitoring
+- **ACHIEVED**: Automatic embedding updates on metadata changes
+- **ACHIEVED**: Consistent data across all sources
+
+#### Enterprise-Grade Capabilities
+- **ACHIEVED**: Governance policy explanations and compliance guidance
+- **ACHIEVED**: Data classification and sensitivity management
+- **ACHIEVED**: Impact analysis for data movement decisions
+- **ACHIEVED**: Automated compliance checking assistance
+
 ## [2.0.0] - 2024-10-24
 
 ### 🚀 Major Features Added
