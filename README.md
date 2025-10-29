@@ -7,9 +7,9 @@
 
 > **Professional Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for metadata discovery, data exploration, and analytics operations.**
 
-## 📋 **Project History**
+## 📋 **Project Overview**
 
-> **Note**: This repository was originally forked from [AWS Labs MCP Servers](https://github.com/awslabs/mcp) but has been completely rewritten and repurposed as a specialized SAP Datasphere MCP server. The contributor list includes developers from the original AWS Labs project, but the current codebase is entirely focused on SAP Datasphere integration and was developed independently.
+> **Note**: This is a specialized SAP Datasphere MCP server that provides AI assistants with comprehensive access to SAP Datasphere environments. The project is entirely focused on SAP Datasphere integration and provides text-based configuration through interactive prompts.
 
 
 
@@ -74,8 +74,7 @@ cd sap-datasphere-mcp
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Configure SAP Datasphere credentials
-# Edit config/datasphere_config.json
+# 3. The server will prompt for SAP Datasphere credentials on startup
 
 # 4. Start MCP Server
 python start_mcp_server.py
@@ -89,8 +88,7 @@ git clone https://github.com/MarioDeFelipe/sap-datasphere-mcp.git
 cd sap-datasphere-mcp
 uv venv && uv sync --all-groups
 
-# 2. Configure SAP Datasphere credentials
-# Edit config/datasphere_config.json with your OAuth credentials
+# 2. The server will prompt for SAP Datasphere credentials on startup
 
 # 3. Start MCP Server
 python start_mcp_server.py
@@ -186,14 +184,14 @@ Add to your Claude Desktop `mcp.json` configuration:
       "args": ["start_mcp_server.py", "--environment", "dog"],
       "cwd": "/path/to/sap-datasphere-mcp",
       "env": {
-        "MCP_ENVIRONMENT": "dog",
-        "SAP_CLIENT_ID": "your_oauth_client_id",
-        "SAP_CLIENT_SECRET": "your_oauth_client_secret"
+        "MCP_ENVIRONMENT": "dog"
       }
     }
   }
 }
 ```
+
+The server will prompt you for SAP Datasphere credentials when it starts.
 
 ### Example AI Queries
 Once configured, you can ask your AI assistant:
@@ -224,37 +222,17 @@ Add to your Cursor settings for development workflows:
 }
 ```
 
+The server will prompt you for SAP Datasphere credentials when it starts.
+
 ## 🔧 **Configuration**
 
-### MCP Server Configuration
-```bash
-# Configure MCP server for your environment
-python mcp_server_config.py
+### SAP Datasphere Configuration
+Configure your SAP Datasphere connection by providing credentials when prompted by the MCP server:
 
-# Available environments:
-# - dog: Development (localhost:8001)
-# - wolf: Testing (localhost:5000) 
-# - bear: Production (AWS Lambda)
-```
-
-### SAP Datasphere OAuth Setup
-```json
-{
-  "base_url": "https://your-tenant.eu20.hcs.cloud.sap",
-  "client_id": "your-oauth-client-id",
-  "client_secret": "your-oauth-client-secret", 
-  "token_url": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token",
-  "redirect_uri": "http://localhost:8080/callback"
-}
-```
-
-### Optional AWS Integration
-```json
-{
-  "region": "us-east-1",
-  "aws_profile": "default"
-}
-```
+- **Base URL**: Your SAP Datasphere tenant URL (e.g., https://your-tenant.eu20.hcs.cloud.sap)
+- **Client ID**: OAuth 2.0 client ID for your Technical User
+- **Client Secret**: OAuth 2.0 client secret for your Technical User
+- **Token URL**: OAuth token endpoint (e.g., https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token)
 
 ### MCP Server Configuration
 ```python
@@ -300,7 +278,6 @@ WS     /ws                     # WebSocket for real-time updates
 ## 🔒 **Security Features**
 
 - 🔐 **OAuth 2.0**: Secure SAP Datasphere authentication
-- 🛡️ **AWS IAM**: Role-based AWS access control  
 - 🔒 **HTTPS/TLS**: Encrypted communications
 - 📝 **Audit Logging**: Complete operation audit trails
 - 🔑 **Token Management**: Automatic refresh and rotation
@@ -430,7 +407,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Model Context Protocol** for enabling AI assistant integration
 - **SAP Datasphere Team** for comprehensive API capabilities
 - **Python Community** for excellent development tools and libraries
-- **FastAPI Community** for the excellent web framework
 - **Kiro AI Assistant** for accelerating development workflows
 
 ## 📞 **Support**

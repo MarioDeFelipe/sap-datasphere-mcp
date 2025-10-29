@@ -42,13 +42,11 @@ async def start_mcp_server(environment: str):
         
         logger.info(f"Starting SAP Datasphere MCP Server for {environment.upper()} environment")
         logger.info(f"Datasphere URL: {env_config.datasphere_base_url}")
-        logger.info(f"AWS Region: {env_config.aws_region}")
         logger.info(f"OAuth Enabled: {env_config.enable_oauth}")
         
         # Create MCP server configuration
         mcp_config = MCPServerConfig(
             datasphere_base_url=env_config.datasphere_base_url,
-            aws_region=env_config.aws_region,
             environment_name=env_config.name,
             enable_oauth=env_config.enable_oauth,
             oauth_redirect_uri=env_config.oauth_redirect_uri,
@@ -113,7 +111,6 @@ def main():
             config = get_mcp_config(args.environment)
             print(f"✅ Configuration for {args.environment} environment is valid")
             print(f"   Datasphere URL: {config.datasphere_base_url}")
-            print(f"   AWS Region: {config.aws_region}")
             print(f"   OAuth Enabled: {config.enable_oauth}")
             return 0
         except Exception as e:
