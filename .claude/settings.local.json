@@ -3,7 +3,8 @@
     "allow": [
       "Bash(if exist src rmdir /s /q src)",
       "Bash(rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
