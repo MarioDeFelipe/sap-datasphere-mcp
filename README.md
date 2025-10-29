@@ -66,6 +66,7 @@ Claude Desktop or Cursor IDE
 ```
 
 ### Installation
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/MarioDeFelipe/sap-datasphere-mcp.git
@@ -74,25 +75,30 @@ cd sap-datasphere-mcp
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. The server will prompt for SAP Datasphere credentials on startup
+# 3. Configure OAuth credentials
+cp .env.example .env
+# Edit .env with your SAP Datasphere OAuth credentials
 
 # 4. Start MCP Server
 python start_mcp_server.py
 ```
 
-### Quick Start
+### Configuration
+
+Create a `.env` file based on `.env.example`:
 
 ```bash
-# 1. Clone and setup
-git clone https://github.com/MarioDeFelipe/sap-datasphere-mcp.git
-cd sap-datasphere-mcp
-uv venv && uv sync --all-groups
+# SAP Datasphere Connection
+DATASPHERE_BASE_URL=https://your-tenant.eu10.hcs.cloud.sap
+DATASPHERE_TENANT_ID=your-tenant-id
 
-# 2. The server will prompt for SAP Datasphere credentials on startup
-
-# 3. Start MCP Server
-python start_mcp_server.py
+# OAuth 2.0 Credentials (Technical User)
+DATASPHERE_CLIENT_ID=your-client-id
+DATASPHERE_CLIENT_SECRET=your-client-secret
+DATASPHERE_TOKEN_URL=https://your-tenant.authentication.eu10.hana.ondemand.com/oauth/token
 ```
+
+**Important:** Never commit your `.env` file to version control. The `.gitignore` file is already configured to exclude it.
 
 ## 🏗️ **Architecture Overview**
 
@@ -277,10 +283,26 @@ WS     /ws                     # WebSocket for real-time updates
 
 ## 🔒 **Security Features**
 
-- 🔐 **OAuth 2.0**: Secure SAP Datasphere authentication
-- 🔒 **HTTPS/TLS**: Encrypted communications
+### OAuth 2.0 Authentication
+- ✅ **Client Credentials Flow**: Secure Technical User authentication
+- ✅ **Automatic Token Refresh**: Tokens refreshed 60 seconds before expiration
+- ✅ **Encrypted Storage**: Tokens encrypted in memory using Fernet encryption
+- ✅ **No Credentials in Code**: All secrets loaded from environment variables
+- ✅ **Retry Logic**: Exponential backoff for transient failures
+
+### Security Best Practices
+- 🔐 **Environment-based Configuration**: No hardcoded credentials
+- 🔒 **HTTPS/TLS**: Encrypted communications with SAP Datasphere
 - 📝 **Audit Logging**: Complete operation audit trails
-- 🔑 **Token Management**: Automatic refresh and rotation
+- 🔑 **Token Management**: Automatic refresh and secure rotation
+- 🛡️ **Input Validation**: Query validation and sanitization (in progress)
+
+### Security Improvements Roadmap
+See [MCP_IMPROVEMENTS_PLAN.md](MCP_IMPROVEMENTS_PLAN.md) for our comprehensive security enhancement plan:
+- Authorization flows with user consent
+- SQL injection prevention
+- Permission-based data filtering
+- Enhanced audit logging
 
 ## 🎯 **Use Cases**
 
@@ -306,15 +328,19 @@ WS     /ws                     # WebSocket for real-time updates
 sap-datasphere-mcp/
 ├── 📁 .kiro/                           # Kiro specs and steering rules
 │   └── specs/sap-datasphere-mcp-server/ # MCP server specifications
-├── 📁 config/                          # Configuration files
-├── 📁 src/                             # Source code modules
+├── 📁 auth/                            # OAuth 2.0 authentication modules
+│   ├── oauth_handler.py                # Token management and refresh
+│   └── datasphere_auth_connector.py    # Authenticated API connector
+├── 📁 config/                          # Configuration management
+│   └── settings.py                     # Environment-based settings
 ├── 📄 sap_datasphere_mcp_server.py     # Main MCP server implementation
 ├── 📄 start_mcp_server.py              # MCP server launcher
-├── 📄 enhanced_datasphere_connector.py  # OAuth-enabled SAP connector
-
+├── 📄 enhanced_datasphere_connector.py  # Legacy connector (deprecated)
 ├── 📄 enhanced_metadata_extractor.py   # Metadata extraction utilities
 ├── 📄 test_mcp_server.py               # MCP server tests
-└── 📄 requirements.txt                 # Dependencies
+├── 📄 .env.example                     # Configuration template
+├── 📄 requirements.txt                 # Dependencies
+└── 📄 MCP_IMPROVEMENTS_PLAN.md         # Implementation roadmap
 ```
 
 ### Running Tests

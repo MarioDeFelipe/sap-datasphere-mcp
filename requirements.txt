@@ -7,6 +7,10 @@ python-multipart==0.0.6
 # HTTP and API
 requests==2.31.0
 httpx==0.25.2
+aiohttp==3.9.1
+
+# Security and Encryption
+cryptography==41.0.7
 
 
 
