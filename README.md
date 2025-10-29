@@ -100,6 +100,8 @@ DATASPHERE_TOKEN_URL=https://your-tenant.authentication.eu10.hana.ondemand.com/o
 
 **Important:** Never commit your `.env` file to version control. The `.gitignore` file is already configured to exclude it.
 
+📖 **Need help with OAuth setup?** See the complete guide: [OAuth Setup Guide](docs/OAUTH_SETUP.md)
+
 ## 🏗️ **Architecture Overview**
 
 ### MCP Server Architecture

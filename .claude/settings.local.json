@@ -4,7 +4,9 @@
       "Bash(if exist src rmdir /s /q src)",
       "Bash(rm:*)",
       "Bash(git add:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nImplement OAuth 2.0 authentication with production-ready features\n\nThis commit implements Phase 1, Task 1.1 of the MCP improvements plan:\nprofessional OAuth 2.0 authentication following Anthropic''s 2025 best practices.\n\nNew Features:\n- OAuth 2.0 client credentials flow with automatic token refresh\n- Encrypted token storage using Fernet encryption\n- Authenticated SAP Datasphere API connector with retry logic\n- Environment-based configuration management\n- Comprehensive error handling and health monitoring\n\nSecurity Improvements:\n- No hardcoded credentials in source code\n- All secrets loaded from environment variables\n- Tokens refreshed 60 seconds before expiration\n- Exponential backoff for transient failures\n- Safe logging without secret exposure\n\nNew Files:\n- auth/oauth_handler.py: Token management and automatic refresh\n- auth/datasphere_auth_connector.py: OAuth-authenticated API wrapper\n- config/settings.py: Environment-based configuration with validation\n- .env.example: Configuration template for users\n\nDocumentation:\n- MCP_IMPROVEMENTS_PLAN.md: Comprehensive roadmap for all improvements\n- MCP_IMPROVEMENTS_SUMMARY.md: Executive summary and quick reference\n- OAUTH_IMPLEMENTATION_STATUS.md: Detailed implementation status\n- Updated README.md: OAuth setup instructions and security features\n\nDependencies Added:\n- aiohttp==3.9.1: Async HTTP client\n- cryptography==41.0.7: Token encryption\n\nStatus: ~60% complete for Task 1.1\nNext Steps: Integrate OAuth with MCP server, remove mock data\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
