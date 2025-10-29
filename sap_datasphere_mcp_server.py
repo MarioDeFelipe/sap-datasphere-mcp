@@ -145,12 +145,12 @@ MOCK_DATA = {
             "last_tested": "2024-10-03T07:30:00Z"
         },
         {
-            "id": "AWS_S3_DATALAKE",
-            "name": "AWS S3 Data Lake",
-            "type": "AWS_S3",
-            "description": "AWS S3 data lake storage",
+            "id": "EXTERNAL_DATALAKE",
+            "name": "External Data Lake",
+            "type": "EXTERNAL",
+            "description": "External data lake storage",
             "status": "CONNECTED",
-            "host": "s3://company-datalake/",
+            "host": "https://external-datalake.company.com/",
             "last_tested": "2024-10-03T05:15:00Z"
         }
     ],
@@ -351,7 +351,7 @@ async def handle_list_tools() -> list[Tool]:
                 "properties": {
                     "connection_type": {
                         "type": "string",
-                        "description": "Optional: filter by connection type (SAP_ERP, SALESFORCE, AWS_S3, etc.)"
+                        "description": "Optional: filter by connection type (SAP_ERP, SALESFORCE, EXTERNAL, etc.)"
                     }
                 }
             }

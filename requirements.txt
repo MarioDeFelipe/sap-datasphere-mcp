@@ -8,9 +8,7 @@ python-multipart==0.0.6
 requests==2.31.0
 httpx==0.25.2
 
-# AWS Integration
-boto3==1.34.0
-botocore==1.34.0
+
 
 # Data Validation and Serialization
 pydantic==2.5.0
