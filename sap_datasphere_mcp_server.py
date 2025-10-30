@@ -23,6 +23,11 @@ from mcp.types import (
 import mcp.server.stdio
 import mcp.types as types
 
+# Authorization and security modules
+from auth.authorization import AuthorizationManager
+from auth.consent_manager import ConsentManager
+from auth.data_filter import DataFilter
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sap-datasphere-mcp")
@@ -206,6 +211,15 @@ MOCK_DATA = {
 
 # Initialize the MCP server
 server = Server("sap-datasphere-mcp")
+
+# Initialize authorization and security components
+auth_manager = AuthorizationManager()
+consent_manager = ConsentManager(auth_manager)
+data_filter = DataFilter(
+    redact_pii=True,
+    redact_credentials=True,
+    redact_connections=True
+)
 
 @server.list_resources()
 async def handle_list_resources() -> list[Resource]:
@@ -417,184 +431,224 @@ async def handle_list_tools() -> list[Tool]:
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict | None) -> list[types.TextContent]:
-    """Handle tool calls"""
-    
+    """Handle tool calls with authorization and consent checks"""
+
     if arguments is None:
         arguments = {}
-    
+
     try:
-        if name == "list_spaces":
-            include_details = arguments.get("include_details", False)
-            
-            if include_details:
-                result = MOCK_DATA["spaces"]
-            else:
-                result = [
-                    {
-                        "id": space["id"],
-                        "name": space["name"], 
-                        "status": space["status"],
-                        "tables_count": space["tables_count"]
-                    }
-                    for space in MOCK_DATA["spaces"]
-                ]
-            
-            return [types.TextContent(
-                type="text",
-                text=f"Found {len(result)} Datasphere spaces:\n\n" + 
-                     json.dumps(result, indent=2)
-            )]
-        
-        elif name == "get_space_info":
-            space_id = arguments["space_id"]
-            
-            space = next((s for s in MOCK_DATA["spaces"] if s["id"] == space_id), None)
-            if not space:
-                return [types.TextContent(
-                    type="text",
-                    text=f"Space '{space_id}' not found. Available spaces: {[s['id'] for s in MOCK_DATA['spaces']]}"
-                )]
-            
-            # Add table information
-            tables = MOCK_DATA["tables"].get(space_id, [])
-            space_info = space.copy()
-            space_info["tables"] = tables
-            
-            return [types.TextContent(
-                type="text",
-                text=f"Space Information for '{space_id}':\n\n" + 
-                     json.dumps(space_info, indent=2)
-            )]
-        
-        elif name == "search_tables":
-            search_term = arguments["search_term"].lower()
-            space_filter = arguments.get("space_id")
-            
-            found_tables = []
-            
-            for space_id, tables in MOCK_DATA["tables"].items():
-                if space_filter and space_id != space_filter:
-                    continue
-                    
-                for table in tables:
-                    if (search_term in table["name"].lower() or 
-                        search_term in table["description"].lower()):
-                        
-                        table_info = table.copy()
-                        table_info["space_id"] = space_id
-                        found_tables.append(table_info)
-            
-            return [types.TextContent(
-                type="text",
-                text=f"Found {len(found_tables)} tables matching '{search_term}':\n\n" +
-                     json.dumps(found_tables, indent=2)
-            )]
-        
-        elif name == "get_table_schema":
-            space_id = arguments["space_id"]
-            table_name = arguments["table_name"]
-            
-            tables = MOCK_DATA["tables"].get(space_id, [])
-            table = next((t for t in tables if t["name"] == table_name), None)
-            
-            if not table:
-                return [types.TextContent(
-                    type="text",
-                    text=f"Table '{table_name}' not found in space '{space_id}'"
-                )]
-            
-            return [types.TextContent(
-                type="text",
-                text=f"Schema for table '{table_name}' in space '{space_id}':\n\n" +
-                     json.dumps(table, indent=2)
-            )]
-        
-        elif name == "list_connections":
-            connection_type = arguments.get("connection_type")
-            
-            connections = MOCK_DATA["connections"]
-            if connection_type:
-                connections = [c for c in connections if c["type"] == connection_type]
-            
-            return [types.TextContent(
-                type="text",
-                text=f"Found {len(connections)} data connections:\n\n" +
-                     json.dumps(connections, indent=2)
-            )]
-        
-        elif name == "get_task_status":
-            task_id = arguments.get("task_id")
-            space_filter = arguments.get("space_id")
-            
-            tasks = MOCK_DATA["tasks"]
-            
-            if task_id:
-                tasks = [t for t in tasks if t["id"] == task_id]
-            elif space_filter:
-                tasks = [t for t in tasks if t["space"] == space_filter]
-            
-            return [types.TextContent(
-                type="text",
-                text=f"Task Status Information:\n\n" +
-                     json.dumps(tasks, indent=2)
-            )]
-        
-        elif name == "browse_marketplace":
-            category = arguments.get("category")
-            search_term = arguments.get("search_term", "").lower()
-            
-            packages = MOCK_DATA["marketplace_packages"]
-            
-            if category:
-                packages = [p for p in packages if p["category"] == category]
-            
-            if search_term:
-                packages = [p for p in packages if 
-                           search_term in p["name"].lower() or 
-                           search_term in p["description"].lower()]
-            
-            return [types.TextContent(
-                type="text",
-                text=f"Found {len(packages)} marketplace packages:\n\n" +
-                     json.dumps(packages, indent=2)
-            )]
-        
-        elif name == "execute_query":
-            space_id = arguments["space_id"]
-            sql_query = arguments["sql_query"]
-            limit = arguments.get("limit", 100)
-            
-            # Simulate query execution with mock results
-            mock_result = {
-                "query": sql_query,
-                "space": space_id,
-                "execution_time": "0.245 seconds",
-                "rows_returned": min(limit, 50),  # Simulate some results
-                "sample_data": [
-                    {"CUSTOMER_ID": "C001", "CUSTOMER_NAME": "Acme Corp", "COUNTRY": "USA"},
-                    {"CUSTOMER_ID": "C002", "CUSTOMER_NAME": "Global Tech", "COUNTRY": "Germany"},
-                    {"CUSTOMER_ID": "C003", "CUSTOMER_NAME": "Data Solutions", "COUNTRY": "UK"}
-                ][:limit],
-                "note": "This is simulated data. Real query execution requires OAuth authentication."
+        # Check if tool requires consent
+        consent_needed, consent_prompt = await consent_manager.request_consent(
+            tool_name=name,
+            context={
+                "arguments": arguments,
+                "timestamp": datetime.utcnow().isoformat()
             }
-            
+        )
+
+        if consent_needed:
+            logger.info(f"User consent required for tool: {name}")
             return [types.TextContent(
                 type="text",
-                text=f"Query Execution Results:\n\n" +
-                     json.dumps(mock_result, indent=2)
+                text=consent_prompt
             )]
-        
-        else:
+
+        # Check authorization
+        allowed, deny_reason = auth_manager.check_permission(tool_name=name)
+
+        if not allowed:
+            logger.warning(f"Authorization denied for tool {name}: {deny_reason}")
             return [types.TextContent(
                 type="text",
-                text=f"Unknown tool: {name}"
+                text=f">>> Authorization Error <<<\n\n{deny_reason}\n\n"
+                     f"This tool requires appropriate permissions. "
+                     f"Please contact your administrator or grant consent if prompted."
             )]
-    
+
+        # Execute the tool
+        result = await _execute_tool(name, arguments)
+
+        # Filter sensitive data from result
+        filtered_result = data_filter.filter_response(result)
+
+        return filtered_result
+
     except Exception as e:
         logger.error(f"Error in tool {name}: {e}")
         return [types.TextContent(
             type="text",
             text=f"Error executing tool {name}: {str(e)}"
+        )]
+
+
+async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
+    """Execute tool logic without authorization checks"""
+
+    if name == "list_spaces":
+        include_details = arguments.get("include_details", False)
+
+        if include_details:
+            result = MOCK_DATA["spaces"]
+        else:
+            result = [
+                {
+                    "id": space["id"],
+                    "name": space["name"],
+                    "status": space["status"],
+                    "tables_count": space["tables_count"]
+                }
+                for space in MOCK_DATA["spaces"]
+            ]
+
+        return [types.TextContent(
+            type="text",
+            text=f"Found {len(result)} Datasphere spaces:\n\n" +
+                 json.dumps(result, indent=2)
+        )]
+
+    elif name == "get_space_info":
+        space_id = arguments["space_id"]
+
+        space = next((s for s in MOCK_DATA["spaces"] if s["id"] == space_id), None)
+        if not space:
+            return [types.TextContent(
+                type="text",
+                text=f"Space '{space_id}' not found. Available spaces: {[s['id'] for s in MOCK_DATA['spaces']]}"
+            )]
+
+        # Add table information
+        tables = MOCK_DATA["tables"].get(space_id, [])
+        space_info = space.copy()
+        space_info["tables"] = tables
+
+        return [types.TextContent(
+            type="text",
+            text=f"Space Information for '{space_id}':\n\n" +
+                 json.dumps(space_info, indent=2)
+        )]
+
+    elif name == "search_tables":
+        search_term = arguments["search_term"].lower()
+        space_filter = arguments.get("space_id")
+
+        found_tables = []
+
+        for space_id, tables in MOCK_DATA["tables"].items():
+            if space_filter and space_id != space_filter:
+                continue
+
+            for table in tables:
+                if (search_term in table["name"].lower() or
+                    search_term in table["description"].lower()):
+
+                    table_info = table.copy()
+                    table_info["space_id"] = space_id
+                    found_tables.append(table_info)
+
+        return [types.TextContent(
+            type="text",
+            text=f"Found {len(found_tables)} tables matching '{search_term}':\n\n" +
+                 json.dumps(found_tables, indent=2)
+        )]
+
+    elif name == "get_table_schema":
+        space_id = arguments["space_id"]
+        table_name = arguments["table_name"]
+
+        tables = MOCK_DATA["tables"].get(space_id, [])
+        table = next((t for t in tables if t["name"] == table_name), None)
+
+        if not table:
+            return [types.TextContent(
+                type="text",
+                text=f"Table '{table_name}' not found in space '{space_id}'"
+            )]
+
+        return [types.TextContent(
+            type="text",
+            text=f"Schema for table '{table_name}' in space '{space_id}':\n\n" +
+                 json.dumps(table, indent=2)
+        )]
+
+    elif name == "list_connections":
+        connection_type = arguments.get("connection_type")
+
+        connections = MOCK_DATA["connections"]
+        if connection_type:
+            connections = [c for c in connections if c["type"] == connection_type]
+
+        return [types.TextContent(
+            type="text",
+            text=f"Found {len(connections)} data connections:\n\n" +
+                 json.dumps(connections, indent=2)
+        )]
+
+    elif name == "get_task_status":
+        task_id = arguments.get("task_id")
+        space_filter = arguments.get("space_id")
+
+        tasks = MOCK_DATA["tasks"]
+
+        if task_id:
+            tasks = [t for t in tasks if t["id"] == task_id]
+        elif space_filter:
+            tasks = [t for t in tasks if t["space"] == space_filter]
+
+        return [types.TextContent(
+            type="text",
+            text=f"Task Status Information:\n\n" +
+                 json.dumps(tasks, indent=2)
+        )]
+
+    elif name == "browse_marketplace":
+        category = arguments.get("category")
+        search_term = arguments.get("search_term", "").lower()
+
+        packages = MOCK_DATA["marketplace_packages"]
+
+        if category:
+            packages = [p for p in packages if p["category"] == category]
+
+        if search_term:
+            packages = [p for p in packages if
+                       search_term in p["name"].lower() or
+                       search_term in p["description"].lower()]
+
+        return [types.TextContent(
+            type="text",
+            text=f"Found {len(packages)} marketplace packages:\n\n" +
+                 json.dumps(packages, indent=2)
+        )]
+
+    elif name == "execute_query":
+        space_id = arguments["space_id"]
+        sql_query = arguments["sql_query"]
+        limit = arguments.get("limit", 100)
+
+        # Simulate query execution with mock results
+        mock_result = {
+            "query": sql_query,
+            "space": space_id,
+            "execution_time": "0.245 seconds",
+            "rows_returned": min(limit, 50),  # Simulate some results
+            "sample_data": [
+                {"CUSTOMER_ID": "C001", "CUSTOMER_NAME": "Acme Corp", "COUNTRY": "USA"},
+                {"CUSTOMER_ID": "C002", "CUSTOMER_NAME": "Global Tech", "COUNTRY": "Germany"},
+                {"CUSTOMER_ID": "C003", "CUSTOMER_NAME": "Data Solutions", "COUNTRY": "UK"}
+            ][:limit],
+            "note": "This is simulated data. Real query execution requires OAuth authentication."
+        }
+
+        return [types.TextContent(
+            type="text",
+            text=f"Query Execution Results:\n\n" +
+                 json.dumps(mock_result, indent=2)
+        )]
+
+    else:
+        return [types.TextContent(
+            type="text",
+            text=f"Unknown tool: {name}"
         )]
 
 async def main():
