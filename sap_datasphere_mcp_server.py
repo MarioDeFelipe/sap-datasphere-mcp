@@ -27,6 +27,9 @@ import mcp.types as types
 from auth.authorization import AuthorizationManager
 from auth.consent_manager import ConsentManager
 from auth.data_filter import DataFilter
+from auth.input_validator import InputValidator
+from auth.sql_sanitizer import SQLSanitizer
+from auth.tool_validators import ToolValidators
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -219,6 +222,12 @@ data_filter = DataFilter(
     redact_pii=True,
     redact_credentials=True,
     redact_connections=True
+)
+input_validator = InputValidator(strict_mode=True)
+sql_sanitizer = SQLSanitizer(
+    max_query_length=10000,
+    max_tables=10,
+    allow_subqueries=True
 )
 
 @server.list_resources()
@@ -431,13 +440,48 @@ async def handle_list_tools() -> list[Tool]:
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict | None) -> list[types.TextContent]:
-    """Handle tool calls with authorization and consent checks"""
+    """Handle tool calls with validation, authorization, and consent checks"""
 
     if arguments is None:
         arguments = {}
 
     try:
-        # Check if tool requires consent
+        # Step 1: Validate input parameters
+        if ToolValidators.has_validator(name):
+            validation_rules = ToolValidators.get_validator_rules(name)
+            is_valid, validation_errors = input_validator.validate_params(
+                arguments,
+                validation_rules
+            )
+
+            if not is_valid:
+                logger.warning(f"Validation failed for tool {name}: {validation_errors}")
+                return [types.TextContent(
+                    type="text",
+                    text=f">>> Input Validation Error <<<\n\n"
+                         f"Invalid parameters provided:\n" +
+                         "\n".join(f"- {error}" for error in validation_errors)
+                )]
+
+        # Step 2: Additional SQL sanitization for execute_query
+        if name == "execute_query" and "sql_query" in arguments:
+            try:
+                sanitized_query, warnings = sql_sanitizer.sanitize(arguments["sql_query"])
+                arguments["sql_query"] = sanitized_query
+
+                if warnings:
+                    logger.info(f"SQL sanitization warnings: {warnings}")
+            except Exception as e:
+                logger.error(f"SQL sanitization failed: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f">>> SQL Validation Error <<<\n\n"
+                         f"Query failed security checks: {str(e)}\n\n"
+                         f"Only SELECT queries are allowed. "
+                         f"Ensure your query does not contain forbidden operations."
+                )]
+
+        # Step 3: Check if tool requires consent
         consent_needed, consent_prompt = await consent_manager.request_consent(
             tool_name=name,
             context={
@@ -453,7 +497,7 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
                 text=consent_prompt
             )]
 
-        # Check authorization
+        # Step 4: Check authorization
         allowed, deny_reason = auth_manager.check_permission(tool_name=name)
 
         if not allowed:
@@ -465,10 +509,10 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
                      f"Please contact your administrator or grant consent if prompted."
             )]
 
-        # Execute the tool
+        # Step 5: Execute the tool
         result = await _execute_tool(name, arguments)
 
-        # Filter sensitive data from result
+        # Step 6: Filter sensitive data from result
         filtered_result = data_filter.filter_response(result)
 
         return filtered_result
