@@ -1,0 +1,399 @@
+#!/usr/bin/env python3
+"""
+Authorization Framework for SAP Datasphere MCP Server
+Implements permission levels and access control for MCP tools
+"""
+
+import logging
+from enum import Enum
+from typing import Dict, List, Optional, Set
+from dataclasses import dataclass
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+
+class PermissionLevel(Enum):
+    """Permission levels for MCP tools"""
+    READ = "read"           # Read-only operations (list, get, search)
+    WRITE = "write"         # Data modification operations (execute queries)
+    ADMIN = "admin"         # Administrative operations (connections, tasks)
+    SENSITIVE = "sensitive"  # Sensitive data access (credentials, PII)
+
+
+class ToolCategory(Enum):
+    """Categorization of tools by their function"""
+    METADATA = "metadata"          # Metadata discovery
+    DATA_ACCESS = "data_access"    # Direct data access
+    QUERY = "query"                # Query execution
+    ADMINISTRATION = "administration"  # Admin functions
+    CONNECTION = "connection"      # Connection management
+
+
+@dataclass
+class ToolPermission:
+    """Permission configuration for a specific tool"""
+    tool_name: str
+    permission_level: PermissionLevel
+    category: ToolCategory
+    requires_consent: bool
+    description: str
+    risk_level: str  # "low", "medium", "high"
+
+
+class AuthorizationManager:
+    """
+    Manages authorization and permissions for MCP tools
+
+    Features:
+    - Tool-level permission enforcement
+    - Risk-based categorization
+    - Consent tracking
+    - Audit logging
+    """
+
+    # Tool permission registry
+    TOOL_PERMISSIONS: Dict[str, ToolPermission] = {
+        # Read-only metadata operations (low risk)
+        "list_spaces": ToolPermission(
+            tool_name="list_spaces",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="List available Datasphere spaces",
+            risk_level="low"
+        ),
+        "get_space_info": ToolPermission(
+            tool_name="get_space_info",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get detailed information about a space",
+            risk_level="low"
+        ),
+        "search_tables": ToolPermission(
+            tool_name="search_tables",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Search for tables and views",
+            risk_level="low"
+        ),
+        "get_table_schema": ToolPermission(
+            tool_name="get_table_schema",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get table schema information",
+            risk_level="low"
+        ),
+
+        # Data access operations (medium risk)
+        "execute_query": ToolPermission(
+            tool_name="execute_query",
+            permission_level=PermissionLevel.WRITE,
+            category=ToolCategory.QUERY,
+            requires_consent=True,
+            description="Execute SQL queries on Datasphere data",
+            risk_level="high"
+        ),
+
+        # Administrative operations (high risk)
+        "list_connections": ToolPermission(
+            tool_name="list_connections",
+            permission_level=PermissionLevel.ADMIN,
+            category=ToolCategory.CONNECTION,
+            requires_consent=True,
+            description="List data source connections",
+            risk_level="medium"
+        ),
+        "get_task_status": ToolPermission(
+            tool_name="get_task_status",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=False,
+            description="Get status of data integration tasks",
+            risk_level="low"
+        ),
+        "browse_marketplace": ToolPermission(
+            tool_name="browse_marketplace",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Browse Datasphere marketplace packages",
+            risk_level="low"
+        ),
+    }
+
+    def __init__(self):
+        """Initialize authorization manager"""
+        self._consent_granted: Set[str] = set()
+        self._consent_denied: Set[str] = set()
+        self._audit_log: List[Dict] = []
+
+        logger.info("Authorization manager initialized")
+
+    def check_permission(
+        self,
+        tool_name: str,
+        user_id: Optional[str] = None
+    ) -> tuple[bool, Optional[str]]:
+        """
+        Check if a tool can be executed
+
+        Args:
+            tool_name: Name of the tool to check
+            user_id: Optional user identifier for tracking
+
+        Returns:
+            Tuple of (allowed: bool, reason: Optional[str])
+        """
+        # Get tool permission configuration
+        tool_permission = self.TOOL_PERMISSIONS.get(tool_name)
+
+        if not tool_permission:
+            logger.warning(f"Unknown tool: {tool_name}")
+            return False, f"Unknown tool: {tool_name}"
+
+        # Check if consent is required
+        if tool_permission.requires_consent:
+            if tool_name in self._consent_denied:
+                reason = f"Consent denied for {tool_name}"
+                logger.warning(reason)
+                self._log_authorization_decision(
+                    tool_name=tool_name,
+                    allowed=False,
+                    reason=reason,
+                    user_id=user_id
+                )
+                return False, reason
+
+            if tool_name not in self._consent_granted:
+                reason = f"Consent required for {tool_name}"
+                logger.info(reason)
+                return False, reason
+
+        # Permission granted
+        self._log_authorization_decision(
+            tool_name=tool_name,
+            allowed=True,
+            reason="Permission granted",
+            user_id=user_id
+        )
+        return True, None
+
+    def grant_consent(self, tool_name: str, user_id: Optional[str] = None):
+        """
+        Grant consent for a specific tool
+
+        Args:
+            tool_name: Name of the tool
+            user_id: Optional user identifier
+        """
+        self._consent_granted.add(tool_name)
+        if tool_name in self._consent_denied:
+            self._consent_denied.remove(tool_name)
+
+        logger.info(f"Consent granted for tool: {tool_name}")
+        self._log_authorization_decision(
+            tool_name=tool_name,
+            allowed=True,
+            reason="User granted consent",
+            user_id=user_id,
+            action="consent_granted"
+        )
+
+    def deny_consent(self, tool_name: str, user_id: Optional[str] = None):
+        """
+        Deny consent for a specific tool
+
+        Args:
+            tool_name: Name of the tool
+            user_id: Optional user identifier
+        """
+        self._consent_denied.add(tool_name)
+        if tool_name in self._consent_granted:
+            self._consent_granted.remove(tool_name)
+
+        logger.info(f"Consent denied for tool: {tool_name}")
+        self._log_authorization_decision(
+            tool_name=tool_name,
+            allowed=False,
+            reason="User denied consent",
+            user_id=user_id,
+            action="consent_denied"
+        )
+
+    def revoke_consent(self, tool_name: str, user_id: Optional[str] = None):
+        """
+        Revoke previously granted consent
+
+        Args:
+            tool_name: Name of the tool
+            user_id: Optional user identifier
+        """
+        if tool_name in self._consent_granted:
+            self._consent_granted.remove(tool_name)
+
+        logger.info(f"Consent revoked for tool: {tool_name}")
+        self._log_authorization_decision(
+            tool_name=tool_name,
+            allowed=False,
+            reason="User revoked consent",
+            user_id=user_id,
+            action="consent_revoked"
+        )
+
+    def get_tool_permission(self, tool_name: str) -> Optional[ToolPermission]:
+        """
+        Get permission configuration for a tool
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            ToolPermission or None if not found
+        """
+        return self.TOOL_PERMISSIONS.get(tool_name)
+
+    def requires_consent(self, tool_name: str) -> bool:
+        """
+        Check if a tool requires user consent
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            True if consent is required
+        """
+        tool_permission = self.TOOL_PERMISSIONS.get(tool_name)
+        return tool_permission.requires_consent if tool_permission else False
+
+    def get_consent_status(self, tool_name: str) -> str:
+        """
+        Get consent status for a tool
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            "granted", "denied", "pending", or "not_required"
+        """
+        if not self.requires_consent(tool_name):
+            return "not_required"
+
+        if tool_name in self._consent_granted:
+            return "granted"
+        elif tool_name in self._consent_denied:
+            return "denied"
+        else:
+            return "pending"
+
+    def get_tools_by_permission_level(
+        self,
+        permission_level: PermissionLevel
+    ) -> List[str]:
+        """
+        Get all tools at a specific permission level
+
+        Args:
+            permission_level: Permission level to filter by
+
+        Returns:
+            List of tool names
+        """
+        return [
+            tool_name
+            for tool_name, permission in self.TOOL_PERMISSIONS.items()
+            if permission.permission_level == permission_level
+        ]
+
+    def get_tools_requiring_consent(self) -> List[str]:
+        """
+        Get all tools that require user consent
+
+        Returns:
+            List of tool names requiring consent
+        """
+        return [
+            tool_name
+            for tool_name, permission in self.TOOL_PERMISSIONS.items()
+            if permission.requires_consent
+        ]
+
+    def _log_authorization_decision(
+        self,
+        tool_name: str,
+        allowed: bool,
+        reason: str,
+        user_id: Optional[str] = None,
+        action: str = "permission_check"
+    ):
+        """
+        Log an authorization decision for audit purposes
+
+        Args:
+            tool_name: Name of the tool
+            allowed: Whether access was allowed
+            reason: Reason for the decision
+            user_id: Optional user identifier
+            action: Type of action
+        """
+        entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "tool_name": tool_name,
+            "action": action,
+            "allowed": allowed,
+            "reason": reason,
+            "user_id": user_id,
+        }
+
+        self._audit_log.append(entry)
+
+        # Keep audit log size manageable (last 1000 entries)
+        if len(self._audit_log) > 1000:
+            self._audit_log = self._audit_log[-1000:]
+
+    def get_audit_log(
+        self,
+        tool_name: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Dict]:
+        """
+        Get audit log entries
+
+        Args:
+            tool_name: Optional filter by tool name
+            limit: Maximum number of entries to return
+
+        Returns:
+            List of audit log entries
+        """
+        logs = self._audit_log
+
+        if tool_name:
+            logs = [log for log in logs if log["tool_name"] == tool_name]
+
+        return logs[-limit:]
+
+    def get_authorization_summary(self) -> Dict:
+        """
+        Get summary of authorization state
+
+        Returns:
+            Dictionary with authorization statistics
+        """
+        return {
+            "total_tools": len(self.TOOL_PERMISSIONS),
+            "tools_requiring_consent": len(self.get_tools_requiring_consent()),
+            "consent_granted": len(self._consent_granted),
+            "consent_denied": len(self._consent_denied),
+            "consent_pending": len(self.get_tools_requiring_consent()) -
+                             len(self._consent_granted) -
+                             len(self._consent_denied),
+            "audit_log_entries": len(self._audit_log),
+            "permission_levels": {
+                level.value: len(self.get_tools_by_permission_level(level))
+                for level in PermissionLevel
+            }
+        }
