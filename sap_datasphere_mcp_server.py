@@ -18,7 +18,9 @@ from mcp.types import (
     TextContent,
     ImageContent,
     EmbeddedResource,
-    LoggingLevel
+    LoggingLevel,
+    Prompt,
+    PromptMessage
 )
 import mcp.server.stdio
 import mcp.types as types
@@ -30,6 +32,9 @@ from auth.data_filter import DataFilter
 from auth.input_validator import InputValidator
 from auth.sql_sanitizer import SQLSanitizer
 from auth.tool_validators import ToolValidators
+
+# Enhanced tool descriptions
+from tool_descriptions import ToolDescriptions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -297,144 +302,200 @@ async def handle_read_resource(uri: str) -> str:
     else:
         raise ValueError(f"Unknown resource URI: {uri}")
 
+@server.list_prompts()
+async def handle_list_prompts() -> list[Prompt]:
+    """List available prompt templates for common workflows"""
+
+    return [
+        Prompt(
+            name="explore_datasphere",
+            description="Guided workflow to explore SAP Datasphere resources and understand available data",
+            arguments=[]
+        ),
+        Prompt(
+            name="analyze_sales_data",
+            description="Template for analyzing sales data with common queries and insights",
+            arguments=[
+                {
+                    "name": "space_id",
+                    "description": "Optional: Specific space to analyze (e.g., 'SALES_ANALYTICS')",
+                    "required": False
+                }
+            ]
+        ),
+        Prompt(
+            name="check_data_pipeline",
+            description="Monitor data pipeline health, task status, and connection status",
+            arguments=[]
+        ),
+        Prompt(
+            name="query_builder_assistant",
+            description="Interactive assistant to help build SQL queries for Datasphere tables",
+            arguments=[
+                {
+                    "name": "table_name",
+                    "description": "Optional: Table to query",
+                    "required": False
+                }
+            ]
+        )
+    ]
+
+@server.get_prompt()
+async def handle_get_prompt(name: str, arguments: dict | None) -> types.GetPromptResult:
+    """Get specific prompt template content"""
+
+    if arguments is None:
+        arguments = {}
+
+    if name == "explore_datasphere":
+        return types.GetPromptResult(
+            description="Guided workflow to explore SAP Datasphere",
+            messages=[
+                PromptMessage(
+                    role="user",
+                    content=TextContent(
+                        type="text",
+                        text="""I want to explore what's available in SAP Datasphere. Please help me:
+
+1. Show me all available spaces
+2. For each space, tell me what types of data it contains
+3. Highlight any interesting tables or datasets
+4. Suggest some useful queries I could run
+
+Start by listing the spaces."""
+                    )
+                )
+            ]
+        )
+
+    elif name == "analyze_sales_data":
+        space_id = arguments.get("space_id", "SALES_ANALYTICS")
+        return types.GetPromptResult(
+            description="Template for analyzing sales data",
+            messages=[
+                PromptMessage(
+                    role="user",
+                    content=TextContent(
+                        type="text",
+                        text=f"""I need to analyze sales data in SAP Datasphere. Please help me with:
+
+1. Show me what's in the {space_id} space
+2. Find all sales-related tables (orders, customers, products)
+3. Show me the schema of the main sales tables
+4. Help me run queries to analyze:
+   - Total sales by customer
+   - Sales trends over time
+   - Top products by revenue
+   - Customer segmentation
+
+Start by exploring the {space_id} space."""
+                    )
+                )
+            ]
+        )
+
+    elif name == "check_data_pipeline":
+        return types.GetPromptResult(
+            description="Monitor data pipeline health",
+            messages=[
+                PromptMessage(
+                    role="user",
+                    content=TextContent(
+                        type="text",
+                        text="""I want to check the health of our data pipelines. Please:
+
+1. Show me all running and recent tasks
+2. Identify any failed or stuck tasks
+3. Check the status of all data source connections
+4. Show when data was last refreshed for key tables
+5. Recommend any actions needed
+
+Start with the task status overview."""
+                    )
+                )
+            ]
+        )
+
+    elif name == "query_builder_assistant":
+        table_name = arguments.get("table_name", "")
+        context = f" for table {table_name}" if table_name else ""
+
+        return types.GetPromptResult(
+            description="Interactive SQL query builder assistant",
+            messages=[
+                PromptMessage(
+                    role="user",
+                    content=TextContent(
+                        type="text",
+                        text=f"""I need help building a SQL query{context} in SAP Datasphere. Please:
+
+1. {"Show me the schema of " + table_name if table_name else "Help me find the right table first"}
+2. Understand what data I want to retrieve
+3. Build a proper SELECT query with:
+   - Appropriate WHERE conditions
+   - Any needed JOINs
+   - Proper aggregations if needed
+   - LIMIT clause for performance
+4. Explain what the query does
+5. Execute it and show results
+
+{"Let's start by examining " + table_name if table_name else "First, what data are you looking for?"}"""
+                    )
+                )
+            ]
+        )
+
+    else:
+        raise ValueError(f"Unknown prompt: {name}")
+
 @server.list_tools()
 async def handle_list_tools() -> list[Tool]:
-    """List available Datasphere tools"""
-    
+    """List available Datasphere tools with enhanced descriptions"""
+
+    # Get enhanced descriptions
+    enhanced = ToolDescriptions.get_all_enhanced_descriptions()
+
     return [
         Tool(
             name="list_spaces",
-            description="List all Datasphere spaces with their status and metadata",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "include_details": {
-                        "type": "boolean",
-                        "description": "Include detailed space information",
-                        "default": False
-                    }
-                }
-            }
+            description=enhanced["list_spaces"]["description"],
+            inputSchema=enhanced["list_spaces"]["inputSchema"]
         ),
         Tool(
             name="get_space_info",
-            description="Get detailed information about a specific Datasphere space",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "space_id": {
-                        "type": "string",
-                        "description": "The ID of the space to retrieve information for"
-                    }
-                },
-                "required": ["space_id"]
-            }
+            description=enhanced["get_space_info"]["description"],
+            inputSchema=enhanced["get_space_info"]["inputSchema"]
         ),
         Tool(
             name="search_tables",
-            description="Search for tables and views across Datasphere spaces",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "search_term": {
-                        "type": "string", 
-                        "description": "Search term to find tables (searches names and descriptions)"
-                    },
-                    "space_id": {
-                        "type": "string",
-                        "description": "Optional: limit search to specific space"
-                    }
-                },
-                "required": ["search_term"]
-            }
+            description=enhanced["search_tables"]["description"],
+            inputSchema=enhanced["search_tables"]["inputSchema"]
         ),
         Tool(
             name="get_table_schema",
-            description="Get detailed schema information for a specific table",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "space_id": {
-                        "type": "string",
-                        "description": "The space containing the table"
-                    },
-                    "table_name": {
-                        "type": "string",
-                        "description": "The name of the table"
-                    }
-                },
-                "required": ["space_id", "table_name"]
-            }
+            description=enhanced["get_table_schema"]["description"],
+            inputSchema=enhanced["get_table_schema"]["inputSchema"]
         ),
         Tool(
             name="list_connections",
-            description="List all data source connections and their status",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "connection_type": {
-                        "type": "string",
-                        "description": "Optional: filter by connection type (SAP_ERP, SALESFORCE, EXTERNAL, etc.)"
-                    }
-                }
-            }
+            description=enhanced["list_connections"]["description"],
+            inputSchema=enhanced["list_connections"]["inputSchema"]
         ),
         Tool(
             name="get_task_status",
-            description="Get status and details of data integration tasks",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "task_id": {
-                        "type": "string",
-                        "description": "Optional: specific task ID to check"
-                    },
-                    "space_id": {
-                        "type": "string",
-                        "description": "Optional: filter tasks by space"
-                    }
-                }
-            }
+            description=enhanced["get_task_status"]["description"],
+            inputSchema=enhanced["get_task_status"]["inputSchema"]
         ),
         Tool(
             name="browse_marketplace",
-            description="Browse available data packages in the Datasphere marketplace",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "category": {
-                        "type": "string",
-                        "description": "Optional: filter by category (Reference Data, Financial Data, etc.)"
-                    },
-                    "search_term": {
-                        "type": "string",
-                        "description": "Optional: search term for package names or descriptions"
-                    }
-                }
-            }
+            description=enhanced["browse_marketplace"]["description"],
+            inputSchema=enhanced["browse_marketplace"]["inputSchema"]
         ),
         Tool(
             name="execute_query",
-            description="Execute a SQL query against Datasphere data (simulated)",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "space_id": {
-                        "type": "string",
-                        "description": "The space to execute the query in"
-                    },
-                    "sql_query": {
-                        "type": "string",
-                        "description": "The SQL query to execute"
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of rows to return",
-                        "default": 100
-                    }
-                },
-                "required": ["space_id", "sql_query"]
-            }
+            description=enhanced["execute_query"]["description"],
+            inputSchema=enhanced["execute_query"]["inputSchema"]
         )
     ]
 
