@@ -42,6 +42,12 @@ from error_helpers import ErrorHelpers
 # Mock data for development and testing
 from mock_data import MOCK_DATA
 
+# Cache manager for performance
+from cache_manager import CacheManager, CacheCategory
+
+# Telemetry and monitoring
+from telemetry import TelemetryManager
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sap-datasphere-mcp")
@@ -74,6 +80,13 @@ sql_sanitizer = SQLSanitizer(
     max_query_length=10000,
     max_tables=10,
     allow_subqueries=True
+)
+cache_manager = CacheManager(
+    max_size=1000,
+    enabled=True
+)
+telemetry_manager = TelemetryManager(
+    max_history=1000
 )
 
 @server.list_resources()
@@ -342,10 +355,18 @@ async def handle_list_tools() -> list[Tool]:
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict | None) -> list[types.TextContent]:
-    """Handle tool calls with validation, authorization, and consent checks"""
+    """Handle tool calls with validation, authorization, consent checks, and telemetry"""
 
     if arguments is None:
         arguments = {}
+
+    # Start timing for telemetry
+    start_time = time.time()
+    success = False
+    error_message = None
+    validation_passed = True
+    authorization_passed = True
+    cached = False
 
     try:
         # Step 1: Validate input parameters
@@ -357,6 +378,8 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
             )
 
             if not is_valid:
+                validation_passed = False
+                error_message = f"Validation failed: {'; '.join(validation_errors)}"
                 logger.warning(f"Validation failed for tool {name}: {validation_errors}")
                 return [types.TextContent(
                     type="text",
@@ -403,6 +426,8 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
         allowed, deny_reason = auth_manager.check_permission(tool_name=name)
 
         if not allowed:
+            authorization_passed = False
+            error_message = deny_reason
             logger.warning(f"Authorization denied for tool {name}: {deny_reason}")
             return [types.TextContent(
                 type="text",
@@ -417,14 +442,31 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
         # Step 6: Filter sensitive data from result
         filtered_result = data_filter.filter_response(result)
 
+        # Mark as successful
+        success = True
+
         return filtered_result
 
     except Exception as e:
+        error_message = str(e)
         logger.error(f"Error in tool {name}: {e}")
         return [types.TextContent(
             type="text",
             text=f"Error executing tool {name}: {str(e)}"
         )]
+
+    finally:
+        # Record telemetry
+        duration_ms = (time.time() - start_time) * 1000
+        telemetry_manager.record_tool_call(
+            tool_name=name,
+            duration_ms=duration_ms,
+            success=success,
+            error_message=error_message,
+            cached=cached,
+            validation_passed=validation_passed,
+            authorization_passed=authorization_passed
+        )
 
 
 async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
@@ -433,6 +475,15 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
     if name == "list_spaces":
         include_details = arguments.get("include_details", False)
 
+        # Try cache first
+        cache_key = f"all:{'detailed' if include_details else 'summary'}"
+        cached_result = cache_manager.get(cache_key, CacheCategory.SPACES)
+
+        if cached_result is not None:
+            logger.debug(f"Cache hit for list_spaces")
+            return cached_result
+
+        # Not in cache, fetch data
         if include_details:
             result = MOCK_DATA["spaces"]
         else:
@@ -446,15 +497,27 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 for space in MOCK_DATA["spaces"]
             ]
 
-        return [types.TextContent(
+        response = [types.TextContent(
             type="text",
             text=f"Found {len(result)} Datasphere spaces:\n\n" +
                  json.dumps(result, indent=2)
         )]
 
+        # Cache the response
+        cache_manager.set(cache_key, response, CacheCategory.SPACES)
+
+        return response
+
     elif name == "get_space_info":
         space_id = arguments["space_id"]
 
+        # Try cache first
+        cached_result = cache_manager.get(space_id, CacheCategory.SPACE_INFO)
+        if cached_result is not None:
+            logger.debug(f"Cache hit for get_space_info: {space_id}")
+            return cached_result
+
+        # Not in cache, fetch data
         space = next((s for s in MOCK_DATA["spaces"] if s["id"] == space_id), None)
         if not space:
             # Enhanced error message with suggestions
@@ -469,11 +532,16 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         space_info = space.copy()
         space_info["tables"] = tables
 
-        return [types.TextContent(
+        response = [types.TextContent(
             type="text",
             text=f"Space Information for '{space_id}':\n\n" +
                  json.dumps(space_info, indent=2)
         )]
+
+        # Cache the response
+        cache_manager.set(space_id, response, CacheCategory.SPACE_INFO)
+
+        return response
 
     elif name == "search_tables":
         search_term = arguments["search_term"].lower()
@@ -503,6 +571,14 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         space_id = arguments["space_id"]
         table_name = arguments["table_name"]
 
+        # Try cache first
+        cache_key = f"{space_id}:{table_name}"
+        cached_result = cache_manager.get(cache_key, CacheCategory.TABLE_SCHEMA)
+        if cached_result is not None:
+            logger.debug(f"Cache hit for get_table_schema: {cache_key}")
+            return cached_result
+
+        # Not in cache, fetch data
         tables = MOCK_DATA["tables"].get(space_id, [])
         table = next((t for t in tables if t["name"] == table_name), None)
 
@@ -514,11 +590,16 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 text=error_msg
             )]
 
-        return [types.TextContent(
+        response = [types.TextContent(
             type="text",
             text=f"Schema for table '{table_name}' in space '{space_id}':\n\n" +
                  json.dumps(table, indent=2)
         )]
+
+        # Cache the response (longer TTL for schemas as they change less frequently)
+        cache_manager.set(cache_key, response, CacheCategory.TABLE_SCHEMA)
+
+        return response
 
     elif name == "list_connections":
         connection_type = arguments.get("connection_type")
