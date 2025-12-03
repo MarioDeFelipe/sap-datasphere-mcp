@@ -31,6 +31,11 @@ class ToolValidators:
             "get_task_status": ToolValidators._get_task_status_rules(),
             "browse_marketplace": ToolValidators._browse_marketplace_rules(),
             "execute_query": ToolValidators._execute_query_rules(),
+            "list_database_users": ToolValidators._list_database_users_rules(),
+            "create_database_user": ToolValidators._create_database_user_rules(),
+            "reset_database_user_password": ToolValidators._reset_database_user_password_rules(),
+            "update_database_user": ToolValidators._update_database_user_rules(),
+            "delete_database_user": ToolValidators._delete_database_user_rules(),
         }
 
         return validators.get(tool_name, [])
@@ -177,6 +182,150 @@ class ToolValidators:
         ]
 
     @staticmethod
+    def _list_database_users_rules() -> List[ValidationRule]:
+        """Validation rules for list_database_users tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="output_file",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=256,
+                pattern=r'^[\w\-./\\]+\.json$'  # Must end with .json
+            )
+        ]
+
+    @staticmethod
+    def _create_database_user_rules() -> List[ValidationRule]:
+        """Validation rules for create_database_user tool (high-risk)"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="database_user_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=64,
+                pattern=r'^[A-Z][A-Z0-9_]*$'  # Uppercase, alphanumeric with underscores
+            ),
+            ValidationRule(
+                param_name="user_definition",
+                validation_type=ValidationType.STRING,  # Will be validated as JSON object
+                required=True
+            ),
+            ValidationRule(
+                param_name="output_file",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=256,
+                pattern=r'^[\w\-./\\]+\.json$'
+            )
+        ]
+
+    @staticmethod
+    def _reset_database_user_password_rules() -> List[ValidationRule]:
+        """Validation rules for reset_database_user_password tool (high-risk)"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="database_user_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=64,
+                pattern=r'^[A-Z][A-Z0-9_]*$'
+            ),
+            ValidationRule(
+                param_name="output_file",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=256,
+                pattern=r'^[\w\-./\\]+\.json$'
+            )
+        ]
+
+    @staticmethod
+    def _update_database_user_rules() -> List[ValidationRule]:
+        """Validation rules for update_database_user tool (high-risk)"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="database_user_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=64,
+                pattern=r'^[A-Z][A-Z0-9_]*$'
+            ),
+            ValidationRule(
+                param_name="updated_definition",
+                validation_type=ValidationType.STRING,  # Will be validated as JSON object
+                required=True
+            ),
+            ValidationRule(
+                param_name="output_file",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=256,
+                pattern=r'^[\w\-./\\]+\.json$'
+            )
+        ]
+
+    @staticmethod
+    def _delete_database_user_rules() -> List[ValidationRule]:
+        """Validation rules for delete_database_user tool (high-risk)"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="database_user_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=64,
+                pattern=r'^[A-Z][A-Z0-9_]*$'
+            ),
+            ValidationRule(
+                param_name="force",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
     def get_all_tool_names() -> List[str]:
         """Get list of all tools with validators"""
         return [
@@ -187,7 +336,12 @@ class ToolValidators:
             "list_connections",
             "get_task_status",
             "browse_marketplace",
-            "execute_query"
+            "execute_query",
+            "list_database_users",
+            "create_database_user",
+            "reset_database_user_password",
+            "update_database_user",
+            "delete_database_user"
         ]
 
     @staticmethod

@@ -123,6 +123,48 @@ class AuthorizationManager:
             description="Browse Datasphere marketplace packages",
             risk_level="low"
         ),
+
+        # Database user management operations (high risk - require consent)
+        "list_database_users": ToolPermission(
+            tool_name="list_database_users",
+            permission_level=PermissionLevel.ADMIN,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=False,
+            description="List database users in a space",
+            risk_level="medium"
+        ),
+        "create_database_user": ToolPermission(
+            tool_name="create_database_user",
+            permission_level=PermissionLevel.ADMIN,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=True,
+            description="Create a new database user with permissions",
+            risk_level="high"
+        ),
+        "reset_database_user_password": ToolPermission(
+            tool_name="reset_database_user_password",
+            permission_level=PermissionLevel.SENSITIVE,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=True,
+            description="Reset database user password (generates new credentials)",
+            risk_level="high"
+        ),
+        "update_database_user": ToolPermission(
+            tool_name="update_database_user",
+            permission_level=PermissionLevel.ADMIN,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=True,
+            description="Update database user permissions and configuration",
+            risk_level="high"
+        ),
+        "delete_database_user": ToolPermission(
+            tool_name="delete_database_user",
+            permission_level=PermissionLevel.ADMIN,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=True,
+            description="Permanently delete a database user (irreversible)",
+            risk_level="high"
+        ),
     }
 
     def __init__(self):
