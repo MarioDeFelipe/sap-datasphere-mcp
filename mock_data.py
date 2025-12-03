@@ -169,13 +169,174 @@ MOCK_MARKETPLACE_PACKAGES = [
     }
 ]
 
+# Mock database users for each space
+MOCK_DATABASE_USERS = {
+    "SALES_ANALYTICS": [
+        {
+            "user_id": "ANALYST",
+            "full_name": "SALES_ANALYTICS#ANALYST",
+            "status": "ACTIVE",
+            "created_date": "2024-01-20T11:00:00Z",
+            "last_login": "2024-12-01T14:23:15Z",
+            "permissions": {
+                "consumption": {
+                    "consumptionWithGrant": False,
+                    "spaceSchemaAccess": True,
+                    "scriptServerAccess": False,
+                    "enablePasswordPolicy": True,
+                    "localSchemaAccess": False,
+                    "hdiGrantorForCupsAccess": False
+                },
+                "ingestion": {
+                    "auditing": {
+                        "dppRead": {
+                            "isAuditPolicyActive": True,
+                            "retentionPeriod": 30
+                        },
+                        "dppChange": {
+                            "isAuditPolicyActive": False,
+                            "retentionPeriod": 7
+                        }
+                    }
+                }
+            },
+            "description": "Read-only analyst user with space schema access"
+        },
+        {
+            "user_id": "ETL_USER",
+            "full_name": "SALES_ANALYTICS#ETL_USER",
+            "status": "ACTIVE",
+            "created_date": "2024-01-22T09:30:00Z",
+            "last_login": "2024-12-03T02:15:00Z",
+            "permissions": {
+                "consumption": {
+                    "consumptionWithGrant": False,
+                    "spaceSchemaAccess": True,
+                    "scriptServerAccess": True,
+                    "enablePasswordPolicy": True,
+                    "localSchemaAccess": True,
+                    "hdiGrantorForCupsAccess": False
+                },
+                "ingestion": {
+                    "auditing": {
+                        "dppRead": {
+                            "isAuditPolicyActive": True,
+                            "retentionPeriod": 90
+                        },
+                        "dppChange": {
+                            "isAuditPolicyActive": True,
+                            "retentionPeriod": 90
+                        }
+                    }
+                }
+            },
+            "description": "ETL user for data loading and transformation"
+        }
+    ],
+    "FINANCE_DWH": [
+        {
+            "user_id": "REPORTING",
+            "full_name": "FINANCE_DWH#REPORTING",
+            "status": "ACTIVE",
+            "created_date": "2024-02-05T10:00:00Z",
+            "last_login": "2024-12-02T08:45:30Z",
+            "permissions": {
+                "consumption": {
+                    "consumptionWithGrant": True,
+                    "spaceSchemaAccess": True,
+                    "scriptServerAccess": False,
+                    "enablePasswordPolicy": True,
+                    "localSchemaAccess": False,
+                    "hdiGrantorForCupsAccess": False
+                },
+                "ingestion": {
+                    "auditing": {
+                        "dppRead": {
+                            "isAuditPolicyActive": True,
+                            "retentionPeriod": 365
+                        },
+                        "dppChange": {
+                            "isAuditPolicyActive": True,
+                            "retentionPeriod": 365
+                        }
+                    }
+                }
+            },
+            "description": "Finance reporting user with grant privileges"
+        },
+        {
+            "user_id": "POWERBI_SERVICE",
+            "full_name": "FINANCE_DWH#POWERBI_SERVICE",
+            "status": "ACTIVE",
+            "created_date": "2024-02-10T14:20:00Z",
+            "last_login": "2024-12-03T06:00:12Z",
+            "permissions": {
+                "consumption": {
+                    "consumptionWithGrant": False,
+                    "spaceSchemaAccess": True,
+                    "scriptServerAccess": False,
+                    "enablePasswordPolicy": True,
+                    "localSchemaAccess": False,
+                    "hdiGrantorForCupsAccess": False
+                },
+                "ingestion": {
+                    "auditing": {
+                        "dppRead": {
+                            "isAuditPolicyActive": True,
+                            "retentionPeriod": 30
+                        },
+                        "dppChange": {
+                            "isAuditPolicyActive": False,
+                            "retentionPeriod": 7
+                        }
+                    }
+                }
+            },
+            "description": "Power BI service account for dashboard integration"
+        }
+    ],
+    "HR_ANALYTICS": [
+        {
+            "user_id": "HR_VIEWER",
+            "full_name": "HR_ANALYTICS#HR_VIEWER",
+            "status": "ACTIVE",
+            "created_date": "2024-03-15T11:30:00Z",
+            "last_login": "2024-11-28T16:20:00Z",
+            "permissions": {
+                "consumption": {
+                    "consumptionWithGrant": False,
+                    "spaceSchemaAccess": True,
+                    "scriptServerAccess": False,
+                    "enablePasswordPolicy": True,
+                    "localSchemaAccess": False,
+                    "hdiGrantorForCupsAccess": False
+                },
+                "ingestion": {
+                    "auditing": {
+                        "dppRead": {
+                            "isAuditPolicyActive": True,
+                            "retentionPeriod": 180
+                        },
+                        "dppChange": {
+                            "isAuditPolicyActive": True,
+                            "retentionPeriod": 180
+                        }
+                    }
+                }
+            },
+            "description": "HR analytics viewer with PII audit logging"
+        }
+    ]
+}
+
 # Consolidated mock data structure for easy access
 MOCK_DATA = {
     "spaces": MOCK_SPACES,
     "tables": MOCK_TABLES,
     "connections": MOCK_CONNECTIONS,
     "tasks": MOCK_TASKS,
-    "marketplace_packages": MOCK_MARKETPLACE_PACKAGES
+    "marketplace_packages": MOCK_MARKETPLACE_PACKAGES,
+    "database_users": MOCK_DATABASE_USERS
 }
 
 
@@ -209,3 +370,18 @@ def get_mock_tasks():
 def get_mock_marketplace():
     """Get mock marketplace packages data"""
     return MOCK_MARKETPLACE_PACKAGES
+
+
+def get_mock_database_users(space_id=None):
+    """
+    Get mock database users data
+
+    Args:
+        space_id: Optional space ID to filter users
+
+    Returns:
+        List of database users or dict of all users by space
+    """
+    if space_id:
+        return MOCK_DATABASE_USERS.get(space_id, [])
+    return MOCK_DATABASE_USERS
