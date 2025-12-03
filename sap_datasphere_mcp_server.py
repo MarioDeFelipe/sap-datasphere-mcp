@@ -8,6 +8,8 @@ Can work with mock data or real API connections
 import asyncio
 import json
 import logging
+import time
+import secrets
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence
 from mcp.server import Server
@@ -350,6 +352,31 @@ async def handle_list_tools() -> list[Tool]:
             name="execute_query",
             description=enhanced["execute_query"]["description"],
             inputSchema=enhanced["execute_query"]["inputSchema"]
+        ),
+        Tool(
+            name="list_database_users",
+            description=enhanced["list_database_users"]["description"],
+            inputSchema=enhanced["list_database_users"]["inputSchema"]
+        ),
+        Tool(
+            name="create_database_user",
+            description=enhanced["create_database_user"]["description"],
+            inputSchema=enhanced["create_database_user"]["inputSchema"]
+        ),
+        Tool(
+            name="reset_database_user_password",
+            description=enhanced["reset_database_user_password"]["description"],
+            inputSchema=enhanced["reset_database_user_password"]["inputSchema"]
+        ),
+        Tool(
+            name="update_database_user",
+            description=enhanced["update_database_user"]["description"],
+            inputSchema=enhanced["update_database_user"]["inputSchema"]
+        ),
+        Tool(
+            name="delete_database_user",
+            description=enhanced["delete_database_user"]["description"],
+            inputSchema=enhanced["delete_database_user"]["inputSchema"]
         )
     ]
 
@@ -674,6 +701,270 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             type="text",
             text=f"Query Execution Results:\n\n" +
                  json.dumps(mock_result, indent=2)
+        )]
+
+    elif name == "list_database_users":
+        space_id = arguments["space_id"]
+        output_file = arguments.get("output_file")
+
+        # Get database users for the space
+        users = MOCK_DATA["database_users"].get(space_id, [])
+
+        if not users:
+            return [types.TextContent(
+                type="text",
+                text=f"No database users found in space '{space_id}'.\n\n"
+                     f"This could mean:\n"
+                     f"- The space exists but has no database users configured\n"
+                     f"- The space ID might be incorrect\n\n"
+                     f"Use list_spaces to see available spaces."
+            )]
+
+        result = {
+            "space_id": space_id,
+            "user_count": len(users),
+            "users": users
+        }
+
+        if output_file:
+            result["note"] = f"In production, output would be saved to {output_file}"
+
+        return [types.TextContent(
+            type="text",
+            text=f"Database Users in '{space_id}':\n\n" +
+                 json.dumps(result, indent=2)
+        )]
+
+    elif name == "create_database_user":
+        space_id = arguments["space_id"]
+        database_user_id = arguments["database_user_id"]
+        user_definition = arguments["user_definition"]
+        output_file = arguments.get("output_file")
+
+        # Generate a secure password
+        password = secrets.token_urlsafe(16)
+        full_username = f"{space_id}#{database_user_id}"
+
+        # Create the user result
+        result = {
+            "status": "SUCCESS",
+            "message": f"Database user '{database_user_id}' created successfully in space '{space_id}'",
+            "user": {
+                "user_id": database_user_id,
+                "full_name": full_username,
+                "status": "ACTIVE",
+                "created_date": datetime.utcnow().isoformat() + "Z",
+                "credentials": {
+                    "username": full_username,
+                    "password": password,
+                    "note": "IMPORTANT: Save this password securely! It will not be shown again."
+                },
+                "permissions": user_definition
+            },
+            "next_steps": [
+                "Save the credentials securely (use output_file parameter recommended)",
+                "Communicate password to user via secure channel (not email!)",
+                "User must change password on first login",
+                "Test connection with the provided credentials"
+            ]
+        }
+
+        if output_file:
+            result["output_file"] = output_file
+            result["note"] = f"In production, credentials would be saved to {output_file}"
+
+        return [types.TextContent(
+            type="text",
+            text=f"Database User Created:\n\n" +
+                 json.dumps(result, indent=2) +
+                 f"\n\n⚠️  WARNING: This is mock data. Real user creation requires OAuth authentication."
+        )]
+
+    elif name == "reset_database_user_password":
+        space_id = arguments["space_id"]
+        database_user_id = arguments["database_user_id"]
+        output_file = arguments.get("output_file")
+
+        # Check if user exists
+        users = MOCK_DATA["database_users"].get(space_id, [])
+        user = next((u for u in users if u["user_id"] == database_user_id), None)
+
+        if not user:
+            return [types.TextContent(
+                type="text",
+                text=f">>> User Not Found <<<\n\n"
+                     f"Database user '{database_user_id}' does not exist in space '{space_id}'.\n\n"
+                     f"Available users in {space_id}:\n" +
+                     "\n".join(f"- {u['user_id']}" for u in users) if users else "No users found."
+            )]
+
+        # Generate new password
+        new_password = secrets.token_urlsafe(16)
+        full_username = f"{space_id}#{database_user_id}"
+
+        result = {
+            "status": "SUCCESS",
+            "message": f"Password reset successfully for user '{database_user_id}' in space '{space_id}'",
+            "user": {
+                "user_id": database_user_id,
+                "full_name": full_username,
+                "credentials": {
+                    "username": full_username,
+                    "new_password": new_password,
+                    "note": "IMPORTANT: Save this password securely! It will not be shown again."
+                },
+                "reset_date": datetime.utcnow().isoformat() + "Z"
+            },
+            "security_actions": [
+                "Old password invalidated immediately",
+                "All active sessions terminated",
+                "Password must be changed on next login",
+                "Action logged for security audit"
+            ],
+            "next_steps": [
+                "Save new credentials securely (use output_file parameter recommended)",
+                "Communicate new password via secure channel (not email!)",
+                "Verify user identity before sharing password",
+                "Document password reset in change log"
+            ]
+        }
+
+        if output_file:
+            result["output_file"] = output_file
+            result["note"] = f"In production, credentials would be saved to {output_file}"
+
+        return [types.TextContent(
+            type="text",
+            text=f"Password Reset Complete:\n\n" +
+                 json.dumps(result, indent=2) +
+                 f"\n\n⚠️  WARNING: This is mock data. Real password reset requires OAuth authentication."
+        )]
+
+    elif name == "update_database_user":
+        space_id = arguments["space_id"]
+        database_user_id = arguments["database_user_id"]
+        updated_definition = arguments["updated_definition"]
+        output_file = arguments.get("output_file")
+
+        # Check if user exists
+        users = MOCK_DATA["database_users"].get(space_id, [])
+        user = next((u for u in users if u["user_id"] == database_user_id), None)
+
+        if not user:
+            return [types.TextContent(
+                type="text",
+                text=f">>> User Not Found <<<\n\n"
+                     f"Database user '{database_user_id}' does not exist in space '{space_id}'.\n\n"
+                     f"Available users in {space_id}:\n" +
+                     "\n".join(f"- {u['user_id']}" for u in users) if users else "No users found."
+            )]
+
+        # Compare old and new permissions
+        old_permissions = user.get("permissions", {})
+
+        result = {
+            "status": "SUCCESS",
+            "message": f"Database user '{database_user_id}' updated successfully in space '{space_id}'",
+            "user": {
+                "user_id": database_user_id,
+                "full_name": f"{space_id}#{database_user_id}",
+                "updated_date": datetime.utcnow().isoformat() + "Z",
+                "old_permissions": old_permissions,
+                "new_permissions": updated_definition
+            },
+            "changes_applied": [
+                "Permissions updated immediately",
+                "All changes logged for audit",
+                "Active sessions may need reconnection"
+            ],
+            "next_steps": [
+                "Verify new permissions are correct",
+                "Test user access with new configuration",
+                "Notify user if access levels changed",
+                "Document changes in change log"
+            ]
+        }
+
+        if output_file:
+            result["output_file"] = output_file
+            result["note"] = f"In production, updated configuration would be saved to {output_file}"
+
+        return [types.TextContent(
+            type="text",
+            text=f"Database User Updated:\n\n" +
+                 json.dumps(result, indent=2) +
+                 f"\n\n⚠️  WARNING: This is mock data. Real user update requires OAuth authentication."
+        )]
+
+    elif name == "delete_database_user":
+        space_id = arguments["space_id"]
+        database_user_id = arguments["database_user_id"]
+        force = arguments.get("force", False)
+
+        # Check if user exists
+        users = MOCK_DATA["database_users"].get(space_id, [])
+        user = next((u for u in users if u["user_id"] == database_user_id), None)
+
+        if not user:
+            return [types.TextContent(
+                type="text",
+                text=f">>> User Not Found <<<\n\n"
+                     f"Database user '{database_user_id}' does not exist in space '{space_id}'.\n\n"
+                     f"Available users in {space_id}:\n" +
+                     "\n".join(f"- {u['user_id']}" for u in users) if users else "No users found."
+            )]
+
+        # If not forced, require explicit confirmation
+        if not force:
+            return [types.TextContent(
+                type="text",
+                text=f">>> Confirmation Required <<<\n\n"
+                     f"⚠️  WARNING: You are about to PERMANENTLY DELETE database user '{database_user_id}'.\n\n"
+                     f"User Details:\n"
+                     f"- Full Name: {user.get('full_name')}\n"
+                     f"- Status: {user.get('status')}\n"
+                     f"- Created: {user.get('created_date')}\n"
+                     f"- Last Login: {user.get('last_login')}\n"
+                     f"- Description: {user.get('description')}\n\n"
+                     f"Consequences:\n"
+                     f"- User account permanently deleted (IRREVERSIBLE)\n"
+                     f"- All active sessions terminated immediately\n"
+                     f"- All granted privileges revoked\n"
+                     f"- Cannot be recovered - must recreate if needed\n\n"
+                     f"Before Proceeding:\n"
+                     f"1. Verify no applications depend on this user\n"
+                     f"2. Check if user owns any database objects\n"
+                     f"3. Get management approval for production users\n"
+                     f"4. Document deletion reason\n\n"
+                     f"To confirm deletion, call this tool again with 'force': true"
+            )]
+
+        # Deletion confirmed
+        result = {
+            "status": "SUCCESS",
+            "message": f"Database user '{database_user_id}' deleted successfully from space '{space_id}'",
+            "deleted_user": {
+                "user_id": database_user_id,
+                "full_name": f"{space_id}#{database_user_id}",
+                "deleted_date": datetime.utcnow().isoformat() + "Z",
+                "previous_status": user.get("status"),
+                "created_date": user.get("created_date"),
+                "description": user.get("description")
+            },
+            "actions_taken": [
+                "User account permanently deleted",
+                "All active sessions terminated",
+                "All privileges revoked",
+                "Deletion logged for audit"
+            ],
+            "reminder": "This action is IRREVERSIBLE. The user must be recreated if needed again."
+        }
+
+        return [types.TextContent(
+            type="text",
+            text=f"Database User Deleted:\n\n" +
+                 json.dumps(result, indent=2) +
+                 f"\n\n⚠️  WARNING: This is mock data. Real user deletion requires OAuth authentication."
         )]
 
     else:
