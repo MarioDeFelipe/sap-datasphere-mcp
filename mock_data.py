@@ -385,3 +385,200 @@ def get_mock_database_users(space_id=None):
     if space_id:
         return MOCK_DATABASE_USERS.get(space_id, [])
     return MOCK_DATABASE_USERS
+
+
+# Mock catalog assets data
+MOCK_CATALOG_ASSETS = [
+    {
+        "id": "SAP_SC_FI_AM_FINTRANSACTIONS",
+        "name": "Financial Transactions",
+        "description": "Comprehensive financial transaction data with account information, transaction types, amounts, and currencies",
+        "spaceId": "SAP_CONTENT",
+        "spaceName": "SAP Content",
+        "assetType": "AnalyticalModel",
+        "exposedForConsumption": True,
+        "analyticalConsumptionUrl": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/SAP_SC_FI_AM_FINTRANSACTIONS",
+        "relationalConsumptionUrl": "/api/v1/datasphere/consumption/relational/SAP_CONTENT/SAP_SC_FI_AM_FINTRANSACTIONS",
+        "metadataUrl": "/api/v1/datasphere/consumption/analytical/SAP_CONTENT/SAP_SC_FI_AM_FINTRANSACTIONS/$metadata",
+        "createdAt": "2024-01-15T10:30:00Z",
+        "modifiedAt": "2024-11-20T14:22:00Z",
+        "tags": ["finance", "transactions", "analytical", "compliance"],
+        "businessPurpose": "Financial reporting, transaction analysis, audit trails, regulatory compliance",
+        "status": "Active",
+        "version": "2.1"
+    },
+    {
+        "id": "SALES_DATA_VIEW",
+        "name": "Sales Data View",
+        "description": "Sales transaction view with customer details and order information",
+        "spaceId": "SALES_ANALYTICS",
+        "spaceName": "Sales Analytics",
+        "assetType": "View",
+        "exposedForConsumption": True,
+        "analyticalConsumptionUrl": None,
+        "relationalConsumptionUrl": "/api/v1/datasphere/consumption/relational/SALES_ANALYTICS/SALES_DATA_VIEW",
+        "metadataUrl": "/api/v1/datasphere/consumption/relational/SALES_ANALYTICS/SALES_DATA_VIEW/$metadata",
+        "createdAt": "2024-03-10T08:15:00Z",
+        "modifiedAt": "2024-10-05T16:45:00Z",
+        "tags": ["sales", "customer", "relational"],
+        "businessPurpose": "Sales analysis and customer insights",
+        "status": "Active",
+        "version": "1.5"
+    },
+    {
+        "id": "COST_CENTER_VIEW",
+        "name": "Cost Center View",
+        "description": "Cost center master data with hierarchies and organizational structure",
+        "spaceId": "SAP_CONTENT",
+        "spaceName": "SAP Content",
+        "assetType": "View",
+        "exposedForConsumption": True,
+        "analyticalConsumptionUrl": None,
+        "relationalConsumptionUrl": "/api/v1/datasphere/consumption/relational/SAP_CONTENT/COST_CENTER_VIEW",
+        "metadataUrl": "/api/v1/datasphere/consumption/relational/SAP_CONTENT/COST_CENTER_VIEW/$metadata",
+        "createdAt": "2024-02-20T09:15:00Z",
+        "modifiedAt": "2024-09-10T11:30:00Z",
+        "tags": ["finance", "cost-center", "master-data"],
+        "businessPurpose": "Cost allocation and organizational reporting",
+        "status": "Active",
+        "version": "1.2"
+    },
+    {
+        "id": "CUSTOMER_MASTER",
+        "name": "Customer Master Data",
+        "description": "Customer master data with addresses, contact information, and credit details",
+        "spaceId": "SALES_ANALYTICS",
+        "spaceName": "Sales Analytics",
+        "assetType": "Table",
+        "exposedForConsumption": True,
+        "analyticalConsumptionUrl": None,
+        "relationalConsumptionUrl": "/api/v1/datasphere/consumption/relational/SALES_ANALYTICS/CUSTOMER_MASTER",
+        "metadataUrl": "/api/v1/datasphere/consumption/relational/SALES_ANALYTICS/CUSTOMER_MASTER/$metadata",
+        "createdAt": "2024-01-05T12:00:00Z",
+        "modifiedAt": "2024-12-01T09:30:00Z",
+        "tags": ["sales", "customer", "master-data"],
+        "businessPurpose": "Customer relationship management and sales operations",
+        "status": "Active",
+        "version": "3.0"
+    },
+    {
+        "id": "PRODUCT_CATALOG",
+        "name": "Product Catalog",
+        "description": "Complete product catalog with specifications, pricing, and availability",
+        "spaceId": "SAP_CONTENT",
+        "spaceName": "SAP Content",
+        "assetType": "Table",
+        "exposedForConsumption": True,
+        "analyticalConsumptionUrl": None,
+        "relationalConsumptionUrl": "/api/v1/datasphere/consumption/relational/SAP_CONTENT/PRODUCT_CATALOG",
+        "metadataUrl": "/api/v1/datasphere/consumption/relational/SAP_CONTENT/PRODUCT_CATALOG/$metadata",
+        "createdAt": "2024-01-10T14:00:00Z",
+        "modifiedAt": "2024-11-15T10:20:00Z",
+        "tags": ["product", "catalog", "master-data"],
+        "businessPurpose": "Product information management and pricing",
+        "status": "Active",
+        "version": "2.3"
+    },
+    {
+        "id": "SALES_ORDERS_FACT",
+        "name": "Sales Orders Fact",
+        "description": "Sales orders fact table with order details, quantities, and revenues",
+        "spaceId": "SALES_ANALYTICS",
+        "spaceName": "Sales Analytics",
+        "assetType": "AnalyticalModel",
+        "exposedForConsumption": True,
+        "analyticalConsumptionUrl": "/api/v1/datasphere/consumption/analytical/SALES_ANALYTICS/SALES_ORDERS_FACT",
+        "relationalConsumptionUrl": "/api/v1/datasphere/consumption/relational/SALES_ANALYTICS/SALES_ORDERS_FACT",
+        "metadataUrl": "/api/v1/datasphere/consumption/analytical/SALES_ANALYTICS/SALES_ORDERS_FACT/$metadata",
+        "createdAt": "2024-02-01T11:00:00Z",
+        "modifiedAt": "2024-12-03T15:30:00Z",
+        "tags": ["sales", "orders", "fact", "analytical"],
+        "businessPurpose": "Sales performance analysis and forecasting",
+        "status": "Active",
+        "version": "1.8"
+    }
+]
+
+
+def get_mock_catalog_assets(space_id=None, asset_type=None):
+    """
+    Get mock catalog assets data with optional filtering
+
+    Args:
+        space_id: Optional space ID to filter assets
+        asset_type: Optional asset type to filter (e.g., 'AnalyticalModel', 'View', 'Table')
+
+    Returns:
+        List of catalog assets matching the filters
+    """
+    assets = MOCK_CATALOG_ASSETS
+
+    if space_id:
+        assets = [a for a in assets if a["spaceId"] == space_id]
+
+    if asset_type:
+        assets = [a for a in assets if a["assetType"] == asset_type]
+
+    return assets
+
+
+def get_mock_asset_details(space_id, asset_id):
+    """
+    Get detailed mock data for a specific asset
+
+    Args:
+        space_id: The space ID
+        asset_id: The asset ID
+
+    Returns:
+        Asset details dict or None if not found
+    """
+    for asset in MOCK_CATALOG_ASSETS:
+        if asset["spaceId"] == space_id and asset["id"] == asset_id:
+            # Return asset with additional detailed fields
+            detailed_asset = asset.copy()
+            detailed_asset.update({
+                "technicalName": asset_id,
+                "owner": "SYSTEM",
+                "createdBy": "SYSTEM",
+                "modifiedBy": "ADMIN",
+                "businessContext": {
+                    "domain": "Finance" if "SAP_SC_FI" in asset_id else "Sales",
+                    "dataClassification": "Confidential",
+                    "retentionPeriod": "7 years"
+                },
+                "technicalDetails": {
+                    "rowCount": 15000000 if "FINTRANSACTIONS" in asset_id else 500000,
+                    "sizeInMB": 2500 if "FINTRANSACTIONS" in asset_id else 150,
+                    "lastRefreshed": "2024-12-04T02:00:00Z",
+                    "refreshFrequency": "Daily"
+                }
+            })
+
+            if asset["assetType"] == "AnalyticalModel":
+                detailed_asset.update({
+                    "dimensions": [
+                        {
+                            "name": "TimeDimension",
+                            "description": "Time hierarchy with year, quarter, month, day",
+                            "cardinality": 3650
+                        },
+                        {
+                            "name": "AccountDimension",
+                            "description": "Chart of accounts dimension",
+                            "cardinality": 5000
+                        }
+                    ],
+                    "measures": [
+                        {
+                            "name": "Amount",
+                            "description": "Transaction amount in local currency",
+                            "aggregation": "SUM",
+                            "dataType": "Decimal(15,2)"
+                        }
+                    ]
+                })
+
+            return detailed_asset
+
+    return None
