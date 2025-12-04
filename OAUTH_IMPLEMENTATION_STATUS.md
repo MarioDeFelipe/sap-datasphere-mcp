@@ -130,7 +130,7 @@ Provides template for users to configure their OAuth credentials.
    - Remove `use_mock_data` flag
    - Update tool handlers to use DatasphereAuthConnector
 
-2. **Update `start_mcp_server.py`**
+2. **Update `sap_datasphere_mcp_server.py`**
    - Load settings from environment
    - Initialize OAuth handler
    - Pass connector to MCP server
@@ -211,7 +211,7 @@ requirements.txt                     ✅ Updated with new dependencies
    - Remove `DATASPHERE_CONFIG` hardcoded values
    - Integrate `DatasphereAuthConnector` in tool handlers
 
-2. Update `start_mcp_server.py`:
+2. Update `sap_datasphere_mcp_server.py`:
    - Load settings from environment
    - Initialize OAuth handler
    - Pass to MCP server

@@ -80,7 +80,7 @@ cp .env.example .env
 # Edit .env with your SAP Datasphere OAuth credentials
 
 # 4. Start MCP Server
-python start_mcp_server.py
+python sap_datasphere_mcp_server.py
 ```
 
 ### Configuration
@@ -189,11 +189,8 @@ Add to your Claude Desktop `mcp.json` configuration:
   "mcpServers": {
     "sap-datasphere": {
       "command": "python",
-      "args": ["start_mcp_server.py", "--environment", "dog"],
-      "cwd": "/path/to/sap-datasphere-mcp",
-      "env": {
-        "MCP_ENVIRONMENT": "dog"
-      }
+      "args": ["sap_datasphere_mcp_server.py"],
+      "cwd": "/path/to/sap-datasphere-mcp"
     }
   }
 }
@@ -220,11 +217,7 @@ Add to your Cursor settings for development workflows:
 {
   "mcp.servers": {
     "sap-datasphere": {
-      "command": ["python", "start_mcp_server.py"],
-      "args": ["--environment", "dog"],
-      "env": {
-        "MCP_ENVIRONMENT": "dog"
-      }
+      "command": ["python", "sap_datasphere_mcp_server.py"]
     }
   }
 }
@@ -335,8 +328,7 @@ sap-datasphere-mcp/
 │   └── datasphere_auth_connector.py    # Authenticated API connector
 ├── 📁 config/                          # Configuration management
 │   └── settings.py                     # Environment-based settings
-├── 📄 sap_datasphere_mcp_server.py     # Main MCP server implementation
-├── 📄 start_mcp_server.py              # MCP server launcher
+├── 📄 sap_datasphere_mcp_server.py     # Main MCP server (run this directly)
 ├── 📄 enhanced_datasphere_connector.py  # Legacy connector (deprecated)
 ├── 📄 enhanced_metadata_extractor.py   # Metadata extraction utilities
 ├── 📄 test_mcp_server.py               # MCP server tests
