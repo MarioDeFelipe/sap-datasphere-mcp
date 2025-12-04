@@ -42,7 +42,7 @@ from tool_descriptions import ToolDescriptions
 from error_helpers import ErrorHelpers
 
 # Mock data for development and testing
-from mock_data import MOCK_DATA
+from mock_data import MOCK_DATA, get_mock_catalog_assets, get_mock_asset_details
 
 # Cache manager for performance
 from cache_manager import CacheManager, CacheCategory
@@ -377,6 +377,26 @@ async def handle_list_tools() -> list[Tool]:
             name="delete_database_user",
             description=enhanced["delete_database_user"]["description"],
             inputSchema=enhanced["delete_database_user"]["inputSchema"]
+        ),
+        Tool(
+            name="list_catalog_assets",
+            description=enhanced["list_catalog_assets"]["description"],
+            inputSchema=enhanced["list_catalog_assets"]["inputSchema"]
+        ),
+        Tool(
+            name="get_asset_details",
+            description=enhanced["get_asset_details"]["description"],
+            inputSchema=enhanced["get_asset_details"]["inputSchema"]
+        ),
+        Tool(
+            name="get_asset_by_compound_key",
+            description=enhanced["get_asset_by_compound_key"]["description"],
+            inputSchema=enhanced["get_asset_by_compound_key"]["inputSchema"]
+        ),
+        Tool(
+            name="get_space_assets",
+            description=enhanced["get_space_assets"]["description"],
+            inputSchema=enhanced["get_space_assets"]["inputSchema"]
         )
     ]
 
@@ -965,6 +985,216 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             text=f"Database User Deleted:\n\n" +
                  json.dumps(result, indent=2) +
                  f"\n\n⚠️  WARNING: This is mock data. Real user deletion requires OAuth authentication."
+        )]
+
+    elif name == "list_catalog_assets":
+        # Extract OData query parameters
+        select_fields = arguments.get("select_fields")
+        filter_expression = arguments.get("filter_expression")
+        top = arguments.get("top", 50)
+        skip = arguments.get("skip", 0)
+        count = arguments.get("count", False)
+        orderby = arguments.get("orderby")
+
+        # Get catalog assets (mock data supports space_id and asset_type filtering)
+        # Parse filter_expression for supported filters
+        space_id_filter = None
+        asset_type_filter = None
+
+        if filter_expression:
+            # Simple parsing for common filters (production would use OData parser)
+            if "spaceId eq" in filter_expression:
+                # Extract space ID from filter like "spaceId eq 'SAP_CONTENT'"
+                import re
+                match = re.search(r"spaceId eq '([^']+)'", filter_expression)
+                if match:
+                    space_id_filter = match.group(1)
+            if "assetType eq" in filter_expression:
+                # Extract asset type from filter like "assetType eq 'AnalyticalModel'"
+                import re
+                match = re.search(r"assetType eq '([^']+)'", filter_expression)
+                if match:
+                    asset_type_filter = match.group(1)
+
+        # Get filtered assets
+        assets = get_mock_catalog_assets(space_id=space_id_filter, asset_type=asset_type_filter)
+
+        # Apply select fields if specified
+        if select_fields:
+            assets = [
+                {field: asset.get(field) for field in select_fields if field in asset}
+                for asset in assets
+            ]
+
+        # Apply orderby (simple implementation)
+        if orderby:
+            field = orderby.split()[0]  # e.g., "name asc" -> "name"
+            reverse = "desc" in orderby.lower()
+            assets = sorted(assets, key=lambda x: x.get(field, ""), reverse=reverse)
+
+        # Get total count before pagination
+        total_count = len(assets)
+
+        # Apply pagination
+        assets = assets[skip:skip + top]
+
+        result = {
+            "value": assets,
+            "count": total_count if count else None,
+            "top": top,
+            "skip": skip,
+            "returned": len(assets)
+        }
+
+        return [types.TextContent(
+            type="text",
+            text=f"Found {total_count} catalog assets (showing {len(assets)}):\n\n" +
+                 json.dumps(result, indent=2) +
+                 f"\n\n⚠️  NOTE: This is mock data. Real catalog browsing requires OAuth authentication."
+        )]
+
+    elif name == "get_asset_details":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+        select_fields = arguments.get("select_fields")
+
+        # Get detailed asset information
+        asset = get_mock_asset_details(space_id, asset_id)
+
+        if not asset:
+            return [types.TextContent(
+                type="text",
+                text=f">>> Asset Not Found <<<\n\n"
+                     f"Asset '{asset_id}' not found in space '{space_id}'.\n\n"
+                     f"Possible reasons:\n"
+                     f"- Asset ID is incorrect (check exact case and spelling)\n"
+                     f"- Space ID is incorrect\n"
+                     f"- Asset was deleted or moved\n\n"
+                     f"Try using list_catalog_assets or get_space_assets to find available assets."
+            )]
+
+        # Apply select fields if specified
+        if select_fields:
+            asset = {field: asset.get(field) for field in select_fields if field in asset}
+
+        return [types.TextContent(
+            type="text",
+            text=f"Asset Details for '{asset_id}' in space '{space_id}':\n\n" +
+                 json.dumps(asset, indent=2) +
+                 f"\n\n⚠️  NOTE: This is mock data. Real catalog browsing requires OAuth authentication."
+        )]
+
+    elif name == "get_asset_by_compound_key":
+        compound_key = arguments["compound_key"]
+        select_fields = arguments.get("select_fields")
+
+        # Parse compound key format: spaceId='SAP_CONTENT',id='SAP_SC_FI_AM_FINTRANSACTIONS'
+        # Simple parsing (production would use proper OData parser)
+        import re
+        space_match = re.search(r"spaceId='([^']+)'", compound_key)
+        id_match = re.search(r"id='([^']+)'", compound_key)
+
+        if not space_match or not id_match:
+            return [types.TextContent(
+                type="text",
+                text=f">>> Invalid Compound Key <<<\n\n"
+                     f"The compound_key format is invalid.\n\n"
+                     f"Expected format: spaceId='SPACE_ID',id='ASSET_ID'\n"
+                     f"Example: spaceId='SAP_CONTENT',id='SAP_SC_FI_AM_FINTRANSACTIONS'\n\n"
+                     f"Received: {compound_key}"
+            )]
+
+        space_id = space_match.group(1)
+        asset_id = id_match.group(1)
+
+        # Get detailed asset information
+        asset = get_mock_asset_details(space_id, asset_id)
+
+        if not asset:
+            return [types.TextContent(
+                type="text",
+                text=f">>> Asset Not Found <<<\n\n"
+                     f"Asset with compound key '{compound_key}' not found.\n\n"
+                     f"Parsed as: space='{space_id}', asset='{asset_id}'\n\n"
+                     f"Try using list_catalog_assets to find available assets."
+            )]
+
+        # Apply select fields if specified
+        if select_fields:
+            asset = {field: asset.get(field) for field in select_fields if field in asset}
+
+        return [types.TextContent(
+            type="text",
+            text=f"Asset Details (compound key lookup):\n\n" +
+                 json.dumps(asset, indent=2) +
+                 f"\n\n⚠️  NOTE: This is mock data. Real catalog browsing requires OAuth authentication."
+        )]
+
+    elif name == "get_space_assets":
+        space_id = arguments["space_id"]
+        select_fields = arguments.get("select_fields")
+        filter_expression = arguments.get("filter_expression")
+        top = arguments.get("top", 50)
+        skip = arguments.get("skip", 0)
+        count = arguments.get("count", False)
+        orderby = arguments.get("orderby")
+
+        # Get assets for the specific space
+        assets = get_mock_catalog_assets(space_id=space_id)
+
+        if not assets:
+            return [types.TextContent(
+                type="text",
+                text=f">>> No Assets Found <<<\n\n"
+                     f"No catalog assets found in space '{space_id}'.\n\n"
+                     f"This could mean:\n"
+                     f"- The space exists but has no published assets\n"
+                     f"- The space ID is incorrect\n"
+                     f"- Assets are not exposed for consumption\n\n"
+                     f"Use list_spaces to verify the space ID."
+            )]
+
+        # Apply filter expression for asset type
+        if filter_expression and "assetType eq" in filter_expression:
+            import re
+            match = re.search(r"assetType eq '([^']+)'", filter_expression)
+            if match:
+                asset_type = match.group(1)
+                assets = [a for a in assets if a.get("assetType") == asset_type]
+
+        # Apply select fields if specified
+        if select_fields:
+            assets = [
+                {field: asset.get(field) for field in select_fields if field in asset}
+                for asset in assets
+            ]
+
+        # Apply orderby
+        if orderby:
+            field = orderby.split()[0]
+            reverse = "desc" in orderby.lower()
+            assets = sorted(assets, key=lambda x: x.get(field, ""), reverse=reverse)
+
+        # Get total count before pagination
+        total_count = len(assets)
+
+        # Apply pagination
+        assets = assets[skip:skip + top]
+
+        result = {
+            "space_id": space_id,
+            "value": assets,
+            "count": total_count if count else None,
+            "top": top,
+            "skip": skip,
+            "returned": len(assets)
+        }
+
+        return [types.TextContent(
+            type="text",
+            text=f"Found {total_count} assets in space '{space_id}' (showing {len(assets)}):\n\n" +
+                 json.dumps(result, indent=2) +
+                 f"\n\n⚠️  NOTE: This is mock data. Real catalog browsing requires OAuth authentication."
         )]
 
     else:

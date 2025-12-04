@@ -36,6 +36,10 @@ class ToolValidators:
             "reset_database_user_password": ToolValidators._reset_database_user_password_rules(),
             "update_database_user": ToolValidators._update_database_user_rules(),
             "delete_database_user": ToolValidators._delete_database_user_rules(),
+            "list_catalog_assets": ToolValidators._list_catalog_assets_rules(),
+            "get_asset_details": ToolValidators._get_asset_details_rules(),
+            "get_asset_by_compound_key": ToolValidators._get_asset_by_compound_key_rules(),
+            "get_space_assets": ToolValidators._get_space_assets_rules(),
         }
 
         return validators.get(tool_name, [])
@@ -326,6 +330,106 @@ class ToolValidators:
         ]
 
     @staticmethod
+    def _list_catalog_assets_rules() -> List[ValidationRule]:
+        """Validation rules for list_catalog_assets tool"""
+        return [
+            ValidationRule(
+                param_name="filter_expression",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=500
+            ),
+            ValidationRule(
+                param_name="top",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="skip",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="include_count",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _get_asset_details_rules() -> List[ValidationRule]:
+        """Validation rules for get_asset_details tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="asset_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'  # Asset IDs are alphanumeric with underscores/hyphens
+            )
+        ]
+
+    @staticmethod
+    def _get_asset_by_compound_key_rules() -> List[ValidationRule]:
+        """Validation rules for get_asset_by_compound_key tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="asset_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'
+            )
+        ]
+
+    @staticmethod
+    def _get_space_assets_rules() -> List[ValidationRule]:
+        """Validation rules for get_space_assets tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="filter_expression",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=500
+            ),
+            ValidationRule(
+                param_name="top",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="skip",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            )
+        ]
+
+    @staticmethod
     def get_all_tool_names() -> List[str]:
         """Get list of all tools with validators"""
         return [
@@ -341,7 +445,11 @@ class ToolValidators:
             "create_database_user",
             "reset_database_user_password",
             "update_database_user",
-            "delete_database_user"
+            "delete_database_user",
+            "list_catalog_assets",
+            "get_asset_details",
+            "get_asset_by_compound_key",
+            "get_space_assets"
         ]
 
     @staticmethod
