@@ -44,7 +44,7 @@ This plan addresses gaps identified in our MCP server implementation compared to
 - `sap_datasphere_mcp_server.py` (remove mock config)
 - `enhanced_datasphere_connector.py` (add OAuth integration)
 - New: `auth/oauth_handler.py`
-- `start_mcp_server.py` (add OAuth initialization)
+- `sap_datasphere_mcp_server.py` (add OAuth initialization)
 
 **Success Criteria:**
 - ✅ Server connects to real SAP Datasphere instance
@@ -187,7 +187,7 @@ This plan addresses gaps identified in our MCP server implementation compared to
 
 **Files to Modify:**
 - `sap_datasphere_mcp_server.py` (load config)
-- `start_mcp_server.py` (initialize config)
+- `sap_datasphere_mcp_server.py` (initialize config)
 - `README.md` (document configuration)
 
 **Success Criteria:**

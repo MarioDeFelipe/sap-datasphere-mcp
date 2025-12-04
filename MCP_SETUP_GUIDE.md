@@ -65,10 +65,10 @@ export SAP_TOKEN_URL="https://your-tenant.authentication.eu20.hana.ondemand.com/
 
 ```bash
 # Test configuration
-python start_mcp_server.py --validate-config --environment dog
+python sap_datasphere_mcp_server.py --validate-config --environment dog
 
 # Start MCP server
-python start_mcp_server.py --environment dog
+python sap_datasphere_mcp_server.py --environment dog
 
 # Run tests
 python test_mcp_server.py --environment dog
@@ -86,7 +86,7 @@ python test_mcp_server.py --environment dog
   "mcpServers": {
     "sap-datasphere": {
       "command": "python",
-      "args": ["/path/to/sap-datasphere-mcp/start_mcp_server.py", "--environment", "dog"],
+      "args": ["/path/to/sap-datasphere-mcp/sap_datasphere_mcp_server.py", "--environment", "dog"],
       "env": {
         "SAP_CLIENT_ID": "your_oauth_client_id",
         "SAP_CLIENT_SECRET": "your_oauth_client_secret",
@@ -118,7 +118,7 @@ Add to Cursor settings (`Cmd/Ctrl + ,` → Extensions → MCP):
 {
   "mcp.servers": {
     "sap-datasphere": {
-      "command": ["python", "/path/to/sap-datasphere-mcp/start_mcp_server.py"],
+      "command": ["python", "/path/to/sap-datasphere-mcp/sap_datasphere_mcp_server.py"],
       "args": ["--environment", "dog"],
       "env": {
         "SAP_CLIENT_ID": "your_oauth_client_id",
@@ -139,7 +139,7 @@ Add to Cursor settings (`Cmd/Ctrl + ,` → Extensions → MCP):
 ### Dog Environment (Development)
 ```bash
 # Start development server
-python start_mcp_server.py --environment dog
+python sap_datasphere_mcp_server.py --environment dog
 
 # Features:
 # - Debug logging enabled
@@ -151,7 +151,7 @@ python start_mcp_server.py --environment dog
 ### Wolf Environment (Testing)
 ```bash
 # Start testing server
-python start_mcp_server.py --environment wolf
+python sap_datasphere_mcp_server.py --environment wolf
 
 # Features:
 # - Production-like settings
@@ -265,7 +265,7 @@ Initiate metadata synchronization operations.
 #### 1. OAuth Authentication Failures
 ```bash
 # Check OAuth configuration
-python start_mcp_server.py --validate-config --environment dog
+python sap_datasphere_mcp_server.py --validate-config --environment dog
 
 # Verify redirect URI matches OAuth app
 # Ensure client credentials are correct
@@ -277,7 +277,7 @@ python start_mcp_server.py --validate-config --environment dog
 which python
 
 # Check if server starts manually
-python start_mcp_server.py --environment dog
+python sap_datasphere_mcp_server.py --environment dog
 ```
 
 #### 3. Permission Errors
@@ -301,7 +301,7 @@ config.update_environment_config('dog', request_timeout_seconds=60)
 ```bash
 # Enable debug logging
 export MCP_LOG_LEVEL=DEBUG
-python start_mcp_server.py --environment dog
+python sap_datasphere_mcp_server.py --environment dog
 
 # Check log files
 tail -f mcp_server_dog.log

@@ -222,7 +222,7 @@ asyncio.run(test())
 ### 4.1 Start the Server
 
 ```bash
-python start_mcp_server.py
+python sap_datasphere_mcp_server.py
 ```
 
 **Expected output:**
@@ -246,7 +246,7 @@ Add to your Claude Desktop `claude_desktop_config.json`:
   "mcpServers": {
     "sap-datasphere": {
       "command": "python",
-      "args": ["start_mcp_server.py"],
+      "args": ["sap_datasphere_mcp_server.py"],
       "cwd": "/absolute/path/to/sap-datasphere-mcp"
     }
   }
