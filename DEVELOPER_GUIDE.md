@@ -77,9 +77,6 @@ Create a `config/datasphere_config.json` file with your SAP Datasphere credentia
 
 ```bash
 # Start the MCP server for development
-python start_mcp_server.py
-
-# Or run directly
 python sap_datasphere_mcp_server.py
 ```
 
