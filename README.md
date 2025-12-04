@@ -23,6 +23,15 @@
 - 🛠️ **Developer Friendly**: Comprehensive testing and development tools
 - 📚 **Well Documented**: Complete setup guides and API documentation
 
+## 🙏 **Acknowledgments**
+
+This MCP server was built with significant contributions from:
+
+- **[Amazon Kiro](https://aws.amazon.com/kiro/)**: Provided comprehensive specifications, architectural steering, and development guidance that shaped the MCP server's design and implementation
+- **[Claude Code](https://claude.ai/claude-code)**: AI-powered development assistant that accelerated implementation, improved code quality, and ensured adherence to best practices
+
+Both tools were instrumental in transforming this project from concept to production-ready enterprise integration.
+
 ## 🤖 **MCP Server for AI Assistants**
 
 ### AI-Accessible Tools
@@ -459,10 +468,11 @@ Claude Code's contributions transformed this from a basic MCP server into a **pr
 
 ### Additional Thanks
 
+- **Amazon Kiro** for providing invaluable specifications and steering guidance throughout the MCP server development
+- **Claude Code** (Anthropic) for AI-powered development assistance and architectural guidance
 - **Model Context Protocol** for enabling AI assistant integration
 - **SAP Datasphere Team** for comprehensive API capabilities
 - **Python Community** for excellent development tools and libraries
-- **Anthropic** for creating powerful AI development tools like Claude Code
 
 ## 📞 **Support**
 
