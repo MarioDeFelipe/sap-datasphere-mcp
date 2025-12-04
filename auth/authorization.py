@@ -165,6 +165,38 @@ class AuthorizationManager:
             description="Permanently delete a database user (irreversible)",
             risk_level="high"
         ),
+        "list_catalog_assets": ToolPermission(
+            tool_name="list_catalog_assets",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Browse all assets across all Datasphere spaces",
+            risk_level="low"
+        ),
+        "get_asset_details": ToolPermission(
+            tool_name="get_asset_details",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get detailed metadata for a specific asset",
+            risk_level="low"
+        ),
+        "get_asset_by_compound_key": ToolPermission(
+            tool_name="get_asset_by_compound_key",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Retrieve asset using OData compound key",
+            risk_level="low"
+        ),
+        "get_space_assets": ToolPermission(
+            tool_name="get_space_assets",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="List all assets within a specific space",
+            risk_level="low"
+        ),
     }
 
     def __init__(self):

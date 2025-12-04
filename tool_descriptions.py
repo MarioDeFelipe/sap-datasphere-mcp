@@ -780,6 +780,295 @@ class ToolDescriptions:
         }
 
     @staticmethod
+    def list_catalog_assets() -> Dict:
+        """Enhanced description for list_catalog_assets tool"""
+        return {
+            "description": """Browse all data assets across all SAP Datasphere spaces.
+
+**Use this tool when:**
+- User asks "What assets are available in Datasphere?"
+- Building a complete data catalog or asset inventory
+- Discovering available data assets across all spaces
+- Searching for specific asset types across the system
+- Understanding the overall data landscape
+
+**What you'll get:**
+- Asset IDs and names across all spaces
+- Asset types (AnalyticalModel, View, Table)
+- Space information for each asset
+- Consumption URLs (analytical and relational)
+- Exposure status and metadata URLs
+- Creation and modification timestamps
+
+**Available parameters:**
+- select_fields: Specific fields to return (e.g., ['name', 'description', 'spaceId'])
+- filter_expression: OData filter (e.g., "spaceId eq 'SAP_CONTENT'")
+- top: Maximum results (default 50, max 1000)
+- skip: Results to skip for pagination
+- include_count: Include total count of assets
+
+**Example queries:**
+- "List all available assets in Datasphere"
+- "Show me all analytical models across all spaces"
+- "Find assets in the SAP_CONTENT space"
+- "List the first 20 assets with their consumption URLs"
+
+**Common filters:**
+- By space: `filter_expression="spaceId eq 'SAP_CONTENT'"`
+- By type: `filter_expression="assetType eq 'AnalyticalModel'"`
+- Exposed only: `filter_expression="exposedForConsumption eq true"`
+- Combined: `filter_expression="spaceId eq 'SALES' and assetType eq 'View'"`
+
+**Asset types you'll see:**
+- AnalyticalModel: Multi-dimensional models for analytics
+- View: SQL views combining multiple data sources
+- Table: Physical tables with business data
+- Fact: Fact tables in analytical models
+- Dimension: Dimension tables in analytical models
+
+**Note:** This uses the Catalog API: GET /api/v1/datasphere/consumption/catalog/assets
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "select_fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Specific fields to return (e.g., ['name', 'description', 'spaceId']). If not specified, returns all fields."
+                    },
+                    "filter_expression": {
+                        "type": "string",
+                        "description": "OData filter expression (e.g., \"spaceId eq 'SAP_CONTENT'\" or \"assetType eq 'AnalyticalModel'\")."
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (default: 50, max: 1000).",
+                        "default": 50
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of results to skip for pagination (default: 0).",
+                        "default": 0
+                    },
+                    "include_count": {
+                        "type": "boolean",
+                        "description": "Include total count of matching assets (default: false).",
+                        "default": False
+                    }
+                },
+                "required": []
+            }
+        }
+
+    @staticmethod
+    def get_asset_details() -> Dict:
+        """Enhanced description for get_asset_details tool"""
+        return {
+            "description": """Get comprehensive metadata for a specific SAP Datasphere asset.
+
+**Use this tool when:**
+- User asks "Show me details about the Financial Transactions asset"
+- Need complete asset documentation and structure
+- Want to understand asset dimensions, measures, and relationships
+- Looking for consumption URLs to access the data
+- Checking asset business purpose and technical details
+- Validating asset availability before integration
+
+**What you'll get:**
+- Complete asset metadata (name, description, business purpose)
+- Space information and ownership details
+- Asset type and consumption type (analytical/relational)
+- Consumption URLs for data access
+- Metadata URLs for schema information
+- Dimensions and measures (for analytical models)
+- Relationships to other assets
+- Technical details (row count, size, refresh info)
+- Business context (domain, classification, retention)
+- Version and status information
+- Tags and categorization
+
+**Required parameters:**
+- space_id: The space containing the asset (e.g., 'SAP_CONTENT')
+- asset_id: The asset identifier (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS')
+
+**Optional parameters:**
+- expand_fields: Related entities to expand (e.g., ['columns', 'relationships'])
+
+**Example queries:**
+- "Get details for SAP_SC_FI_AM_FINTRANSACTIONS in SAP_CONTENT"
+- "Show me the structure of the Financial Transactions asset"
+- "What are the dimensions and measures of this analytical model?"
+- "Give me the consumption URL for the Sales Data View"
+
+**Use cases:**
+- Understand asset structure before querying
+- Get consumption URLs for data access
+- Review asset business purpose and classification
+- Check asset relationships and dependencies
+- Validate data freshness (last refresh time)
+- Generate asset documentation
+
+**Note:** This uses the Catalog API: GET /api/v1/datasphere/consumption/catalog/spaces('{spaceId}')/assets('{assetId}')
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space ID in UPPERCASE format (e.g., 'SAP_CONTENT', 'SALES_ANALYTICS'). Must match exactly."
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "The asset identifier (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS', 'CUSTOMER_VIEW')."
+                    },
+                    "expand_fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Related entities to expand (e.g., ['columns', 'relationships', 'metadata'])."
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        }
+
+    @staticmethod
+    def get_asset_by_compound_key() -> Dict:
+        """Enhanced description for get_asset_by_compound_key tool"""
+        return {
+            "description": """Retrieve asset using OData compound key identifier (alternative access method).
+
+**Use this tool when:**
+- You have both space ID and asset ID ready
+- Want direct access without knowing the exact endpoint structure
+- Working with bookmarked or favorited assets
+- Have pre-known asset identifiers from other systems
+- Need to resolve cross-references quickly
+
+**What you'll get:**
+- Same comprehensive metadata as get_asset_details
+- Complete asset information with consumption URLs
+- All dimensions, measures, and relationships
+- Technical and business context
+
+**Required parameters:**
+- space_id: The space identifier
+- asset_id: The asset identifier
+
+**How it works:**
+This tool combines space_id and asset_id into an OData compound key format:
+`spaceId='SAP_CONTENT',assetId='SAP_SC_FI_AM_FINTRANSACTIONS'`
+
+**Example queries:**
+- "Get asset SAP_SC_FI_AM_FINTRANSACTIONS from SAP_CONTENT using compound key"
+- "Retrieve CUSTOMER_VIEW in SALES_SPACE"
+
+**When to use this vs get_asset_details:**
+- **Use this**: When you want simplified parameter passing
+- **Use get_asset_details**: When you need expand options or prefer explicit endpoint
+
+**Note:** This uses the Catalog API: GET /api/v1/datasphere/consumption/catalog/assets({compoundKey})
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space identifier in UPPERCASE (e.g., 'SAP_CONTENT', 'SALES_SPACE')."
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "The asset identifier (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS', 'CUSTOMER_VIEW')."
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        }
+
+    @staticmethod
+    def get_space_assets() -> Dict:
+        """Enhanced description for get_space_assets tool"""
+        return {
+            "description": """List all data assets within a specific SAP Datasphere space.
+
+**Use this tool when:**
+- User asks "What assets are in the SAP_CONTENT space?"
+- Browsing assets within a specific space
+- Creating a space-specific asset inventory
+- Filtering assets by type within a space
+- Validating space contents and available data
+- Understanding what data is available in a space
+
+**What you'll get:**
+- All assets within the specified space
+- Asset names, descriptions, and types
+- Exposure status for each asset
+- Consumption URLs (analytical and relational)
+- Creation and modification timestamps
+- Asset counts and pagination info
+
+**Required parameters:**
+- space_id: The space to browse (e.g., 'SAP_CONTENT')
+
+**Optional parameters:**
+- filter_expression: Filter by asset type or other criteria
+- top: Maximum results (default 50, max 1000)
+- skip: Results to skip for pagination
+
+**Example queries:**
+- "List all assets in the SAP_CONTENT space"
+- "Show me analytical models in SALES_ANALYTICS"
+- "What tables are available in FINANCE_SPACE?"
+- "List exposed assets in SAP_CONTENT"
+
+**Common filters:**
+- By type: `filter_expression="assetType eq 'AnalyticalModel'"`
+- Exposed only: `filter_expression="exposedForConsumption eq true"`
+- By name pattern: `filter_expression="contains(name, 'Financial')"`
+- Combined: `filter_expression="assetType eq 'View' and exposedForConsumption eq true"`
+
+**Asset types:**
+- **AnalyticalModel**: Multi-dimensional models with dimensions and measures
+- **View**: SQL views combining data from multiple sources
+- **Table**: Physical tables with business data
+- **Fact**: Fact tables in dimensional models
+- **Dimension**: Dimension tables for analysis
+
+**Use cases:**
+- Space content discovery
+- Asset inventory generation
+- Data availability validation
+- Finding specific asset types
+- Understanding space data landscape
+
+**Note:** This uses the Catalog API: GET /api/v1/datasphere/consumption/catalog/spaces('{spaceId}')/assets
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space ID in UPPERCASE format (e.g., 'SAP_CONTENT', 'SALES_ANALYTICS'). Must match exactly."
+                    },
+                    "filter_expression": {
+                        "type": "string",
+                        "description": "OData filter expression (e.g., \"assetType eq 'AnalyticalModel'\" or \"exposedForConsumption eq true\")."
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (default: 50, max: 1000).",
+                        "default": 50
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of results to skip for pagination (default: 0).",
+                        "default": 0
+                    }
+                },
+                "required": ["space_id"]
+            }
+        }
+
+    @staticmethod
     def get_all_enhanced_descriptions() -> Dict[str, Dict]:
         """Get all enhanced tool descriptions"""
         return {
@@ -795,5 +1084,9 @@ class ToolDescriptions:
             "create_database_user": ToolDescriptions.create_database_user(),
             "reset_database_user_password": ToolDescriptions.reset_database_user_password(),
             "update_database_user": ToolDescriptions.update_database_user(),
-            "delete_database_user": ToolDescriptions.delete_database_user()
+            "delete_database_user": ToolDescriptions.delete_database_user(),
+            "list_catalog_assets": ToolDescriptions.list_catalog_assets(),
+            "get_asset_details": ToolDescriptions.get_asset_details(),
+            "get_asset_by_compound_key": ToolDescriptions.get_asset_by_compound_key(),
+            "get_space_assets": ToolDescriptions.get_space_assets()
         }
