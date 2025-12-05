@@ -1205,7 +1205,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
 async def main():
     """Main function to run the MCP server"""
-    
+
     # Use stdin/stdout for MCP communication
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
         await server.run(
@@ -1214,10 +1214,7 @@ async def main():
             InitializationOptions(
                 server_name="sap-datasphere-mcp",
                 server_version="1.0.0",
-                capabilities=server.get_capabilities(
-                    notification_options=None,
-                    experimental_capabilities=None,
-                )
+                capabilities=server.get_capabilities()
             ),
         )
 
