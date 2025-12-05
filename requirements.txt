@@ -1,15 +1,15 @@
 # Model Context Protocol
 mcp>=0.9.0
 
-# Core Web Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+# Core Web Framework (updated for anyio>=4.5 compatibility with MCP)
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
 jinja2==3.1.2
 python-multipart==0.0.6
 
-# HTTP and API
+# HTTP and API (updated for anyio>=4.5 compatibility)
 requests==2.31.0
-httpx==0.25.2
+httpx>=0.27.0
 aiohttp==3.9.1
 
 # Security and Encryption
