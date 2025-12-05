@@ -84,7 +84,8 @@ class DatasphereAuthConnector:
         return {
             'Authorization': f'{token.token_type} {token.access_token}',
             'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'User-Agent': 'Datasphere-Metadata-Sync/2.0'  # Required for API access
         }
 
     async def _make_request(
