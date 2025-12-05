@@ -10,8 +10,10 @@ import json
 import logging
 import time
 import secrets
+import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence
+from dotenv import load_dotenv
 from mcp.server import Server
 from mcp.server.models import InitializationOptions
 from mcp.types import (
@@ -35,6 +37,9 @@ from auth.input_validator import InputValidator
 from auth.sql_sanitizer import SQLSanitizer
 from auth.tool_validators import ToolValidators
 
+# OAuth and real connectivity (imported conditionally)
+from auth.datasphere_auth_connector import DatasphereAuthConnector, DatasphereConfig
+
 # Enhanced tool descriptions
 from tool_descriptions import ToolDescriptions
 
@@ -50,21 +55,46 @@ from cache_manager import CacheManager, CacheCategory
 # Telemetry and monitoring
 from telemetry import TelemetryManager
 
+# Load environment variables from .env file
+load_dotenv()
+
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+log_level = os.getenv('LOG_LEVEL', 'INFO')
+logging.basicConfig(level=getattr(logging, log_level))
 logger = logging.getLogger("sap-datasphere-mcp")
 
-# Configuration
+# Configuration from environment variables
+USE_MOCK_DATA = os.getenv('USE_MOCK_DATA', 'true').lower() == 'true'
+
 DATASPHERE_CONFIG = {
-    "tenant_id": "f45fa9cc-f4b5-4126-ab73-b19b578fb17a",
-    "base_url": "https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap",
-    "use_mock_data": True,  # Set to False when real OAuth credentials are available
+    "tenant_id": os.getenv('DATASPHERE_TENANT_ID', 'f45fa9cc-f4b5-4126-ab73-b19b578fb17a'),
+    "base_url": os.getenv('DATASPHERE_BASE_URL', 'https://f45fa9cc-f4b5-4126-ab73-b19b578fb17a.eu10.hcs.cloud.sap'),
+    "use_mock_data": USE_MOCK_DATA,
     "oauth_config": {
-        "client_id": None,
-        "client_secret": None,
-        "token_url": None
+        "client_id": os.getenv('DATASPHERE_CLIENT_ID'),
+        "client_secret": os.getenv('DATASPHERE_CLIENT_SECRET'),
+        "token_url": os.getenv('DATASPHERE_TOKEN_URL'),
+        "scope": os.getenv('DATASPHERE_SCOPE')
     }
 }
+
+# Log configuration mode
+logger.info(f"=" * 80)
+logger.info(f"SAP Datasphere MCP Server Starting")
+logger.info(f"=" * 80)
+logger.info(f"Mock Data Mode: {USE_MOCK_DATA}")
+logger.info(f"Base URL: {DATASPHERE_CONFIG['base_url']}")
+if not USE_MOCK_DATA:
+    has_oauth = all([
+        DATASPHERE_CONFIG['oauth_config']['client_id'],
+        DATASPHERE_CONFIG['oauth_config']['client_secret'],
+        DATASPHERE_CONFIG['oauth_config']['token_url']
+    ])
+    logger.info(f"OAuth Configured: {has_oauth}")
+    if not has_oauth:
+        logger.warning("⚠️  USE_MOCK_DATA=false but OAuth credentials missing!")
+        logger.warning("⚠️  Server will fail to connect. Please configure .env file.")
+logger.info(f"=" * 80)
 
 # Initialize the MCP server
 server = Server("sap-datasphere-mcp")
@@ -90,6 +120,9 @@ cache_manager = CacheManager(
 telemetry_manager = TelemetryManager(
     max_history=1000
 )
+
+# Global variable for OAuth connector (initialized in main())
+datasphere_connector: Optional[DatasphereAuthConnector] = None
 
 @server.list_resources()
 async def handle_list_resources() -> list[Resource]:
@@ -397,6 +430,15 @@ async def handle_list_tools() -> list[Tool]:
             name="get_space_assets",
             description=enhanced["get_space_assets"]["description"],
             inputSchema=enhanced["get_space_assets"]["inputSchema"]
+        ),
+        Tool(
+            name="test_connection",
+            description="Test the connection to SAP Datasphere and verify OAuth authentication status. Use this tool to check if the MCP server can successfully connect to SAP Datasphere.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
         )
     ]
 
@@ -1197,6 +1239,49 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                  f"\n\n⚠️  NOTE: This is mock data. Real catalog browsing requires OAuth authentication."
         )]
 
+    elif name == "test_connection":
+        # Test connection to SAP Datasphere
+        result = {
+            "mode": "mock" if DATASPHERE_CONFIG["use_mock_data"] else "real",
+            "base_url": DATASPHERE_CONFIG["base_url"],
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode - always successful
+            result.update({
+                "connected": True,
+                "message": "Running in MOCK DATA mode. No real connection to SAP Datasphere.",
+                "oauth_configured": False,
+                "recommendation": "To connect to real SAP Datasphere, set USE_MOCK_DATA=false in .env and configure OAuth credentials."
+            })
+        else:
+            # Real mode - test OAuth connection
+            if datasphere_connector is None:
+                result.update({
+                    "connected": False,
+                    "message": "OAuth connector not initialized. Server may not have started correctly.",
+                    "oauth_configured": False,
+                    "error": "Datasphere connector is None"
+                })
+            else:
+                try:
+                    # Test the connection
+                    connection_status = await datasphere_connector.test_connection()
+                    result.update(connection_status)
+                except Exception as e:
+                    result.update({
+                        "connected": False,
+                        "message": f"Connection test failed: {str(e)}",
+                        "error": str(e)
+                    })
+
+        return [types.TextContent(
+            type="text",
+            text=f"Connection Test Results:\n\n" +
+                 json.dumps(result, indent=2)
+        )]
+
     else:
         return [types.TextContent(
             type="text",
@@ -1205,18 +1290,56 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
 async def main():
     """Main function to run the MCP server"""
+    global datasphere_connector
+
+    # Initialize OAuth connector if not using mock data
+    if not DATASPHERE_CONFIG["use_mock_data"]:
+        try:
+            logger.info("Initializing OAuth connection to SAP Datasphere...")
+
+            # Create Datasphere configuration
+            config = DatasphereConfig(
+                base_url=DATASPHERE_CONFIG["base_url"],
+                client_id=DATASPHERE_CONFIG["oauth_config"]["client_id"],
+                client_secret=DATASPHERE_CONFIG["oauth_config"]["client_secret"],
+                token_url=DATASPHERE_CONFIG["oauth_config"]["token_url"],
+                tenant_id=DATASPHERE_CONFIG["tenant_id"],
+                scope=DATASPHERE_CONFIG["oauth_config"].get("scope")
+            )
+
+            # Initialize connector
+            datasphere_connector = DatasphereAuthConnector(config)
+            await datasphere_connector.initialize()
+
+            logger.info("✅ OAuth connection initialized successfully")
+            logger.info(f"OAuth health: {datasphere_connector.oauth_handler.get_health_status()}")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize OAuth connection: {e}")
+            logger.error("Server will start but tools will fail. Please check .env configuration.")
+            logger.error("See OAUTH_REAL_CONNECTION_SETUP.md for setup instructions.")
+    else:
+        logger.info("ℹ️  Running in MOCK DATA mode")
+        logger.info("Set USE_MOCK_DATA=false in .env to connect to real SAP Datasphere")
 
     # Use stdin/stdout for MCP communication
-    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            InitializationOptions(
-                server_name="sap-datasphere-mcp",
-                server_version="1.0.0",
-                capabilities=server.get_capabilities()
-            ),
-        )
+    try:
+        async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+            await server.run(
+                read_stream,
+                write_stream,
+                InitializationOptions(
+                    server_name="sap-datasphere-mcp",
+                    server_version="1.0.0",
+                    capabilities=server.get_capabilities()
+                ),
+            )
+    finally:
+        # Cleanup OAuth connector on shutdown
+        if datasphere_connector:
+            logger.info("Closing OAuth connection...")
+            await datasphere_connector.close()
+            logger.info("OAuth connection closed")
 
 if __name__ == "__main__":
     asyncio.run(main())
