@@ -439,6 +439,113 @@ async def handle_list_tools() -> list[Tool]:
                 "properties": {},
                 "required": []
             }
+        ),
+        Tool(
+            name="search_catalog",
+            description="Universal search across all catalog items in SAP Datasphere using advanced search syntax. Supports searching across KPIs, assets, spaces, models, views, and tables. Use SCOPE:<scope_name> prefix for targeted searches. Boolean operators (AND, OR, NOT) supported.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query with optional SCOPE prefix. Format: 'SCOPE:<scope> <terms>'. Scopes: SearchAll, SearchKPIsAdmin, SearchAssets, SearchSpaces, SearchModels, SearchViews, SearchTables. Example: 'SCOPE:comsapcatalogsearchprivateSearchAll financial'"
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (default: 50, max: 500)",
+                        "default": 50
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of results to skip for pagination (default: 0)",
+                        "default": 0
+                    },
+                    "include_count": {
+                        "type": "boolean",
+                        "description": "Include total count of matching results (default: false)",
+                        "default": False
+                    },
+                    "include_why_found": {
+                        "type": "boolean",
+                        "description": "Include explanation of why each result matched (default: false)",
+                        "default": False
+                    },
+                    "facets": {
+                        "type": "string",
+                        "description": "Comma-separated list of facets to include or 'all' for all facets. Example: 'objectType,spaceId'"
+                    },
+                    "facet_limit": {
+                        "type": "integer",
+                        "description": "Maximum number of facet values to return per facet (default: 5)",
+                        "default": 5
+                    }
+                },
+                "required": ["query"]
+            }
+        ),
+        Tool(
+            name="search_repository",
+            description="Global search across all repository objects in SAP Datasphere. Search through tables, views, analytical models, data flows, and transformations. Provides comprehensive object discovery with lineage and dependency information.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "search_terms": {
+                        "type": "string",
+                        "description": "Search terms to find in object names, descriptions, columns"
+                    },
+                    "object_types": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Filter by object types. Examples: Table, View, AnalyticalModel, DataFlow, Transformation"
+                    },
+                    "space_id": {
+                        "type": "string",
+                        "description": "Filter by specific space (e.g., 'SAP_CONTENT')"
+                    },
+                    "include_dependencies": {
+                        "type": "boolean",
+                        "description": "Include upstream/downstream dependencies (default: false)",
+                        "default": False
+                    },
+                    "include_lineage": {
+                        "type": "boolean",
+                        "description": "Include data lineage information (default: false)",
+                        "default": False
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum results to return (default: 50, max: 500)",
+                        "default": 50
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Results to skip for pagination (default: 0)",
+                        "default": 0
+                    }
+                },
+                "required": ["search_terms"]
+            }
+        ),
+        Tool(
+            name="get_catalog_metadata",
+            description="Get CSDL metadata for the SAP Datasphere catalog service. Retrieves the OData metadata document (CSDL XML) that describes the catalog service schema including entity types, properties, relationships, and available operations. Essential for understanding the catalog structure.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "endpoint_type": {
+                        "type": "string",
+                        "enum": ["consumption", "catalog", "legacy"],
+                        "description": "Which metadata endpoint to use: 'consumption' (/api/v1/datasphere/consumption/$metadata), 'catalog' (/api/v1/datasphere/consumption/catalog/$metadata), or 'legacy' (/v1/dwc/catalog/$metadata)",
+                        "default": "catalog"
+                    },
+                    "parse_metadata": {
+                        "type": "boolean",
+                        "description": "Parse XML into structured JSON format (default: true)",
+                        "default": True
+                    }
+                },
+                "required": []
+            }
         )
     ]
 
@@ -1281,6 +1388,501 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             text=f"Connection Test Results:\n\n" +
                  json.dumps(result, indent=2)
         )]
+
+    elif name == "search_catalog":
+        query = arguments["query"]
+        top = arguments.get("top", 50)
+        skip = arguments.get("skip", 0)
+        include_count = arguments.get("include_count", False)
+        include_why_found = arguments.get("include_why_found", False)
+        facets = arguments.get("facets")
+        facet_limit = arguments.get("facet_limit", 5)
+
+        # Build query parameters
+        params = {
+            "search": query,
+            "$top": top,
+            "$skip": skip
+        }
+
+        if include_count:
+            params["$count"] = "true"
+
+        if include_why_found:
+            params["whyfound"] = "true"
+
+        if facets:
+            params["facets"] = facets
+            params["facetlimit"] = facet_limit
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock data response
+            mock_results = {
+                "search_query": query,
+                "value": [
+                    {
+                        "id": "SAP_SC_FI_AM_FINTRANSACTIONS",
+                        "name": "Financial Transactions",
+                        "description": "Analytical model for financial transaction analysis",
+                        "spaceId": "SAP_CONTENT",
+                        "objectType": "AnalyticalModel",
+                        "owner": "SAP",
+                        "created": "2024-01-15T10:30:00Z",
+                        "modified": "2024-06-20T14:45:00Z"
+                    },
+                    {
+                        "id": "SALES_ORDERS_VIEW",
+                        "name": "Sales Orders",
+                        "description": "View of sales order data with customer information",
+                        "spaceId": "SALES_ANALYTICS",
+                        "objectType": "View",
+                        "owner": "sales_admin",
+                        "created": "2024-03-10T09:15:00Z",
+                        "modified": "2024-07-01T11:20:00Z"
+                    }
+                ],
+                "count": 2 if include_count else None,
+                "top": top,
+                "skip": skip,
+                "returned": 2,
+                "note": "This is mock data. Real catalog search requires OAuth authentication."
+            }
+
+            if facets:
+                mock_results["facets"] = {
+                    "objectType": [
+                        {"value": "AnalyticalModel", "count": 5},
+                        {"value": "View", "count": 12},
+                        {"value": "Table", "count": 8}
+                    ],
+                    "spaceId": [
+                        {"value": "SAP_CONTENT", "count": 15},
+                        {"value": "SALES_ANALYTICS", "count": 10}
+                    ]
+                }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Catalog Search Results:\n\n" +
+                     json.dumps(mock_results, indent=2)
+            )]
+        else:
+            # Real API call
+            if datasphere_connector is None:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot perform catalog search."
+                )]
+
+            try:
+                endpoint = "/deepsea/catalog/v1/search/search/$all"
+                response = await datasphere_connector.get(endpoint, params=params)
+
+                # Format results
+                results = {
+                    "search_query": query,
+                    "value": response.get("value", []),
+                    "count": response.get("@odata.count") if include_count else None,
+                    "top": top,
+                    "skip": skip,
+                    "returned": len(response.get("value", [])),
+                    "has_more": len(response.get("value", [])) == top
+                }
+
+                if facets and "facets" in response:
+                    results["facets"] = response["facets"]
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Catalog Search Results:\n\n" +
+                         json.dumps(results, indent=2)
+                )]
+            except Exception as e:
+                logger.error(f"Catalog search failed: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error performing catalog search: {str(e)}"
+                )]
+
+    elif name == "search_repository":
+        search_terms = arguments["search_terms"]
+        object_types = arguments.get("object_types")
+        space_id = arguments.get("space_id")
+        include_dependencies = arguments.get("include_dependencies", False)
+        include_lineage = arguments.get("include_lineage", False)
+        top = arguments.get("top", 50)
+        skip = arguments.get("skip", 0)
+
+        # Build query parameters
+        params = {
+            "search": search_terms,
+            "$top": top,
+            "$skip": skip
+        }
+
+        # Build filter expression
+        filters = []
+        if object_types:
+            type_filters = " or ".join([f"objectType eq '{t}'" for t in object_types])
+            filters.append(f"({type_filters})")
+
+        if space_id:
+            filters.append(f"spaceId eq '{space_id}'")
+
+        if filters:
+            params["$filter"] = " and ".join(filters)
+
+        # Add expand for dependencies and lineage
+        expand_fields = []
+        if include_dependencies:
+            expand_fields.append("dependencies")
+        if include_lineage:
+            expand_fields.append("lineage")
+
+        if expand_fields:
+            params["$expand"] = ",".join(expand_fields)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock data response
+            mock_objects = [
+                {
+                    "id": "CUSTOMER_MASTER",
+                    "objectType": "Table",
+                    "name": "Customer Master Data",
+                    "businessName": "Customer Master",
+                    "description": "Master data table containing customer information",
+                    "spaceId": "SALES_ANALYTICS",
+                    "status": "ACTIVE",
+                    "deploymentStatus": "DEPLOYED",
+                    "owner": "sales_admin",
+                    "createdAt": "2024-02-01T08:00:00Z",
+                    "modifiedAt": "2024-06-15T10:30:00Z",
+                    "version": "1.5",
+                    "columns": [
+                        {"name": "CUSTOMER_ID", "dataType": "NVARCHAR(10)", "isPrimaryKey": True, "description": "Unique customer identifier"},
+                        {"name": "CUSTOMER_NAME", "dataType": "NVARCHAR(100)", "isPrimaryKey": False, "description": "Customer name"},
+                        {"name": "COUNTRY", "dataType": "NVARCHAR(3)", "isPrimaryKey": False, "description": "Country code"}
+                    ]
+                },
+                {
+                    "id": "SALES_ORDER_VIEW",
+                    "objectType": "View",
+                    "name": "Sales Orders View",
+                    "businessName": "Sales Orders",
+                    "description": "View combining sales orders with customer data",
+                    "spaceId": "SALES_ANALYTICS",
+                    "status": "ACTIVE",
+                    "deploymentStatus": "DEPLOYED",
+                    "owner": "sales_admin",
+                    "createdAt": "2024-03-10T09:15:00Z",
+                    "modifiedAt": "2024-07-01T11:20:00Z",
+                    "version": "2.0",
+                    "columns": [
+                        {"name": "ORDER_ID", "dataType": "NVARCHAR(20)", "isPrimaryKey": True, "description": "Order number"},
+                        {"name": "CUSTOMER_ID", "dataType": "NVARCHAR(10)", "isPrimaryKey": False, "description": "Customer reference"},
+                        {"name": "ORDER_DATE", "dataType": "DATE", "isPrimaryKey": False, "description": "Order date"},
+                        {"name": "AMOUNT", "dataType": "DECIMAL(15,2)", "isPrimaryKey": False, "description": "Order amount"}
+                    ]
+                }
+            ]
+
+            # Apply filters in mock data
+            filtered_objects = mock_objects
+            if object_types:
+                filtered_objects = [obj for obj in filtered_objects if obj["objectType"] in object_types]
+            if space_id:
+                filtered_objects = [obj for obj in filtered_objects if obj["spaceId"] == space_id]
+
+            # Add dependencies and lineage if requested
+            if include_dependencies:
+                for obj in filtered_objects:
+                    if obj["objectType"] == "View":
+                        obj["dependencies"] = {
+                            "upstream": ["CUSTOMER_MASTER", "SALES_ORDERS_TABLE"],
+                            "downstream": ["SALES_ANALYTICS_MODEL"]
+                        }
+
+            if include_lineage:
+                for obj in filtered_objects:
+                    if obj["objectType"] == "View":
+                        obj["lineage"] = {
+                            "sources": ["CUSTOMER_MASTER", "SALES_ORDERS_TABLE"],
+                            "targets": ["SALES_ANALYTICS_MODEL"],
+                            "transformations": ["JOIN on CUSTOMER_ID"]
+                        }
+
+            result = {
+                "search_terms": search_terms,
+                "objects": filtered_objects,
+                "returned_count": len(filtered_objects),
+                "has_more": len(filtered_objects) == top,
+                "note": "This is mock data. Real repository search requires OAuth authentication."
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Repository Search Results:\n\n" +
+                     json.dumps(result, indent=2)
+            )]
+        else:
+            # Real API call
+            if datasphere_connector is None:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot perform repository search."
+                )]
+
+            try:
+                endpoint = "/deepsea/repository/search/$all"
+                response = await datasphere_connector.get(endpoint, params=params)
+
+                # Parse and format results
+                objects = []
+                for item in response.get("value", []):
+                    obj = {
+                        "id": item.get("id"),
+                        "object_type": item.get("objectType"),
+                        "name": item.get("name"),
+                        "business_name": item.get("businessName"),
+                        "description": item.get("description"),
+                        "space_id": item.get("spaceId"),
+                        "status": item.get("status"),
+                        "deployment_status": item.get("deploymentStatus"),
+                        "owner": item.get("owner"),
+                        "created_at": item.get("createdAt"),
+                        "modified_at": item.get("modifiedAt"),
+                        "version": item.get("version")
+                    }
+
+                    # Add columns if available
+                    if item.get("columns"):
+                        obj["columns"] = [
+                            {
+                                "name": col.get("name"),
+                                "data_type": col.get("dataType"),
+                                "is_primary_key": col.get("isPrimaryKey", False),
+                                "description": col.get("description")
+                            }
+                            for col in item["columns"]
+                        ]
+
+                    # Add dependencies if requested
+                    if include_dependencies and item.get("dependencies"):
+                        obj["dependencies"] = {
+                            "upstream": item["dependencies"].get("upstream", []),
+                            "downstream": item["dependencies"].get("downstream", [])
+                        }
+
+                    # Add lineage if requested
+                    if include_lineage and item.get("lineage"):
+                        obj["lineage"] = item["lineage"]
+
+                    objects.append(obj)
+
+                result = {
+                    "search_terms": search_terms,
+                    "objects": objects,
+                    "returned_count": len(objects),
+                    "has_more": len(objects) == top
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Repository Search Results:\n\n" +
+                         json.dumps(result, indent=2)
+                )]
+            except Exception as e:
+                logger.error(f"Repository search failed: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error performing repository search: {str(e)}"
+                )]
+
+    elif name == "get_catalog_metadata":
+        endpoint_type = arguments.get("endpoint_type", "catalog")
+        parse_metadata = arguments.get("parse_metadata", True)
+
+        # Select endpoint based on type
+        endpoints = {
+            "consumption": "/api/v1/datasphere/consumption/$metadata",
+            "catalog": "/api/v1/datasphere/consumption/catalog/$metadata",
+            "legacy": "/v1/dwc/catalog/$metadata"
+        }
+
+        endpoint = endpoints[endpoint_type]
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock metadata response
+            if parse_metadata:
+                mock_metadata = {
+                    "endpoint_type": endpoint_type,
+                    "entity_types": [
+                        {
+                            "name": "Asset",
+                            "key_properties": ["spaceId", "id"],
+                            "properties": [
+                                {"name": "id", "type": "Edm.String", "nullable": False, "max_length": "255"},
+                                {"name": "spaceId", "type": "Edm.String", "nullable": False, "max_length": "100"},
+                                {"name": "name", "type": "Edm.String", "nullable": True, "max_length": "255"},
+                                {"name": "description", "type": "Edm.String", "nullable": True, "max_length": None},
+                                {"name": "assetType", "type": "Edm.String", "nullable": True, "max_length": "50"},
+                                {"name": "owner", "type": "Edm.String", "nullable": True, "max_length": "100"}
+                            ],
+                            "navigation_properties": []
+                        },
+                        {
+                            "name": "Space",
+                            "key_properties": ["spaceId"],
+                            "properties": [
+                                {"name": "spaceId", "type": "Edm.String", "nullable": False, "max_length": "100"},
+                                {"name": "spaceName", "type": "Edm.String", "nullable": True, "max_length": "255"},
+                                {"name": "status", "type": "Edm.String", "nullable": True, "max_length": "20"}
+                            ],
+                            "navigation_properties": []
+                        }
+                    ],
+                    "entity_sets": [
+                        {"name": "Assets", "entity_type": "CatalogService.Asset"},
+                        {"name": "Spaces", "entity_type": "CatalogService.Space"}
+                    ],
+                    "note": "This is mock metadata. Real metadata retrieval requires OAuth authentication."
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Catalog Metadata (Parsed):\n\n" +
+                         json.dumps(mock_metadata, indent=2)
+                )]
+            else:
+                # Return mock XML
+                mock_xml = """<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="CatalogService" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityType Name="Asset">
+        <Key>
+          <PropertyRef Name="spaceId"/>
+          <PropertyRef Name="id"/>
+        </Key>
+        <Property Name="id" Type="Edm.String" Nullable="false" MaxLength="255"/>
+        <Property Name="spaceId" Type="Edm.String" Nullable="false" MaxLength="100"/>
+        <Property Name="name" Type="Edm.String" MaxLength="255"/>
+        <Property Name="assetType" Type="Edm.String" MaxLength="50"/>
+      </EntityType>
+      <EntityContainer Name="EntityContainer">
+        <EntitySet Name="Assets" EntityType="CatalogService.Asset"/>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>"""
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Catalog Metadata (Raw XML):\n\n{mock_xml}\n\n" +
+                         "⚠️  NOTE: This is mock metadata. Real metadata retrieval requires OAuth authentication."
+                )]
+        else:
+            # Real API call
+            if datasphere_connector is None:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve catalog metadata."
+                )]
+
+            try:
+                # Metadata endpoints return XML, not JSON
+                url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
+
+                # Get raw response (XML)
+                import aiohttp
+                headers = await datasphere_connector._get_headers()
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                        response.raise_for_status()
+                        xml_content = await response.text()
+
+                if not parse_metadata:
+                    # Return raw XML
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Catalog Metadata (Raw XML):\n\n{xml_content}"
+                    )]
+
+                # Parse XML metadata
+                import xml.etree.ElementTree as ET
+
+                root = ET.fromstring(xml_content)
+
+                # Define namespaces
+                namespaces = {
+                    'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
+                    'edm': 'http://docs.oasis-open.org/odata/ns/edm'
+                }
+
+                metadata = {
+                    "endpoint_type": endpoint_type,
+                    "entity_types": [],
+                    "entity_sets": [],
+                    "navigation_properties": []
+                }
+
+                # Extract entity types
+                for entity_type in root.findall('.//edm:EntityType', namespaces):
+                    entity_name = entity_type.get('Name')
+
+                    # Extract properties
+                    properties = []
+                    for prop in entity_type.findall('edm:Property', namespaces):
+                        properties.append({
+                            'name': prop.get('Name'),
+                            'type': prop.get('Type'),
+                            'nullable': prop.get('Nullable', 'true') == 'true',
+                            'max_length': prop.get('MaxLength')
+                        })
+
+                    # Extract key properties
+                    key_props = []
+                    key_element = entity_type.find('edm:Key', namespaces)
+                    if key_element is not None:
+                        for prop_ref in key_element.findall('edm:PropertyRef', namespaces):
+                            key_props.append(prop_ref.get('Name'))
+
+                    # Extract navigation properties
+                    nav_props = []
+                    for nav_prop in entity_type.findall('edm:NavigationProperty', namespaces):
+                        nav_props.append({
+                            'name': nav_prop.get('Name'),
+                            'type': nav_prop.get('Type'),
+                            'partner': nav_prop.get('Partner')
+                        })
+
+                    metadata['entity_types'].append({
+                        'name': entity_name,
+                        'key_properties': key_props,
+                        'properties': properties,
+                        'navigation_properties': nav_props
+                    })
+
+                # Extract entity sets
+                for entity_set in root.findall('.//edm:EntitySet', namespaces):
+                    metadata['entity_sets'].append({
+                        'name': entity_set.get('Name'),
+                        'entity_type': entity_set.get('EntityType')
+                    })
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Catalog Metadata (Parsed):\n\n" +
+                         json.dumps(metadata, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Metadata retrieval failed: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error retrieving catalog metadata: {str(e)}"
+                )]
 
     else:
         return [types.TextContent(
