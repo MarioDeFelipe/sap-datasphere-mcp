@@ -40,6 +40,9 @@ class ToolValidators:
             "get_asset_details": ToolValidators._get_asset_details_rules(),
             "get_asset_by_compound_key": ToolValidators._get_asset_by_compound_key_rules(),
             "get_space_assets": ToolValidators._get_space_assets_rules(),
+            "search_catalog": ToolValidators._search_catalog_rules(),
+            "search_repository": ToolValidators._search_repository_rules(),
+            "get_catalog_metadata": ToolValidators._get_catalog_metadata_rules(),
         }
 
         return validators.get(tool_name, [])
@@ -430,6 +433,108 @@ class ToolValidators:
         ]
 
     @staticmethod
+    def _search_catalog_rules() -> List[ValidationRule]:
+        """Validation rules for search_catalog tool"""
+        return [
+            ValidationRule(
+                param_name="query",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=500
+            ),
+            ValidationRule(
+                param_name="top",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="skip",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="include_count",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            ),
+            ValidationRule(
+                param_name="include_why_found",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            ),
+            ValidationRule(
+                param_name="facets",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=200
+            ),
+            ValidationRule(
+                param_name="facet_limit",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _search_repository_rules() -> List[ValidationRule]:
+        """Validation rules for search_repository tool"""
+        return [
+            ValidationRule(
+                param_name="search_terms",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=256
+            ),
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=False,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="top",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="skip",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="include_dependencies",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            ),
+            ValidationRule(
+                param_name="include_lineage",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _get_catalog_metadata_rules() -> List[ValidationRule]:
+        """Validation rules for get_catalog_metadata tool"""
+        return [
+            ValidationRule(
+                param_name="endpoint_type",
+                validation_type=ValidationType.STRING,
+                required=False,
+                allowed_values=["consumption", "catalog", "legacy"]
+            ),
+            ValidationRule(
+                param_name="parse_metadata",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
     def get_all_tool_names() -> List[str]:
         """Get list of all tools with validators"""
         return [
@@ -449,7 +554,10 @@ class ToolValidators:
             "list_catalog_assets",
             "get_asset_details",
             "get_asset_by_compound_key",
-            "get_space_assets"
+            "get_space_assets",
+            "search_catalog",
+            "search_repository",
+            "get_catalog_metadata"
         ]
 
     @staticmethod

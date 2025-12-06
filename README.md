@@ -39,8 +39,12 @@ Both tools were instrumental in transforming this project from concept to produc
 - **`discover_spaces`** - OAuth-enabled discovery of all Datasphere spaces
 - **`get_asset_details`** - Detailed asset information with schema and metadata
 - **`query_asset_data`** - Execute OData queries on SAP Datasphere assets
-- **`search_metadata`** - Search across metadata with intelligent filtering
 - **`get_connection_status`** - Monitor SAP Datasphere connectivity and health
+
+**Phase 2.2: Universal Search Tools (NEW)**
+- **`search_catalog`** - Universal catalog search with advanced syntax (SCOPE, Boolean operators, facets)
+- **`search_repository`** - Repository object search with lineage and dependency tracking
+- **`get_catalog_metadata`** - Retrieve CSDL metadata schema for catalog service
 
 ### Supported AI Assistants
 - **Claude Desktop** - Full MCP integration with configuration examples
@@ -127,12 +131,17 @@ DATASPHERE_TOKEN_URL=https://your-tenant.authentication.eu10.hana.ondemand.com/o
 
 ### Core MCP Tools
 ```
-🔍 discover_spaces      → List all accessible Datasphere spaces
-📋 get_space_assets     → Get assets within a specific space  
-📊 get_asset_details    → Retrieve detailed asset information
-🔎 query_asset_data     → Execute OData queries on assets
-🔍 search_metadata      → Search across metadata with filters
-🔗 get_connection_status → Check SAP Datasphere connectivity
+🔍 discover_spaces        → List all accessible Datasphere spaces
+📋 get_space_assets       → Get assets within a specific space
+📊 get_asset_details      → Retrieve detailed asset information
+🔎 query_asset_data       → Execute OData queries on assets
+🔍 search_metadata        → Search across metadata with filters
+🔗 get_connection_status  → Check SAP Datasphere connectivity
+
+Phase 2.2: Universal Search Tools (NEW)
+🔎 search_catalog         → Universal search across all catalog items (KPIs, assets, spaces, models, views, tables)
+🔍 search_repository      → Global search across repository objects with lineage and dependencies
+📋 get_catalog_metadata   → Retrieve CSDL metadata for catalog service schema
 ```
 
 ## 📋 **Core Components**
@@ -165,12 +174,17 @@ DATASPHERE_TOKEN_URL=https://your-tenant.authentication.eu10.hana.ondemand.com/o
 
 ### Available MCP Tools:
 ```
-🔍 discover_spaces      → List all accessible SAP Datasphere spaces
-📋 get_space_assets     → Get assets within a specific space
-📊 get_asset_details    → Retrieve detailed asset information and schema
-🔎 query_asset_data     → Execute OData queries through natural language
-🔍 search_metadata      → Search across metadata with intelligent filtering
-🔗 get_connection_status → Check SAP Datasphere connectivity and health
+🔍 discover_spaces        → List all accessible SAP Datasphere spaces
+📋 get_space_assets       → Get assets within a specific space
+📊 get_asset_details      → Retrieve detailed asset information and schema
+🔎 query_asset_data       → Execute OData queries through natural language
+🔍 search_metadata        → Search across metadata with intelligent filtering
+🔗 get_connection_status  → Check SAP Datasphere connectivity and health
+
+Phase 2.2: Universal Search Tools (NEW)
+🔎 search_catalog         → Universal catalog search with advanced syntax (SCOPE, Boolean operators)
+🔍 search_repository      → Repository search with lineage & dependency tracking
+📋 get_catalog_metadata   → CSDL metadata schema retrieval (consumption, catalog, legacy)
 ```
 
 ### AI Assistant Integration:
@@ -217,6 +231,13 @@ Once configured, you can ask your AI assistant:
 "What's the connection status to SAP Datasphere?"
 "Execute a query to get financial data from SAP_SC_FI_T_Products"
 "Show me all analytical models in the SAP_SC_FI_AM space"
+
+NEW: Universal Search Tools (Phase 2.2)
+"Search the catalog for all financial assets"
+"Find all repository objects related to customer data with their dependencies"
+"Search for KPIs related to sales performance"
+"Get the catalog metadata schema to understand available entity types"
+"Search for tables and views in the SAP_CONTENT space with lineage information"
 ```
 
 ### Cursor IDE Integration
