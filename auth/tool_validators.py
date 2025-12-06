@@ -43,6 +43,10 @@ class ToolValidators:
             "search_catalog": ToolValidators._search_catalog_rules(),
             "search_repository": ToolValidators._search_repository_rules(),
             "get_catalog_metadata": ToolValidators._get_catalog_metadata_rules(),
+            "get_consumption_metadata": ToolValidators._get_consumption_metadata_rules(),
+            "get_analytical_metadata": ToolValidators._get_analytical_metadata_rules(),
+            "get_relational_metadata": ToolValidators._get_relational_metadata_rules(),
+            "get_repository_search_metadata": ToolValidators._get_repository_search_metadata_rules(),
         }
 
         return validators.get(tool_name, [])
@@ -535,6 +539,85 @@ class ToolValidators:
         ]
 
     @staticmethod
+    def _get_consumption_metadata_rules() -> List[ValidationRule]:
+        """Validation rules for get_consumption_metadata tool"""
+        return [
+            ValidationRule(
+                param_name="parse_xml",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            ),
+            ValidationRule(
+                param_name="include_annotations",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _get_analytical_metadata_rules() -> List[ValidationRule]:
+        """Validation rules for get_analytical_metadata tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="asset_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'
+            ),
+            ValidationRule(
+                param_name="identify_dimensions_measures",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _get_relational_metadata_rules() -> List[ValidationRule]:
+        """Validation rules for get_relational_metadata tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="asset_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'
+            ),
+            ValidationRule(
+                param_name="map_to_sql_types",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _get_repository_search_metadata_rules() -> List[ValidationRule]:
+        """Validation rules for get_repository_search_metadata tool"""
+        return [
+            ValidationRule(
+                param_name="include_field_details",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
     def get_all_tool_names() -> List[str]:
         """Get list of all tools with validators"""
         return [
@@ -557,7 +640,11 @@ class ToolValidators:
             "get_space_assets",
             "search_catalog",
             "search_repository",
-            "get_catalog_metadata"
+            "get_catalog_metadata",
+            "get_consumption_metadata",
+            "get_analytical_metadata",
+            "get_relational_metadata",
+            "get_repository_search_metadata"
         ]
 
     @staticmethod

@@ -546,6 +546,87 @@ async def handle_list_tools() -> list[Tool]:
                 },
                 "required": []
             }
+        ),
+        Tool(
+            name="get_consumption_metadata",
+            description="Get CSDL metadata for SAP Datasphere consumption models. Retrieves the overall consumption service schema including entity types, properties, navigation relationships, and complex types. Essential for understanding the consumption layer structure and planning data integrations.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "parse_xml": {
+                        "type": "boolean",
+                        "description": "Parse XML into structured JSON format (default: true)",
+                        "default": True
+                    },
+                    "include_annotations": {
+                        "type": "boolean",
+                        "description": "Include SAP-specific annotations in parsed output (default: true)",
+                        "default": True
+                    }
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="get_analytical_metadata",
+            description="Retrieve CSDL metadata for analytical consumption of a specific asset. Returns analytical schema with dimensions, measures, hierarchies, and aggregation information for BI and analytics integration. Automatically identifies analytical elements based on SAP annotations.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS')"
+                    },
+                    "identify_dimensions_measures": {
+                        "type": "boolean",
+                        "description": "Automatically identify dimensions and measures based on annotations (default: true)",
+                        "default": True
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        ),
+        Tool(
+            name="get_relational_metadata",
+            description="Retrieve CSDL metadata for relational consumption of a specific asset. Returns complete schema information including tables, columns, data types, primary/foreign keys, and relationships for relational data access and ETL planning. Includes SQL type mapping.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier (e.g., 'CUSTOMER_VIEW')"
+                    },
+                    "map_to_sql_types": {
+                        "type": "boolean",
+                        "description": "Map OData types to SQL types (default: true)",
+                        "default": True
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        ),
+        Tool(
+            name="get_repository_search_metadata",
+            description="Get metadata for repository search capabilities. Retrieves information about searchable object types, searchable fields, available filters, and entity definitions. Essential for building advanced search queries and understanding repository structure.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "include_field_details": {
+                        "type": "boolean",
+                        "description": "Include detailed field definitions (default: true)",
+                        "default": True
+                    }
+                },
+                "required": []
+            }
         )
     ]
 
@@ -1883,6 +1964,560 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     type="text",
                     text=f"Error retrieving catalog metadata: {str(e)}"
                 )]
+
+    elif name == "get_consumption_metadata":
+        parse_xml = arguments.get("parse_xml", True)
+        include_annotations = arguments.get("include_annotations", True)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock consumption metadata
+            if parse_xml:
+                mock_metadata = {
+                    "service_type": "consumption",
+                    "entity_types": [
+                        {
+                            "name": "ConsumptionModel",
+                            "key_properties": ["spaceId", "assetId"],
+                            "properties": [
+                                {"name": "spaceId", "type": "Edm.String", "nullable": False, "max_length": "100"},
+                                {"name": "assetId", "type": "Edm.String", "nullable": False, "max_length": "255"},
+                                {"name": "name", "type": "Edm.String", "nullable": True, "max_length": "255"},
+                                {"name": "description", "type": "Edm.String", "nullable": True},
+                                {"name": "modelType", "type": "Edm.String", "nullable": True, "max_length": "50"}
+                            ],
+                            "navigation_properties": [
+                                {"name": "dimensions", "type": "Collection(Dimension)", "partner": None},
+                                {"name": "measures", "type": "Collection(Measure)", "partner": None}
+                            ]
+                        }
+                    ],
+                    "entity_sets": [
+                        {"name": "ConsumptionModels", "entity_type": "SAP.Datasphere.Consumption.ConsumptionModel"}
+                    ],
+                    "complex_types": [],
+                    "note": "This is mock metadata. Real consumption metadata requires OAuth authentication."
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Consumption Metadata (Parsed):\n\n" +
+                         json.dumps(mock_metadata, indent=2)
+                )]
+            else:
+                mock_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
+  <edmx:DataServices>
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="SAP.Datasphere.Consumption">
+      <EntityType Name="ConsumptionModel">
+        <Key>
+          <PropertyRef Name="spaceId"/>
+          <PropertyRef Name="assetId"/>
+        </Key>
+        <Property Name="spaceId" Type="Edm.String" Nullable="false"/>
+        <Property Name="assetId" Type="Edm.String" Nullable="false"/>
+        <Property Name="name" Type="Edm.String"/>
+        <Property Name="modelType" Type="Edm.String"/>
+      </EntityType>
+      <EntityContainer Name="ConsumptionService">
+        <EntitySet Name="ConsumptionModels" EntityType="SAP.Datasphere.Consumption.ConsumptionModel"/>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>"""
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Consumption Metadata (Raw XML):\n\n{mock_xml}"
+                )]
+        else:
+            # Real API call
+            if datasphere_connector is None:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve consumption metadata."
+                )]
+
+            try:
+                url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}/api/v1/datasphere/consumption/$metadata"
+
+                import aiohttp
+                headers = await datasphere_connector._get_headers()
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                        response.raise_for_status()
+                        xml_content = await response.text()
+
+                if not parse_xml:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Consumption Metadata (Raw XML):\n\n{xml_content}"
+                    )]
+
+                # Parse XML
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(xml_content)
+
+                namespaces = {
+                    'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
+                    'edm': 'http://docs.oasis-open.org/odata/ns/edm',
+                    'sap': 'http://www.sap.com/Protocols/SAPData'
+                }
+
+                metadata = {
+                    "service_type": "consumption",
+                    "entity_types": [],
+                    "entity_sets": [],
+                    "complex_types": []
+                }
+
+                # Extract entity types
+                for entity_type in root.findall('.//edm:EntityType', namespaces):
+                    entity_info = {
+                        'name': entity_type.get('Name'),
+                        'key_properties': [],
+                        'properties': [],
+                        'navigation_properties': []
+                    }
+
+                    # Extract key properties
+                    key_element = entity_type.find('edm:Key', namespaces)
+                    if key_element is not None:
+                        for prop_ref in key_element.findall('edm:PropertyRef', namespaces):
+                            entity_info['key_properties'].append(prop_ref.get('Name'))
+
+                    # Extract properties
+                    for prop in entity_type.findall('edm:Property', namespaces):
+                        prop_info = {
+                            'name': prop.get('Name'),
+                            'type': prop.get('Type'),
+                            'nullable': prop.get('Nullable', 'true') == 'true',
+                            'max_length': prop.get('MaxLength')
+                        }
+
+                        if include_annotations:
+                            sap_label = prop.get('{http://www.sap.com/Protocols/SAPData}label')
+                            if sap_label:
+                                prop_info['label'] = sap_label
+
+                        entity_info['properties'].append(prop_info)
+
+                    # Extract navigation properties
+                    for nav_prop in entity_type.findall('edm:NavigationProperty', namespaces):
+                        entity_info['navigation_properties'].append({
+                            'name': nav_prop.get('Name'),
+                            'type': nav_prop.get('Type'),
+                            'partner': nav_prop.get('Partner')
+                        })
+
+                    metadata['entity_types'].append(entity_info)
+
+                # Extract entity sets
+                for entity_set in root.findall('.//edm:EntitySet', namespaces):
+                    metadata['entity_sets'].append({
+                        'name': entity_set.get('Name'),
+                        'entity_type': entity_set.get('EntityType')
+                    })
+
+                # Extract complex types
+                for complex_type in root.findall('.//edm:ComplexType', namespaces):
+                    complex_info = {
+                        'name': complex_type.get('Name'),
+                        'properties': []
+                    }
+                    for prop in complex_type.findall('edm:Property', namespaces):
+                        complex_info['properties'].append({
+                            'name': prop.get('Name'),
+                            'type': prop.get('Type')
+                        })
+                    metadata['complex_types'].append(complex_info)
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Consumption Metadata (Parsed):\n\n" +
+                         json.dumps(metadata, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Consumption metadata retrieval failed: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error retrieving consumption metadata: {str(e)}"
+                )]
+
+    elif name == "get_analytical_metadata":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+        identify_dimensions_measures = arguments.get("identify_dimensions_measures", True)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock analytical metadata
+            mock_metadata = {
+                "space_id": space_id,
+                "asset_id": asset_id,
+                "model_type": "analytical",
+                "entity_types": [
+                    {
+                        "name": asset_id,
+                        "key_properties": ["ID"],
+                        "properties": [
+                            {"name": "ID", "type": "Edm.String", "nullable": False},
+                            {"name": "CustomerID", "type": "Edm.String", "nullable": True, "is_dimension": True},
+                            {"name": "ProductID", "type": "Edm.String", "nullable": True, "is_dimension": True},
+                            {"name": "Revenue", "type": "Edm.Decimal", "nullable": True, "aggregation": "SUM"}
+                        ],
+                        "navigation_properties": []
+                    }
+                ],
+                "dimensions": [
+                    {"name": "CustomerID", "type": "Edm.String", "label": "Customer", "hierarchy": None},
+                    {"name": "ProductID", "type": "Edm.String", "label": "Product", "hierarchy": None}
+                ],
+                "measures": [
+                    {"name": "Revenue", "type": "Edm.Decimal", "label": "Revenue", "aggregation": "SUM", "unit": "USD"}
+                ],
+                "hierarchies": [],
+                "note": "This is mock metadata. Real analytical metadata requires OAuth authentication."
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Analytical Metadata:\n\n" +
+                     json.dumps(mock_metadata, indent=2)
+            )]
+        else:
+            # Real API call
+            if datasphere_connector is None:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve analytical metadata."
+                )]
+
+            try:
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/$metadata"
+                url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
+
+                import aiohttp
+                headers = await datasphere_connector._get_headers()
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                        response.raise_for_status()
+                        xml_content = await response.text()
+
+                # Parse XML
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(xml_content)
+
+                namespaces = {
+                    'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
+                    'edm': 'http://docs.oasis-open.org/odata/ns/edm',
+                    'sap': 'http://www.sap.com/Protocols/SAPData'
+                }
+
+                metadata = {
+                    "space_id": space_id,
+                    "asset_id": asset_id,
+                    "model_type": "analytical",
+                    "entity_types": [],
+                    "dimensions": [],
+                    "measures": [],
+                    "hierarchies": []
+                }
+
+                # Extract entity types and identify dimensions/measures
+                for entity_type in root.findall('.//edm:EntityType', namespaces):
+                    entity_info = {
+                        'name': entity_type.get('Name'),
+                        'key_properties': [],
+                        'properties': [],
+                        'navigation_properties': []
+                    }
+
+                    # Extract key
+                    key_element = entity_type.find('edm:Key', namespaces)
+                    if key_element is not None:
+                        for prop_ref in key_element.findall('edm:PropertyRef', namespaces):
+                            entity_info['key_properties'].append(prop_ref.get('Name'))
+
+                    # Extract properties and identify dimensions/measures
+                    for prop in entity_type.findall('edm:Property', namespaces):
+                        prop_name = prop.get('Name')
+                        prop_type = prop.get('Type')
+
+                        prop_info = {
+                            'name': prop_name,
+                            'type': prop_type,
+                            'nullable': prop.get('Nullable', 'true') == 'true'
+                        }
+
+                        # Check SAP annotations
+                        is_dimension = prop.get('{http://www.sap.com/Protocols/SAPData}dimension') == 'true'
+                        aggregation = prop.get('{http://www.sap.com/Protocols/SAPData}aggregation')
+                        label = prop.get('{http://www.sap.com/Protocols/SAPData}label')
+
+                        if identify_dimensions_measures:
+                            if is_dimension:
+                                metadata['dimensions'].append({
+                                    'name': prop_name,
+                                    'type': prop_type,
+                                    'label': label or prop_name,
+                                    'hierarchy': prop.get('{http://www.sap.com/Protocols/SAPData}hierarchy')
+                                })
+                                prop_info['is_dimension'] = True
+                            elif aggregation:
+                                metadata['measures'].append({
+                                    'name': prop_name,
+                                    'type': prop_type,
+                                    'label': label or prop_name,
+                                    'aggregation': aggregation,
+                                    'unit': prop.get('{http://www.sap.com/Protocols/SAPData}unit')
+                                })
+                                prop_info['aggregation'] = aggregation
+
+                        entity_info['properties'].append(prop_info)
+
+                    # Navigation properties
+                    for nav_prop in entity_type.findall('edm:NavigationProperty', namespaces):
+                        entity_info['navigation_properties'].append({
+                            'name': nav_prop.get('Name'),
+                            'type': nav_prop.get('Type')
+                        })
+
+                    metadata['entity_types'].append(entity_info)
+
+                    # Extract hierarchies
+                    if 'Hierarchy' in entity_info['name']:
+                        metadata['hierarchies'].append({
+                            'name': entity_info['name'],
+                            'properties': [p['name'] for p in entity_info['properties']]
+                        })
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Analytical Metadata:\n\n" +
+                         json.dumps(metadata, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Analytical metadata retrieval failed: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error retrieving analytical metadata: {str(e)}"
+                )]
+
+    elif name == "get_relational_metadata":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+        map_to_sql_types = arguments.get("map_to_sql_types", True)
+
+        # OData to SQL type mapping
+        def map_odata_to_sql(odata_type, precision=None, scale=None, max_length=None):
+            type_map = {
+                "Edm.String": f"NVARCHAR({max_length or 'MAX'})",
+                "Edm.Int32": "INT",
+                "Edm.Int64": "BIGINT",
+                "Edm.Decimal": f"DECIMAL({precision or 18},{scale or 2})" if precision else "DECIMAL(18,2)",
+                "Edm.Double": "DOUBLE",
+                "Edm.Boolean": "BOOLEAN",
+                "Edm.Date": "DATE",
+                "Edm.DateTime": "TIMESTAMP",
+                "Edm.DateTimeOffset": "TIMESTAMP",
+                "Edm.Time": "TIME",
+                "Edm.Guid": "VARCHAR(36)",
+                "Edm.Binary": "VARBINARY"
+            }
+            return type_map.get(odata_type, odata_type)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock relational metadata
+            mock_metadata = {
+                "space_id": space_id,
+                "asset_id": asset_id,
+                "model_type": "relational",
+                "tables": [
+                    {
+                        "name": asset_id,
+                        "key_columns": ["ID"],
+                        "columns": [
+                            {"name": "ID", "odata_type": "Edm.String", "sql_type": "NVARCHAR(10)", "nullable": False, "max_length": "10"},
+                            {"name": "CustomerName", "odata_type": "Edm.String", "sql_type": "NVARCHAR(100)", "nullable": True, "max_length": "100"},
+                            {"name": "Amount", "odata_type": "Edm.Decimal", "sql_type": "DECIMAL(15,2)", "nullable": True, "precision": "15", "scale": "2"}
+                        ],
+                        "foreign_keys": []
+                    }
+                ],
+                "note": "This is mock metadata. Real relational metadata requires OAuth authentication."
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Relational Metadata:\n\n" +
+                     json.dumps(mock_metadata, indent=2)
+            )]
+        else:
+            # Real API call
+            if datasphere_connector is None:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve relational metadata."
+                )]
+
+            try:
+                endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/$metadata"
+                url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
+
+                import aiohttp
+                headers = await datasphere_connector._get_headers()
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                        response.raise_for_status()
+                        xml_content = await response.text()
+
+                # Parse XML
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(xml_content)
+
+                namespaces = {
+                    'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
+                    'edm': 'http://docs.oasis-open.org/odata/ns/edm',
+                    'sap': 'http://www.sap.com/Protocols/SAPData'
+                }
+
+                metadata = {
+                    "space_id": space_id,
+                    "asset_id": asset_id,
+                    "model_type": "relational",
+                    "tables": []
+                }
+
+                # Extract entity types (tables)
+                for entity_type in root.findall('.//edm:EntityType', namespaces):
+                    table_info = {
+                        'name': entity_type.get('Name'),
+                        'key_columns': [],
+                        'columns': [],
+                        'foreign_keys': []
+                    }
+
+                    # Extract key columns
+                    key_element = entity_type.find('edm:Key', namespaces)
+                    if key_element is not None:
+                        for prop_ref in key_element.findall('edm:PropertyRef', namespaces):
+                            table_info['key_columns'].append(prop_ref.get('Name'))
+
+                    # Extract columns
+                    for prop in entity_type.findall('edm:Property', namespaces):
+                        odata_type = prop.get('Type')
+                        precision = prop.get('Precision')
+                        scale = prop.get('Scale')
+                        max_length = prop.get('MaxLength')
+
+                        column_info = {
+                            'name': prop.get('Name'),
+                            'odata_type': odata_type,
+                            'nullable': prop.get('Nullable', 'true') == 'true'
+                        }
+
+                        if max_length:
+                            column_info['max_length'] = max_length
+                        if precision:
+                            column_info['precision'] = precision
+                        if scale:
+                            column_info['scale'] = scale
+
+                        if map_to_sql_types:
+                            column_info['sql_type'] = map_odata_to_sql(odata_type, precision, scale, max_length)
+
+                        # Add SAP annotations
+                        label = prop.get('{http://www.sap.com/Protocols/SAPData}label')
+                        if label:
+                            column_info['label'] = label
+
+                        semantics = prop.get('{http://www.sap.com/Protocols/SAPData}semantics')
+                        if semantics:
+                            column_info['semantics'] = semantics
+
+                        table_info['columns'].append(column_info)
+
+                    # Extract foreign keys
+                    for nav_prop in entity_type.findall('edm:NavigationProperty', namespaces):
+                        table_info['foreign_keys'].append({
+                            'name': nav_prop.get('Name'),
+                            'referenced_table': nav_prop.get('Type'),
+                            'partner': nav_prop.get('Partner')
+                        })
+
+                    metadata['tables'].append(table_info)
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Relational Metadata:\n\n" +
+                         json.dumps(metadata, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Relational metadata retrieval failed: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error retrieving relational metadata: {str(e)}"
+                )]
+
+    elif name == "get_repository_search_metadata":
+        include_field_details = arguments.get("include_field_details", True)
+
+        # Repository search metadata (this is static schema information)
+        repository_metadata = {
+            "searchable_object_types": [
+                "Table",
+                "View",
+                "AnalyticalModel",
+                "DataFlow",
+                "Transformation",
+                "Fact",
+                "Dimension"
+            ],
+            "searchable_fields": [
+                {"field": "id", "type": "string", "searchable": True, "filterable": True},
+                {"field": "name", "type": "string", "searchable": True, "filterable": True},
+                {"field": "businessName", "type": "string", "searchable": True, "filterable": True},
+                {"field": "description", "type": "string", "searchable": True, "filterable": False},
+                {"field": "objectType", "type": "string", "searchable": False, "filterable": True},
+                {"field": "spaceId", "type": "string", "searchable": False, "filterable": True},
+                {"field": "owner", "type": "string", "searchable": True, "filterable": True},
+                {"field": "status", "type": "string", "searchable": False, "filterable": True},
+                {"field": "deploymentStatus", "type": "string", "searchable": False, "filterable": True}
+            ],
+            "available_filters": [
+                {"name": "objectType", "operator": "eq", "type": "string"},
+                {"name": "spaceId", "operator": "eq", "type": "string"},
+                {"name": "status", "operator": "eq", "type": "string", "values": ["ACTIVE", "INACTIVE", "DRAFT"]},
+                {"name": "deploymentStatus", "operator": "eq", "type": "string", "values": ["DEPLOYED", "UNDEPLOYED", "ERROR"]}
+            ]
+        }
+
+        if include_field_details:
+            repository_metadata["entity_definitions"] = {
+                "Table": {
+                    "fields": ["id", "name", "businessName", "description", "spaceId", "status", "deploymentStatus", "owner", "createdAt", "modifiedAt", "version", "columns"],
+                    "expandable": ["columns", "dependencies", "lineage"]
+                },
+                "View": {
+                    "fields": ["id", "name", "businessName", "description", "spaceId", "status", "deploymentStatus", "owner", "createdAt", "modifiedAt", "version", "columns", "sql"],
+                    "expandable": ["columns", "dependencies", "lineage"]
+                },
+                "AnalyticalModel": {
+                    "fields": ["id", "name", "businessName", "description", "spaceId", "status", "deploymentStatus", "owner", "createdAt", "modifiedAt", "version", "dimensions", "measures"],
+                    "expandable": ["dimensions", "measures", "hierarchies", "dependencies"]
+                }
+            }
+
+        return [types.TextContent(
+            type="text",
+            text=f"Repository Search Metadata:\n\n" +
+                 json.dumps(repository_metadata, indent=2)
+        )]
 
     else:
         return [types.TextContent(
