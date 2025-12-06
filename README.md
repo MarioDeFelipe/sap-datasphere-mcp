@@ -181,10 +181,16 @@ Phase 2.2: Universal Search Tools (NEW)
 🔍 search_metadata        → Search across metadata with intelligent filtering
 🔗 get_connection_status  → Check SAP Datasphere connectivity and health
 
-Phase 2.2: Universal Search Tools (NEW)
+Phase 2.2: Universal Search Tools
 🔎 search_catalog         → Universal catalog search with advanced syntax (SCOPE, Boolean operators)
 🔍 search_repository      → Repository search with lineage & dependency tracking
 📋 get_catalog_metadata   → CSDL metadata schema retrieval (consumption, catalog, legacy)
+
+Phase 3.1: Metadata & Schema Discovery Tools (NEW)
+📊 get_consumption_metadata    → Extract consumption service CSDL metadata (entity types, sets, complex types)
+📈 get_analytical_metadata     → Retrieve analytical metadata with dimensions, measures, and hierarchies
+🗄️  get_relational_metadata     → Get relational schema with SQL type mapping for ETL planning
+🔍 get_repository_search_metadata → Discover repository search capabilities and entity definitions
 ```
 
 ### AI Assistant Integration:
@@ -232,12 +238,19 @@ Once configured, you can ask your AI assistant:
 "Execute a query to get financial data from SAP_SC_FI_T_Products"
 "Show me all analytical models in the SAP_SC_FI_AM space"
 
-NEW: Universal Search Tools (Phase 2.2)
+Phase 2.2: Universal Search Tools
 "Search the catalog for all financial assets"
 "Find all repository objects related to customer data with their dependencies"
 "Search for KPIs related to sales performance"
 "Get the catalog metadata schema to understand available entity types"
 "Search for tables and views in the SAP_CONTENT space with lineage information"
+
+NEW: Phase 3.1: Metadata & Schema Discovery Tools
+"Get the consumption metadata schema to see all available entity types and sets"
+"Retrieve analytical metadata for SALES_ANALYTICS.REVENUE_ANALYSIS with dimensions and measures"
+"Get the relational schema for CUSTOMER_DATA with SQL type mappings for ETL planning"
+"Show me the repository search metadata to understand searchable object types and fields"
+"Extract OData metadata for SAP_CONTENT.FINANCIAL_TRANSACTIONS in relational format"
 ```
 
 ### Cursor IDE Integration
@@ -471,11 +484,19 @@ This MCP server implementation was significantly enhanced through collaboration 
 - **Intelligent Error Messages**: Context-aware error handling with recovery suggestions and next steps
 - **Parameter Validation**: Clear format requirements and examples for all tool parameters
 
-#### ⚡ **Performance & Monitoring (Phase 3)**
+#### ⚡ **Performance & Monitoring (Phase 3.0)**
 - **Intelligent Caching**: Category-based TTL caching with LRU eviction (5 min - 1 hour TTLs)
 - **Comprehensive Telemetry**: Request tracking, performance metrics, and system health monitoring
 - **Cache Optimization**: Up to 95% faster response times for repeated queries
 - **Production Monitoring**: Dashboard metrics, error tracking, and success rate monitoring
+
+#### 📊 **Metadata & Schema Discovery (Phase 3.1)**
+- **Consumption Metadata**: Extract CSDL metadata with entity types, entity sets, and complex types
+- **Analytical Metadata**: Automatic identification of dimensions, measures, and hierarchies for BI
+- **Relational Metadata**: OData-to-SQL type mapping for ETL planning and data integration
+- **Repository Search Schema**: Static metadata defining searchable object types and fields
+- **XML Parsing**: Sophisticated CSDL parsing with SAP annotation extraction
+- **Flexible Output**: Both parsed JSON and raw XML formats supported
 
 #### 📋 **Best Practices Implementation**
 - **Anthropic MCP 2025 Standards**: Full compliance with Model Context Protocol best practices
