@@ -627,6 +627,128 @@ async def handle_list_tools() -> list[Tool]:
                 },
                 "required": []
             }
+        ),
+        Tool(
+            name="list_analytical_datasets",
+            description="List all available analytical datasets within a specific asset. Discovers analytical models that can be queried for business intelligence and reporting. Returns entity sets with their names, types, and URLs for data access.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS')"
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of datasets to return (default: 50, max: 1000)",
+                        "default": 50
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of datasets to skip for pagination",
+                        "default": 0
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        ),
+        Tool(
+            name="get_analytical_model",
+            description="Get the OData service document and metadata for a specific analytical model. Returns entity sets, dimensions, measures, and query capabilities. Parses CSDL metadata to identify analytical properties (dimensions with sap:aggregation-role='dimension', measures with sap:aggregation-role='measure').",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier"
+                    },
+                    "include_metadata": {
+                        "type": "boolean",
+                        "description": "Include parsed CSDL metadata with dimensions and measures (default: true)",
+                        "default": True
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        ),
+        Tool(
+            name="query_analytical_data",
+            description="Execute OData queries on analytical models to retrieve aggregated data with dimensions and measures. Supports full OData query syntax: $select (column selection), $filter (WHERE conditions), $orderby (sorting), $top/$skip (pagination), $apply (aggregations with sum/average/min/max/count/groupby). Perfect for business intelligence, reporting, and data analysis.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier"
+                    },
+                    "entity_set": {
+                        "type": "string",
+                        "description": "Entity set name to query"
+                    },
+                    "select": {
+                        "type": "string",
+                        "description": "Comma-separated list of dimensions/measures to return (OData $select)"
+                    },
+                    "filter": {
+                        "type": "string",
+                        "description": "OData filter expression (e.g., 'Amount gt 1000 and Currency eq \"USD\"')"
+                    },
+                    "orderby": {
+                        "type": "string",
+                        "description": "Sort order (e.g., 'Amount desc, TransactionDate asc')"
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of results (default: 50, max: 10000)",
+                        "default": 50
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of results to skip for pagination",
+                        "default": 0
+                    },
+                    "count": {
+                        "type": "boolean",
+                        "description": "Include total count in response",
+                        "default": False
+                    },
+                    "apply": {
+                        "type": "string",
+                        "description": "Aggregation transformations (e.g., 'groupby((Currency), aggregate(Amount with sum as TotalAmount))')"
+                    }
+                },
+                "required": ["space_id", "asset_id", "entity_set"]
+            }
+        ),
+        Tool(
+            name="get_analytical_service_document",
+            description="Get the OData service document for a specific analytical asset. Returns the service root with available entity sets and their URLs. Lightweight endpoint to discover what data is available without retrieving full metadata.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier"
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
         )
     ]
 
@@ -2518,6 +2640,376 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             text=f"Repository Search Metadata:\n\n" +
                  json.dumps(repository_metadata, indent=2)
         )]
+
+    elif name == "list_analytical_datasets":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+        top = arguments.get("top", 50)
+        skip = arguments.get("skip", 0)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock analytical datasets
+            mock_datasets = {
+                "@odata.context": f"$metadata",
+                "value": [
+                    {
+                        "name": asset_id,
+                        "kind": "EntitySet",
+                        "url": asset_id
+                    },
+                    {
+                        "name": f"{asset_id}_Aggregated",
+                        "kind": "EntitySet",
+                        "url": f"{asset_id}_Aggregated"
+                    }
+                ]
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Analytical Datasets in {space_id}/{asset_id}:\n\n" +
+                     json.dumps(mock_datasets, indent=2) +
+                     f"\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real analytical datasets."
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve analytical datasets."
+                )]
+
+            try:
+                # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}
+                url = f"{DATASPHERE_CONFIG['base_url']}/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
+                params = {}
+                if top:
+                    params["$top"] = top
+                if skip:
+                    params["$skip"] = skip
+
+                headers = await datasphere_connector._get_headers()
+                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Analytical Datasets in {space_id}/{asset_id}:\n\n" +
+                                 json.dumps(data, indent=2)
+                        )]
+                    else:
+                        error_text = await response.text()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Error fetching analytical datasets (HTTP {response.status}):\n{error_text}"
+                        )]
+            except Exception as e:
+                logger.error(f"Error fetching analytical datasets: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error fetching analytical datasets: {str(e)}"
+                )]
+
+    elif name == "get_analytical_model":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+        include_metadata = arguments.get("include_metadata", True)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock analytical model
+            mock_model = {
+                "@odata.context": f"$metadata",
+                "value": [
+                    {
+                        "name": asset_id,
+                        "kind": "EntitySet",
+                        "url": asset_id
+                    }
+                ]
+            }
+
+            if include_metadata:
+                mock_model["metadata"] = {
+                    "entity_sets": [
+                        {
+                            "name": asset_id,
+                            "entity_type": f"{asset_id}Type",
+                            "dimensions": [
+                                {"name": "Currency", "type": "Edm.String"},
+                                {"name": "AccountNumber", "type": "Edm.String"},
+                                {"name": "TransactionDate", "type": "Edm.Date"}
+                            ],
+                            "measures": [
+                                {"name": "Amount", "type": "Edm.Decimal", "aggregation": "sum"},
+                                {"name": "Quantity", "type": "Edm.Int32", "aggregation": "sum"}
+                            ],
+                            "keys": ["TransactionID"]
+                        }
+                    ]
+                }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Analytical Model for {space_id}/{asset_id}:\n\n" +
+                     json.dumps(mock_model, indent=2) +
+                     f"\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real analytical model."
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve analytical model."
+                )]
+
+            try:
+                # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}
+                url = f"{DATASPHERE_CONFIG['base_url']}/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
+                headers = await datasphere_connector._get_headers()
+
+                # Fetch service document
+                async with datasphere_connector._session.get(url, headers=headers) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Error fetching analytical model (HTTP {response.status}):\n{error_text}"
+                        )]
+
+                    service_doc = await response.json()
+
+                if include_metadata:
+                    # Fetch and parse metadata
+                    metadata_url = f"{url}/$metadata"
+                    async with datasphere_connector._session.get(metadata_url, headers=headers) as meta_response:
+                        if meta_response.status == 200:
+                            metadata_xml = await meta_response.text()
+
+                            # Parse CSDL metadata
+                            import xml.etree.ElementTree as ET
+                            root = ET.fromstring(metadata_xml)
+
+                            namespaces = {
+                                'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
+                                'edm': 'http://docs.oasis-open.org/odata/ns/edm',
+                                'sap': 'http://www.sap.com/Protocols/SAPData'
+                            }
+
+                            entity_sets = []
+                            for entity_type in root.findall('.//edm:EntityType', namespaces):
+                                dimensions = []
+                                measures = []
+                                keys = []
+
+                                # Extract keys
+                                for key_prop in entity_type.findall('.//edm:PropertyRef', namespaces):
+                                    keys.append(key_prop.get('Name'))
+
+                                # Extract properties
+                                for prop in entity_type.findall('.//edm:Property', namespaces):
+                                    prop_name = prop.get('Name')
+                                    prop_type = prop.get('Type')
+                                    agg_role = prop.get('{http://www.sap.com/Protocols/SAPData}aggregation-role')
+
+                                    if agg_role == 'dimension':
+                                        dimensions.append({"name": prop_name, "type": prop_type})
+                                    elif agg_role == 'measure':
+                                        measures.append({"name": prop_name, "type": prop_type})
+
+                                entity_sets.append({
+                                    "name": entity_type.get('Name'),
+                                    "dimensions": dimensions,
+                                    "measures": measures,
+                                    "keys": keys
+                                })
+
+                            service_doc["metadata"] = {"entity_sets": entity_sets}
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Analytical Model for {space_id}/{asset_id}:\n\n" +
+                         json.dumps(service_doc, indent=2)
+                )]
+            except Exception as e:
+                logger.error(f"Error fetching analytical model: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error fetching analytical model: {str(e)}"
+                )]
+
+    elif name == "query_analytical_data":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+        entity_set = arguments["entity_set"]
+        select_param = arguments.get("select")
+        filter_param = arguments.get("filter")
+        orderby_param = arguments.get("orderby")
+        top = arguments.get("top", 50)
+        skip = arguments.get("skip", 0)
+        count = arguments.get("count", False)
+        apply_param = arguments.get("apply")
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock analytical query results
+            mock_data = {
+                "@odata.context": f"$metadata#{entity_set}",
+                "value": [
+                    {
+                        "TransactionID": "TXN001",
+                        "Amount": 15000.50,
+                        "Currency": "USD",
+                        "AccountNumber": "1000100",
+                        "TransactionDate": "2024-01-15"
+                    },
+                    {
+                        "TransactionID": "TXN002",
+                        "Amount": 8500.00,
+                        "Currency": "EUR",
+                        "AccountNumber": "1000200",
+                        "TransactionDate": "2024-01-16"
+                    },
+                    {
+                        "TransactionID": "TXN003",
+                        "Amount": 12300.75,
+                        "Currency": "USD",
+                        "AccountNumber": "1000100",
+                        "TransactionDate": "2024-01-17"
+                    }
+                ]
+            }
+
+            if count:
+                mock_data["@odata.count"] = len(mock_data["value"])
+
+            # Simulate aggregation
+            if apply_param and "groupby" in apply_param.lower():
+                mock_data["value"] = [
+                    {"Currency": "USD", "TotalAmount": 27301.25, "TransactionCount": 2},
+                    {"Currency": "EUR", "TotalAmount": 8500.00, "TransactionCount": 1}
+                ]
+
+            query_info = f"\nQuery Parameters:\n"
+            if select_param:
+                query_info += f"  $select: {select_param}\n"
+            if filter_param:
+                query_info += f"  $filter: {filter_param}\n"
+            if orderby_param:
+                query_info += f"  $orderby: {orderby_param}\n"
+            if apply_param:
+                query_info += f"  $apply: {apply_param}\n"
+
+            return [types.TextContent(
+                type="text",
+                text=f"Analytical Query Results from {space_id}/{asset_id}/{entity_set}:{query_info}\n" +
+                     json.dumps(mock_data, indent=2) +
+                     f"\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real query results."
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot query analytical data."
+                )]
+
+            try:
+                # Build OData query URL
+                url = f"{DATASPHERE_CONFIG['base_url']}/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/{entity_set}"
+                params = {}
+
+                if select_param:
+                    params["$select"] = select_param
+                if filter_param:
+                    params["$filter"] = filter_param
+                if orderby_param:
+                    params["$orderby"] = orderby_param
+                if top:
+                    params["$top"] = top
+                if skip:
+                    params["$skip"] = skip
+                if count:
+                    params["$count"] = "true"
+                if apply_param:
+                    params["$apply"] = apply_param
+
+                headers = await datasphere_connector._get_headers()
+                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        query_info = f"\nQuery Parameters:\n"
+                        for key, value in params.items():
+                            query_info += f"  {key}: {value}\n"
+
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Analytical Query Results from {space_id}/{asset_id}/{entity_set}:{query_info}\n" +
+                                 json.dumps(data, indent=2)
+                        )]
+                    else:
+                        error_text = await response.text()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Error querying analytical data (HTTP {response.status}):\n{error_text}"
+                        )]
+            except Exception as e:
+                logger.error(f"Error querying analytical data: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error querying analytical data: {str(e)}"
+                )]
+
+    elif name == "get_analytical_service_document":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock service document
+            mock_service_doc = {
+                "@odata.context": f"$metadata",
+                "value": [
+                    {
+                        "name": asset_id,
+                        "kind": "EntitySet",
+                        "url": asset_id
+                    }
+                ]
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Analytical Service Document for {space_id}/{asset_id}:\n\n" +
+                     json.dumps(mock_service_doc, indent=2) +
+                     f"\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real service document."
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve service document."
+                )]
+
+            try:
+                # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}
+                url = f"{DATASPHERE_CONFIG['base_url']}/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
+                headers = await datasphere_connector._get_headers()
+
+                async with datasphere_connector._session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Analytical Service Document for {space_id}/{asset_id}:\n\n" +
+                                 json.dumps(data, indent=2)
+                        )]
+                    else:
+                        error_text = await response.text()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Error fetching service document (HTTP {response.status}):\n{error_text}"
+                        )]
+            except Exception as e:
+                logger.error(f"Error fetching service document: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error fetching service document: {str(e)}"
+                )]
 
     else:
         return [types.TextContent(

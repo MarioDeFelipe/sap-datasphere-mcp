@@ -47,6 +47,10 @@ class ToolValidators:
             "get_analytical_metadata": ToolValidators._get_analytical_metadata_rules(),
             "get_relational_metadata": ToolValidators._get_relational_metadata_rules(),
             "get_repository_search_metadata": ToolValidators._get_repository_search_metadata_rules(),
+            "list_analytical_datasets": ToolValidators._list_analytical_datasets_rules(),
+            "get_analytical_model": ToolValidators._get_analytical_model_rules(),
+            "query_analytical_data": ToolValidators._query_analytical_data_rules(),
+            "get_analytical_service_document": ToolValidators._get_analytical_service_document_rules(),
         }
 
         return validators.get(tool_name, [])
@@ -618,6 +622,156 @@ class ToolValidators:
         ]
 
     @staticmethod
+    def _list_analytical_datasets_rules() -> List[ValidationRule]:
+        """Validation rules for list_analytical_datasets tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="asset_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'
+            ),
+            ValidationRule(
+                param_name="top",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="skip",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _get_analytical_model_rules() -> List[ValidationRule]:
+        """Validation rules for get_analytical_model tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="asset_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'
+            ),
+            ValidationRule(
+                param_name="include_metadata",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _query_analytical_data_rules() -> List[ValidationRule]:
+        """Validation rules for query_analytical_data tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="asset_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'
+            ),
+            ValidationRule(
+                param_name="entity_set",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'
+            ),
+            ValidationRule(
+                param_name="select",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=500
+            ),
+            ValidationRule(
+                param_name="filter",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=1000
+            ),
+            ValidationRule(
+                param_name="orderby",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=200
+            ),
+            ValidationRule(
+                param_name="top",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="skip",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="count",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            ),
+            ValidationRule(
+                param_name="apply",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=1000
+            )
+        ]
+
+    @staticmethod
+    def _get_analytical_service_document_rules() -> List[ValidationRule]:
+        """Validation rules for get_analytical_service_document tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="asset_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'
+            )
+        ]
+
+    @staticmethod
     def get_all_tool_names() -> List[str]:
         """Get list of all tools with validators"""
         return [
@@ -644,7 +798,11 @@ class ToolValidators:
             "get_consumption_metadata",
             "get_analytical_metadata",
             "get_relational_metadata",
-            "get_repository_search_metadata"
+            "get_repository_search_metadata",
+            "list_analytical_datasets",
+            "get_analytical_model",
+            "query_analytical_data",
+            "get_analytical_service_document"
         ]
 
     @staticmethod
