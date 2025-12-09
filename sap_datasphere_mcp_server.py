@@ -2092,16 +2092,16 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Metadata endpoints return XML, not JSON
-                url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
-
-                # Get raw response (XML)
+                # Need to use _session directly with custom Accept header
                 import aiohttp
                 headers = await datasphere_connector._get_headers()
+                headers['Accept'] = 'application/xml'  # Fix for Bug #3: 406 Not Acceptable
 
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                        response.raise_for_status()
-                        xml_content = await response.text()
+                url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
+
+                async with datasphere_connector._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    response.raise_for_status()
+                    xml_content = await response.text()
 
                 if not parse_metadata:
                     # Return raw XML
@@ -2260,13 +2260,27 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             try:
                 url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}/api/v1/datasphere/consumption/$metadata"
 
+                # Metadata endpoints return XML, need custom Accept header
                 import aiohttp
                 headers = await datasphere_connector._get_headers()
+                headers['Accept'] = 'application/xml'  # Fix for Bug #3: 406 Not Acceptable
 
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                        response.raise_for_status()
-                        xml_content = await response.text()
+                async with datasphere_connector._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 404:
+                        # This endpoint is not available on all tenants
+                        return [types.TextContent(
+                            type="text",
+                            text="❌ Consumption metadata endpoint not available on this tenant.\n\n" +
+                                 "The endpoint /api/v1/datasphere/consumption/$metadata returned 404.\n\n" +
+                                 "Alternatives:\n" +
+                                 "- Use get_analytical_metadata(space_id, asset_id) for analytical models\n" +
+                                 "- Use get_relational_metadata(space_id, asset_id) for relational views\n" +
+                                 "- Use get_catalog_metadata() for catalog-level metadata\n\n" +
+                                 "Note: This is a known limitation on some SAP Datasphere tenant configurations."
+                        )]
+
+                    response.raise_for_status()
+                    xml_content = await response.text()
 
                 if not parse_xml:
                     return [types.TextContent(
@@ -2417,13 +2431,14 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/$metadata"
                 url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
 
+                # Metadata endpoints return XML, need custom Accept header
                 import aiohttp
                 headers = await datasphere_connector._get_headers()
+                headers['Accept'] = 'application/xml'  # Fix for Bug #3: 406 Not Acceptable
 
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                        response.raise_for_status()
-                        xml_content = await response.text()
+                async with datasphere_connector._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    response.raise_for_status()
+                    xml_content = await response.text()
 
                 # Parse XML
                 import xml.etree.ElementTree as ET
@@ -2587,13 +2602,14 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/$metadata"
                 url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
 
+                # Metadata endpoints return XML, need custom Accept header
                 import aiohttp
                 headers = await datasphere_connector._get_headers()
+                headers['Accept'] = 'application/xml'  # Fix for Bug #3: 406 Not Acceptable
 
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                        response.raise_for_status()
-                        xml_content = await response.text()
+                async with datasphere_connector._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    response.raise_for_status()
+                    xml_content = await response.text()
 
                 # Parse XML
                 import xml.etree.ElementTree as ET
@@ -2778,28 +2794,20 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}
-                url = f"{DATASPHERE_CONFIG['base_url']}/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
                 params = {}
                 if top:
                     params["$top"] = top
                 if skip:
                     params["$skip"] = skip
 
-                headers = await datasphere_connector._get_headers()
-                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Analytical Datasets in {space_id}/{asset_id}:\n\n" +
-                                 json.dumps(data, indent=2)
-                        )]
-                    else:
-                        error_text = await response.text()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Error fetching analytical datasets (HTTP {response.status}):\n{error_text}"
-                        )]
+                data = await datasphere_connector.get(endpoint, params=params)
+                return [types.TextContent(
+                    type="text",
+                    text=f"Analytical Datasets in {space_id}/{asset_id}:\n\n" +
+                         json.dumps(data, indent=2)
+                )]
+
             except Exception as e:
                 logger.error(f"Error fetching analytical datasets: {str(e)}")
                 return [types.TextContent(
@@ -2860,23 +2868,21 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}
-                url = f"{DATASPHERE_CONFIG['base_url']}/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
-                headers = await datasphere_connector._get_headers()
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
 
-                # Fetch service document
-                async with datasphere_connector._session.get(url, headers=headers) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Error fetching analytical model (HTTP {response.status}):\n{error_text}"
-                        )]
-
-                    service_doc = await response.json()
+                # Fetch service document using .get() method
+                service_doc = await datasphere_connector.get(endpoint)
 
                 if include_metadata:
                     # Fetch and parse metadata
-                    metadata_url = f"{url}/$metadata"
+                    metadata_endpoint = f"{endpoint}/$metadata"
+
+                    # For metadata endpoints, we need to use _make_request directly with custom headers
+                    # because .get() returns JSON but metadata returns XML
+                    headers = await datasphere_connector._get_headers()
+                    headers['Accept'] = 'application/xml'
+
+                    metadata_url = f"{DATASPHERE_CONFIG['base_url']}{metadata_endpoint}"
                     async with datasphere_connector._session.get(metadata_url, headers=headers) as meta_response:
                         if meta_response.status == 200:
                             metadata_xml = await meta_response.text()
@@ -3009,7 +3015,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Build OData query URL
-                url = f"{DATASPHERE_CONFIG['base_url']}/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/{entity_set}"
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/{entity_set}"
                 params = {}
 
                 if select_param:
@@ -3027,25 +3033,18 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if apply_param:
                     params["$apply"] = apply_param
 
-                headers = await datasphere_connector._get_headers()
-                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        query_info = f"\nQuery Parameters:\n"
-                        for key, value in params.items():
-                            query_info += f"  {key}: {value}\n"
+                # Use .get() method from DatasphereAuthConnector
+                data = await datasphere_connector.get(endpoint, params=params)
 
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Analytical Query Results from {space_id}/{asset_id}/{entity_set}:{query_info}\n" +
-                                 json.dumps(data, indent=2)
-                        )]
-                    else:
-                        error_text = await response.text()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Error querying analytical data (HTTP {response.status}):\n{error_text}"
-                        )]
+                query_info = f"\nQuery Parameters:\n"
+                for key, value in params.items():
+                    query_info += f"  {key}: {value}\n"
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Analytical Query Results from {space_id}/{asset_id}/{entity_set}:{query_info}\n" +
+                         json.dumps(data, indent=2)
+                )]
             except Exception as e:
                 logger.error(f"Error querying analytical data: {str(e)}")
                 return [types.TextContent(
@@ -3085,23 +3084,16 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}
-                url = f"{DATASPHERE_CONFIG['base_url']}/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
-                headers = await datasphere_connector._get_headers()
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
 
-                async with datasphere_connector._session.get(url, headers=headers) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Analytical Service Document for {space_id}/{asset_id}:\n\n" +
-                                 json.dumps(data, indent=2)
-                        )]
-                    else:
-                        error_text = await response.text()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Error fetching service document (HTTP {response.status}):\n{error_text}"
-                        )]
+                # Use .get() method from DatasphereAuthConnector
+                data = await datasphere_connector.get(endpoint)
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Analytical Service Document for {space_id}/{asset_id}:\n\n" +
+                         json.dumps(data, indent=2)
+                )]
             except Exception as e:
                 logger.error(f"Error fetching service document: {str(e)}")
                 return [types.TextContent(
@@ -3411,7 +3403,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Build endpoint URL
-                url = f"{DATASPHERE_CONFIG['base_url']}/deepsea/repository/{space_id}/designobjects/{object_id}"
+                endpoint = f"/deepsea/repository/{space_id}/designobjects/{object_id}"
                 params = {}
 
                 if include_full_definition:
@@ -3419,21 +3411,14 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if include_dependencies:
                     params["$expand"] = "dependencies"
 
-                headers = await datasphere_connector._get_headers()
-                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Object Definition for {space_id}/{object_id}:\n\n" +
-                                 json.dumps(data, indent=2)
-                        )]
-                    else:
-                        error_text = await response.text()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Error getting object definition (HTTP {response.status}):\n{error_text}"
-                        )]
+                # Use .get() method from DatasphereAuthConnector
+                data = await datasphere_connector.get(endpoint, params=params)
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Object Definition for {space_id}/{object_id}:\n\n" +
+                         json.dumps(data, indent=2)
+                )]
             except Exception as e:
                 logger.error(f"Error getting object definition: {str(e)}")
                 return [types.TextContent(
@@ -3559,7 +3544,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Build endpoint URL
-                url = f"{DATASPHERE_CONFIG['base_url']}/deepsea/repository/{space_id}/deployedobjects"
+                endpoint = f"/deepsea/repository/{space_id}/deployedobjects"
                 params = {"$top": top, "$skip": skip}
 
                 # Build filter expression
@@ -3572,44 +3557,36 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if filters:
                     params["$filter"] = " and ".join(filters)
 
-                headers = await datasphere_connector._get_headers()
-                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
+                # Use .get() method from DatasphereAuthConnector
+                data = await datasphere_connector.get(endpoint, params=params)
 
-                        # Build summary
-                        objects = data.get("value", [])
-                        status_counts = {}
-                        type_counts = {}
-                        for obj in objects:
-                            status = obj.get("runtimeStatus", "Unknown")
-                            obj_type = obj.get("objectType", "Unknown")
-                            status_counts[status] = status_counts.get(status, 0) + 1
-                            type_counts[obj_type] = type_counts.get(obj_type, 0) + 1
+                # Build summary
+                objects = data.get("value", [])
+                status_counts = {}
+                type_counts = {}
+                for obj in objects:
+                    status = obj.get("runtimeStatus", "Unknown")
+                    obj_type = obj.get("objectType", "Unknown")
+                    status_counts[status] = status_counts.get(status, 0) + 1
+                    type_counts[obj_type] = type_counts.get(obj_type, 0) + 1
 
-                        result = {
-                            "space_id": space_id,
-                            "deployed_objects": objects,
-                            "returned_count": len(objects),
-                            "has_more": len(objects) == top,
-                            "summary": {
-                                "total_deployed": len(objects),
-                                "by_status": status_counts,
-                                "by_type": type_counts
-                            }
-                        }
+                result = {
+                    "space_id": space_id,
+                    "deployed_objects": objects,
+                    "returned_count": len(objects),
+                    "has_more": len(objects) == top,
+                    "summary": {
+                        "total_deployed": len(objects),
+                        "by_status": status_counts,
+                        "by_type": type_counts
+                    }
+                }
 
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Deployed Objects in {space_id}:\n\n" +
-                                 json.dumps(result, indent=2)
-                        )]
-                    else:
-                        error_text = await response.text()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Error getting deployed objects (HTTP {response.status}):\n{error_text}"
-                        )]
+                return [types.TextContent(
+                    type="text",
+                    text=f"Deployed Objects in {space_id}:\n\n" +
+                         json.dumps(result, indent=2)
+                )]
             except Exception as e:
                 logger.error(f"Error getting deployed objects: {str(e)}")
                 return [types.TextContent(
