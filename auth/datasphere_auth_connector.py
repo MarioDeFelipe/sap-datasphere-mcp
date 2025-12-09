@@ -270,12 +270,26 @@ class DatasphereAuthConnector:
             Connection status dictionary
         """
         try:
-            await self._make_request('GET', '/api/v1/health')
-            return {
-                'connected': True,
-                'oauth_status': self.oauth_handler.get_health_status() if self.oauth_handler else None,
-                'message': 'Connection successful'
-            }
+            # Use a lightweight endpoint that actually exists
+            # Try consumption metadata endpoint (returns XML, not JSON)
+            url = f"{self.base_url}/api/v1/datasphere/consumption/$metadata"
+            headers = await self._get_headers()
+
+            async with self._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    return {
+                        'connected': True,
+                        'oauth_status': self.oauth_handler.get_health_status() if self.oauth_handler else None,
+                        'message': 'Connection successful',
+                        'status_code': response.status
+                    }
+                else:
+                    return {
+                        'connected': False,
+                        'error': f"HTTP {response.status}",
+                        'message': f'Connection failed with status {response.status}',
+                        'status_code': response.status
+                    }
         except Exception as e:
             logger.error(f"Connection test failed: {str(e)}")
             return {

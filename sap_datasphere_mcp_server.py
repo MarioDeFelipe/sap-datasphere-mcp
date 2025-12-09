@@ -14,7 +14,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence
 from dotenv import load_dotenv
-from mcp.server import Server
+from mcp.server import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.types import (
     Resource,
@@ -2568,7 +2568,10 @@ async def main():
                 InitializationOptions(
                     server_name="sap-datasphere-mcp",
                     server_version="1.0.0",
-                    capabilities=server.get_capabilities()
+                    capabilities=server.get_capabilities(
+                        notification_options=NotificationOptions(),
+                        experimental_capabilities={}
+                    )
                 ),
             )
     finally:

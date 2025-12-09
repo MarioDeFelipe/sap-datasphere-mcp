@@ -30,15 +30,20 @@ This guide covers development setup and workflows for the SAP Datasphere MCP ser
    - Redirect URI: Not required for client credentials flow
 
 **Step 3: Configure MCP Server Credentials**
-Create `config/datasphere_config.json` with the Technical User's OAuth credentials:
+Create a `.env` file in the project root with the Technical User's OAuth credentials:
 
-```json
-{
-  "base_url": "https://your-tenant.eu20.hcs.cloud.sap",
-  "client_id": "technical-user-oauth-client-id",
-  "client_secret": "technical-user-oauth-client-secret",
-  "token_url": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token"
-}
+```bash
+# SAP Datasphere Connection
+DATASPHERE_BASE_URL=https://your-tenant.eu20.hcs.cloud.sap
+DATASPHERE_TENANT_ID=your-tenant
+
+# OAuth 2.0 Credentials (Technical User)
+DATASPHERE_CLIENT_ID=your-technical-user-oauth-client-id
+DATASPHERE_CLIENT_SECRET=your-technical-user-oauth-client-secret
+DATASPHERE_TOKEN_URL=https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token
+
+# Development Mode (set to false for production/real connection)
+USE_MOCK_DATA=false
 ```
 
 ## Development Setup
@@ -60,15 +65,20 @@ pre-commit install
 
 ### 2. Configuration
 
-Create a `config/datasphere_config.json` file with your SAP Datasphere credentials:
+Create a `.env` file in the project root with your SAP Datasphere credentials:
 
-```json
-{
-  "base_url": "https://your-tenant.eu20.hcs.cloud.sap",
-  "client_id": "your-oauth-client-id",
-  "client_secret": "your-oauth-client-secret",
-  "token_url": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token"
-}
+```bash
+# SAP Datasphere Connection
+DATASPHERE_BASE_URL=https://your-tenant.eu20.hcs.cloud.sap
+DATASPHERE_TENANT_ID=your-tenant
+
+# OAuth 2.0 Credentials (Technical User)
+DATASPHERE_CLIENT_ID=your-oauth-client-id
+DATASPHERE_CLIENT_SECRET=your-oauth-client-secret
+DATASPHERE_TOKEN_URL=https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token
+
+# Development Mode (set to false for production/real connection)
+USE_MOCK_DATA=false
 ```
 
 ## Development Workflow
