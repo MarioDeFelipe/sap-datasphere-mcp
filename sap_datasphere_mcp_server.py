@@ -1776,7 +1776,8 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                endpoint = "/deepsea/catalog/v1/search/search/$all"
+                # Fixed: Use proper Catalog API endpoint instead of UI endpoint
+                endpoint = "/api/v1/datasphere/consumption/catalog/search"
                 response = await datasphere_connector.get(endpoint, params=params)
 
                 # Format results
@@ -1934,7 +1935,8 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                endpoint = "/deepsea/repository/search/$all"
+                # Fixed: Repository APIs are UI endpoints; use Catalog API instead
+                endpoint = "/api/v1/datasphere/consumption/catalog/search"
                 response = await datasphere_connector.get(endpoint, params=params)
 
                 # Parse and format results
@@ -2703,57 +2705,125 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
     elif name == "get_repository_search_metadata":
         include_field_details = arguments.get("include_field_details", True)
 
-        # Repository search metadata (this is static schema information)
-        repository_metadata = {
-            "searchable_object_types": [
-                "Table",
-                "View",
-                "AnalyticalModel",
-                "DataFlow",
-                "Transformation",
-                "Fact",
-                "Dimension"
-            ],
-            "searchable_fields": [
-                {"field": "id", "type": "string", "searchable": True, "filterable": True},
-                {"field": "name", "type": "string", "searchable": True, "filterable": True},
-                {"field": "businessName", "type": "string", "searchable": True, "filterable": True},
-                {"field": "description", "type": "string", "searchable": True, "filterable": False},
-                {"field": "objectType", "type": "string", "searchable": False, "filterable": True},
-                {"field": "spaceId", "type": "string", "searchable": False, "filterable": True},
-                {"field": "owner", "type": "string", "searchable": True, "filterable": True},
-                {"field": "status", "type": "string", "searchable": False, "filterable": True},
-                {"field": "deploymentStatus", "type": "string", "searchable": False, "filterable": True}
-            ],
-            "available_filters": [
-                {"name": "objectType", "operator": "eq", "type": "string"},
-                {"name": "spaceId", "operator": "eq", "type": "string"},
-                {"name": "status", "operator": "eq", "type": "string", "values": ["ACTIVE", "INACTIVE", "DRAFT"]},
-                {"name": "deploymentStatus", "operator": "eq", "type": "string", "values": ["DEPLOYED", "UNDEPLOYED", "ERROR"]}
-            ]
-        }
-
-        if include_field_details:
-            repository_metadata["entity_definitions"] = {
-                "Table": {
-                    "fields": ["id", "name", "businessName", "description", "spaceId", "status", "deploymentStatus", "owner", "createdAt", "modifiedAt", "version", "columns"],
-                    "expandable": ["columns", "dependencies", "lineage"]
-                },
-                "View": {
-                    "fields": ["id", "name", "businessName", "description", "spaceId", "status", "deploymentStatus", "owner", "createdAt", "modifiedAt", "version", "columns", "sql"],
-                    "expandable": ["columns", "dependencies", "lineage"]
-                },
-                "AnalyticalModel": {
-                    "fields": ["id", "name", "businessName", "description", "spaceId", "status", "deploymentStatus", "owner", "createdAt", "modifiedAt", "version", "dimensions", "measures"],
-                    "expandable": ["dimensions", "measures", "hierarchies", "dependencies"]
-                }
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Repository search metadata (this is static schema information)
+            repository_metadata = {
+                "searchable_object_types": [
+                    "Table",
+                    "View",
+                    "AnalyticalModel",
+                    "DataFlow",
+                    "Transformation",
+                    "Fact",
+                    "Dimension"
+                ],
+                "searchable_fields": [
+                    {"field": "id", "type": "string", "searchable": True, "filterable": True},
+                    {"field": "name", "type": "string", "searchable": True, "filterable": True},
+                    {"field": "businessName", "type": "string", "searchable": True, "filterable": True},
+                    {"field": "description", "type": "string", "searchable": True, "filterable": False},
+                    {"field": "objectType", "type": "string", "searchable": False, "filterable": True},
+                    {"field": "spaceId", "type": "string", "searchable": False, "filterable": True},
+                    {"field": "owner", "type": "string", "searchable": True, "filterable": True},
+                    {"field": "status", "type": "string", "searchable": False, "filterable": True},
+                    {"field": "deploymentStatus", "type": "string", "searchable": False, "filterable": True}
+                ],
+                "available_filters": [
+                    {"name": "objectType", "operator": "eq", "type": "string"},
+                    {"name": "spaceId", "operator": "eq", "type": "string"},
+                    {"name": "status", "operator": "eq", "type": "string", "values": ["ACTIVE", "INACTIVE", "DRAFT"]},
+                    {"name": "deploymentStatus", "operator": "eq", "type": "string", "values": ["DEPLOYED", "UNDEPLOYED", "ERROR"]}
+                ]
             }
 
-        return [types.TextContent(
-            type="text",
-            text=f"Repository Search Metadata:\n\n" +
-                 json.dumps(repository_metadata, indent=2)
-        )]
+            if include_field_details:
+                repository_metadata["entity_definitions"] = {
+                    "Table": {
+                        "fields": ["id", "name", "businessName", "description", "spaceId", "status", "deploymentStatus", "owner", "createdAt", "modifiedAt", "version", "columns"],
+                        "expandable": ["columns", "dependencies", "lineage"]
+                    },
+                    "View": {
+                        "fields": ["id", "name", "businessName", "description", "spaceId", "status", "deploymentStatus", "owner", "createdAt", "modifiedAt", "version", "columns", "sql"],
+                        "expandable": ["columns", "dependencies", "lineage"]
+                    },
+                    "AnalyticalModel": {
+                        "fields": ["id", "name", "businessName", "description", "spaceId", "status", "deploymentStatus", "owner", "createdAt", "modifiedAt", "version", "dimensions", "measures"],
+                        "expandable": ["dimensions", "measures", "hierarchies", "dependencies"]
+                    }
+                }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Repository Search Metadata:\n\n" +
+                     json.dumps(repository_metadata, indent=2)
+            )]
+        else:
+            # Fixed: Repository APIs are UI endpoints; use Catalog metadata endpoint
+            if datasphere_connector is None:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve search metadata."
+                )]
+
+            try:
+                endpoint = "/api/v1/datasphere/consumption/catalog/$metadata"
+
+                # Metadata endpoints return XML
+                import aiohttp
+                headers = await datasphere_connector._get_headers()
+                headers['Accept'] = 'application/xml'
+
+                url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
+                async with datasphere_connector._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    response.raise_for_status()
+                    xml_content = await response.text()
+
+                # Parse XML to extract searchable entity types and fields
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(xml_content)
+
+                namespaces = {
+                    'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
+                    'edm': 'http://docs.oasis-open.org/odata/ns/edm'
+                }
+
+                repository_metadata = {
+                    "source": "Catalog API Metadata",
+                    "searchable_object_types": [],
+                    "entity_types": []
+                }
+
+                # Extract entity types from metadata
+                for entity_type in root.findall('.//edm:EntityType', namespaces):
+                    entity_name = entity_type.get('Name')
+                    repository_metadata["searchable_object_types"].append(entity_name)
+
+                    if include_field_details:
+                        properties = []
+                        for prop in entity_type.findall('edm:Property', namespaces):
+                            properties.append({
+                                'name': prop.get('Name'),
+                                'type': prop.get('Type'),
+                                'nullable': prop.get('Nullable', 'true') == 'true'
+                            })
+
+                        repository_metadata["entity_types"].append({
+                            'name': entity_name,
+                            'properties': properties
+                        })
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Repository Search Metadata:\n\n" +
+                         json.dumps(repository_metadata, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Error retrieving search metadata: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error retrieving search metadata: {str(e)}"
+                )]
 
     elif name == "list_analytical_datasets":
         space_id = arguments["space_id"]
@@ -3257,23 +3327,23 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                # Build endpoint URL
-                endpoint = f"/deepsea/repository/{space_id}/objects"
+                # Fixed: Repository APIs are UI endpoints; use Catalog spaces/assets API instead
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets"
                 params = {"$top": top, "$skip": skip}
 
                 # Build filter expression
                 filters = []
                 if object_types:
-                    type_filters = " or ".join([f"objectType eq '{t}'" for t in object_types])
+                    type_filters = " or ".join([f"assetType eq '{t}'" for t in object_types])
                     filters.append(f"({type_filters})")
                 if status_filter:
                     filters.append(f"status eq '{status_filter}'")
                 if filters:
                     params["$filter"] = " and ".join(filters)
 
-                # Add expand for dependencies
-                if include_dependencies:
-                    params["$expand"] = "dependencies"
+                # Note: dependencies expansion may not be available in Catalog API
+                # if include_dependencies:
+                #     params["$expand"] = "dependencies"
 
                 # Use the .get() method from DatasphereAuthConnector
                 data = await datasphere_connector.get(endpoint, params=params)
@@ -3402,22 +3472,49 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                # Build endpoint URL
-                endpoint = f"/deepsea/repository/{space_id}/designobjects/{object_id}"
-                params = {}
+                # Fixed: Repository APIs are UI endpoints; use two-step Catalog + Metadata approach
+                # Step 1: Get asset details from catalog
+                asset_endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets('{object_id}')"
+                asset_data = await datasphere_connector.get(asset_endpoint)
 
+                result = {
+                    "space_id": space_id,
+                    "object_id": object_id,
+                    "asset_info": asset_data
+                }
+
+                # Step 2: Get detailed schema based on asset type if requested
                 if include_full_definition:
-                    params["includeDefinition"] = "true"
-                if include_dependencies:
-                    params["$expand"] = "dependencies"
+                    asset_type = asset_data.get("assetType", "Unknown")
 
-                # Use .get() method from DatasphereAuthConnector
-                data = await datasphere_connector.get(endpoint, params=params)
+                    try:
+                        if asset_type == "AnalyticalModel":
+                            metadata_endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{object_id}/$metadata"
+                        else:
+                            metadata_endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{object_id}/$metadata"
+
+                        # Metadata endpoints return XML
+                        import aiohttp
+                        headers = await datasphere_connector._get_headers()
+                        headers['Accept'] = 'application/xml'
+
+                        metadata_url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{metadata_endpoint}"
+                        async with datasphere_connector._session.get(metadata_url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                            if response.status == 200:
+                                xml_content = await response.text()
+                                result["metadata_xml"] = xml_content
+                                result["note"] = "Full schema definition retrieved from metadata endpoint"
+                            else:
+                                result["metadata_error"] = f"HTTP {response.status}"
+                                result["note"] = "Could not retrieve detailed schema"
+                    except Exception as meta_error:
+                        result["metadata_error"] = str(meta_error)
+                        result["note"] = "Asset details retrieved, but full schema not available"
 
                 return [types.TextContent(
                     type="text",
                     text=f"Object Definition for {space_id}/{object_id}:\n\n" +
-                         json.dumps(data, indent=2)
+                         json.dumps(result, indent=2)
                 )]
             except Exception as e:
                 logger.error(f"Error getting object definition: {str(e)}")
@@ -3543,17 +3640,18 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                # Build endpoint URL
-                endpoint = f"/deepsea/repository/{space_id}/deployedobjects"
+                # Fixed: Repository APIs are UI endpoints; use Catalog assets with exposedForConsumption filter
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets"
                 params = {"$top": top, "$skip": skip}
 
-                # Build filter expression
-                filters = ["deploymentStatus eq 'Deployed'"]  # Always filter for deployed objects
+                # Build filter expression - use exposedForConsumption to find deployed/exposed assets
+                filters = ["exposedForConsumption eq true"]
                 if object_types:
-                    type_filters = " or ".join([f"objectType eq '{t}'" for t in object_types])
+                    type_filters = " or ".join([f"assetType eq '{t}'" for t in object_types])
                     filters.append(f"({type_filters})")
-                if runtime_status:
-                    filters.append(f"runtimeStatus eq '{runtime_status}'")
+                # Note: runtime_status may not be available in Catalog API
+                # if runtime_status:
+                #     filters.append(f"runtimeStatus eq '{runtime_status}'")
                 if filters:
                     params["$filter"] = " and ".join(filters)
 
