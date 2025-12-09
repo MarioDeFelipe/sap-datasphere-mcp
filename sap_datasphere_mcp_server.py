@@ -3266,7 +3266,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Build endpoint URL
-                url = f"{DATASPHERE_CONFIG['base_url']}/deepsea/repository/{space_id}/objects"
+                endpoint = f"/deepsea/repository/{space_id}/objects"
                 params = {"$top": top, "$skip": skip}
 
                 # Build filter expression
@@ -3283,40 +3283,33 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if include_dependencies:
                     params["$expand"] = "dependencies"
 
-                headers = await datasphere_connector._get_headers()
-                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
+                # Use the .get() method from DatasphereAuthConnector
+                data = await datasphere_connector.get(endpoint, params=params)
 
-                        # Build summary
-                        objects = data.get("value", [])
-                        type_counts = {}
-                        for obj in objects:
-                            obj_type = obj.get("objectType", "Unknown")
-                            type_counts[obj_type] = type_counts.get(obj_type, 0) + 1
+                # Build summary
+                objects = data.get("value", [])
+                type_counts = {}
+                for obj in objects:
+                    obj_type = obj.get("objectType", "Unknown")
+                    type_counts[obj_type] = type_counts.get(obj_type, 0) + 1
 
-                        result = {
-                            "space_id": space_id,
-                            "objects": objects,
-                            "returned_count": len(objects),
-                            "has_more": len(objects) == top,
-                            "summary": {
-                                "total_objects": len(objects),
-                                "by_type": type_counts
-                            }
-                        }
+                result = {
+                    "space_id": space_id,
+                    "objects": objects,
+                    "returned_count": len(objects),
+                    "has_more": len(objects) == top,
+                    "summary": {
+                        "total_objects": len(objects),
+                        "by_type": type_counts
+                    }
+                }
 
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Repository Objects in {space_id}:\n\n" +
-                                 json.dumps(result, indent=2)
-                        )]
-                    else:
-                        error_text = await response.text()
-                        return [types.TextContent(
-                            type="text",
-                            text=f"Error listing repository objects (HTTP {response.status}):\n{error_text}"
-                        )]
+                return [types.TextContent(
+                    type="text",
+                    text=f"Repository Objects in {space_id}:\n\n" +
+                         json.dumps(result, indent=2)
+                )]
+
             except Exception as e:
                 logger.error(f"Error listing repository objects: {str(e)}")
                 return [types.TextContent(

@@ -151,6 +151,58 @@ class DatasphereAuthConnector:
             logger.error(f"API request failed: {method} {url} - {str(e)}")
             raise
 
+    async def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Make authenticated GET request
+
+        Args:
+            endpoint: API endpoint
+            params: Optional query parameters
+
+        Returns:
+            Response data as dictionary
+        """
+        return await self._make_request('GET', endpoint, params=params)
+
+    async def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Make authenticated POST request
+
+        Args:
+            endpoint: API endpoint
+            data: Optional request body
+            params: Optional query parameters
+
+        Returns:
+            Response data as dictionary
+        """
+        return await self._make_request('POST', endpoint, params=params, data=data)
+
+    async def put(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Make authenticated PUT request
+
+        Args:
+            endpoint: API endpoint
+            data: Optional request body
+
+        Returns:
+            Response data as dictionary
+        """
+        return await self._make_request('PUT', endpoint, data=data)
+
+    async def delete(self, endpoint: str) -> Dict[str, Any]:
+        """
+        Make authenticated DELETE request
+
+        Args:
+            endpoint: API endpoint
+
+        Returns:
+            Response data as dictionary
+        """
+        return await self._make_request('DELETE', endpoint)
+
     async def get_spaces(self) -> List[Dict[str, Any]]:
         """
         Get all Datasphere spaces
