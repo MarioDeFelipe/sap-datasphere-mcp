@@ -1549,27 +1549,13 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         )]
 
     elif name == "get_asset_by_compound_key":
-        compound_key = arguments["compound_key"]
+        # Tool schema provides space_id and asset_id directly
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
         select_fields = arguments.get("select_fields")
 
-        # Parse compound key format: spaceId='SAP_CONTENT',id='SAP_SC_FI_AM_FINTRANSACTIONS'
-        # Simple parsing (production would use proper OData parser)
-        import re
-        space_match = re.search(r"spaceId='([^']+)'", compound_key)
-        id_match = re.search(r"id='([^']+)'", compound_key)
-
-        if not space_match or not id_match:
-            return [types.TextContent(
-                type="text",
-                text=f">>> Invalid Compound Key <<<\n\n"
-                     f"The compound_key format is invalid.\n\n"
-                     f"Expected format: spaceId='SPACE_ID',id='ASSET_ID'\n"
-                     f"Example: spaceId='SAP_CONTENT',id='SAP_SC_FI_AM_FINTRANSACTIONS'\n\n"
-                     f"Received: {compound_key}"
-            )]
-
-        space_id = space_match.group(1)
-        asset_id = id_match.group(1)
+        # Build compound key from individual parameters
+        compound_key = f"spaceId='{space_id}',id='{asset_id}'"
 
         # Get detailed asset information
         asset = get_mock_asset_details(space_id, asset_id)
