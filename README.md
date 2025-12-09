@@ -186,11 +186,17 @@ Phase 2.2: Universal Search Tools
 🔍 search_repository      → Repository search with lineage & dependency tracking
 📋 get_catalog_metadata   → CSDL metadata schema retrieval (consumption, catalog, legacy)
 
-Phase 3.1: Metadata & Schema Discovery Tools (NEW)
+Phase 3.1: Metadata & Schema Discovery Tools
 📊 get_consumption_metadata    → Extract consumption service CSDL metadata (entity types, sets, complex types)
 📈 get_analytical_metadata     → Retrieve analytical metadata with dimensions, measures, and hierarchies
 🗄️  get_relational_metadata     → Get relational schema with SQL type mapping for ETL planning
 🔍 get_repository_search_metadata → Discover repository search capabilities and entity definitions
+
+Phase 4.1: Analytical Model Access Tools (NEW)
+📊 list_analytical_datasets    → List available analytical datasets within an asset for BI and reporting
+📈 get_analytical_model        → Get OData service document and metadata with dimensions/measures
+🔍 query_analytical_data       → Execute OData queries with full syntax ($select, $filter, $apply aggregations)
+📄 get_analytical_service_document → Get service capabilities and available entity sets
 ```
 
 ### AI Assistant Integration:
@@ -245,12 +251,19 @@ Phase 2.2: Universal Search Tools
 "Get the catalog metadata schema to understand available entity types"
 "Search for tables and views in the SAP_CONTENT space with lineage information"
 
-NEW: Phase 3.1: Metadata & Schema Discovery Tools
+Phase 3.1: Metadata & Schema Discovery Tools
 "Get the consumption metadata schema to see all available entity types and sets"
 "Retrieve analytical metadata for SALES_ANALYTICS.REVENUE_ANALYSIS with dimensions and measures"
 "Get the relational schema for CUSTOMER_DATA with SQL type mappings for ETL planning"
 "Show me the repository search metadata to understand searchable object types and fields"
 "Extract OData metadata for SAP_CONTENT.FINANCIAL_TRANSACTIONS in relational format"
+
+NEW: Phase 4.1: Analytical Model Access Tools
+"List all analytical datasets available in SALES_ANALYTICS.REVENUE_ANALYSIS"
+"Get the analytical model for SALES_ANALYTICS.REVENUE_ANALYSIS with dimensions and measures"
+"Query analytical data: select CustomerID, TotalAmount where Amount > 1000 order by TotalAmount desc"
+"Execute aggregation query: group by Currency and calculate sum of Amount"
+"Get the OData service document for SAP_CONTENT.FINANCIAL_MODEL to see available entity sets"
 ```
 
 ### Cursor IDE Integration
@@ -497,6 +510,15 @@ This MCP server implementation was significantly enhanced through collaboration 
 - **Repository Search Schema**: Static metadata defining searchable object types and fields
 - **XML Parsing**: Sophisticated CSDL parsing with SAP annotation extraction
 - **Flexible Output**: Both parsed JSON and raw XML formats supported
+
+#### 📈 **Analytical Model Access (Phase 4.1 - NEW)**
+- **Analytical Dataset Listing**: Enumerate all available datasets within analytical assets
+- **OData Service Discovery**: Get service documents with entity set definitions
+- **Dimension & Measure Identification**: Automatic extraction from CSDL metadata using SAP annotations
+- **Advanced OData Queries**: Full support for $select, $filter, $orderby, $top, $skip, $count
+- **OData Aggregations**: Execute $apply queries with groupby, sum, average, min, max, count
+- **BI Tool Integration**: Ready for Power BI, Tableau, and SAP Analytics Cloud connections
+- **Comprehensive Testing**: 7 test cases covering all query patterns and aggregation scenarios
 
 #### 📋 **Best Practices Implementation**
 - **Anthropic MCP 2025 Standards**: Full compliance with Model Context Protocol best practices
