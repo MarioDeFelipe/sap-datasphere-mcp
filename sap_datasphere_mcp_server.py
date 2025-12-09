@@ -169,27 +169,33 @@ async def handle_list_resources() -> list[Resource]:
 @server.read_resource()
 async def handle_read_resource(uri: str) -> str:
     """Read specific Datasphere resource content"""
-    
-    if uri == "datasphere://spaces":
-        return json.dumps(MOCK_DATA["spaces"], indent=2)
-    
-    elif uri == "datasphere://connections":
-        return json.dumps(MOCK_DATA["connections"], indent=2)
-    
-    elif uri == "datasphere://tasks":
-        return json.dumps(MOCK_DATA["tasks"], indent=2)
-    
-    elif uri == "datasphere://marketplace":
-        return json.dumps(MOCK_DATA["marketplace_packages"], indent=2)
-    
-    elif uri.startswith("datasphere://spaces/") and uri.endswith("/tables"):
-        # Extract space ID from URI
-        space_id = uri.split("/")[2]
-        tables = MOCK_DATA["tables"].get(space_id, [])
-        return json.dumps(tables, indent=2)
-    
+
+    if DATASPHERE_CONFIG["use_mock_data"]:
+        # Mock data mode - return static mock data
+        if uri == "datasphere://spaces":
+            return json.dumps(MOCK_DATA["spaces"], indent=2)
+
+        elif uri == "datasphere://connections":
+            return json.dumps(MOCK_DATA["connections"], indent=2)
+
+        elif uri == "datasphere://tasks":
+            return json.dumps(MOCK_DATA["tasks"], indent=2)
+
+        elif uri == "datasphere://marketplace":
+            return json.dumps(MOCK_DATA["marketplace_packages"], indent=2)
+
+        elif uri.startswith("datasphere://spaces/") and uri.endswith("/tables"):
+            # Extract space ID from URI
+            space_id = uri.split("/")[2]
+            tables = MOCK_DATA["tables"].get(space_id, [])
+            return json.dumps(tables, indent=2)
+
+        else:
+            raise ValueError(f"Unknown resource URI: {uri}")
     else:
-        raise ValueError(f"Unknown resource URI: {uri}")
+        # Real data mode - this handler is not used with real OAuth connections
+        # Resources are accessed through MCP tools instead
+        raise ValueError(f"Resource URIs not supported in real data mode. Use MCP tools instead: {uri}")
 
 @server.list_prompts()
 async def handle_list_prompts() -> list[Prompt]:
