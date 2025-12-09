@@ -51,6 +51,9 @@ class ToolValidators:
             "get_analytical_model": ToolValidators._get_analytical_model_rules(),
             "query_analytical_data": ToolValidators._query_analytical_data_rules(),
             "get_analytical_service_document": ToolValidators._get_analytical_service_document_rules(),
+            "list_repository_objects": ToolValidators._list_repository_objects_rules(),
+            "get_object_definition": ToolValidators._get_object_definition_rules(),
+            "get_deployed_objects": ToolValidators._get_deployed_objects_rules(),
         }
 
         return validators.get(tool_name, [])
@@ -772,6 +775,117 @@ class ToolValidators:
         ]
 
     @staticmethod
+    def _list_repository_objects_rules() -> List[ValidationRule]:
+        """Validation rules for list_repository_objects tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="object_types",
+                validation_type=ValidationType.STRING,
+                required=False
+            ),
+            ValidationRule(
+                param_name="status_filter",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=50
+            ),
+            ValidationRule(
+                param_name="include_dependencies",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            ),
+            ValidationRule(
+                param_name="top",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="skip",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _get_object_definition_rules() -> List[ValidationRule]:
+        """Validation rules for get_object_definition tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="object_id",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=r'^[A-Za-z0-9_\-]+$'
+            ),
+            ValidationRule(
+                param_name="include_full_definition",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            ),
+            ValidationRule(
+                param_name="include_dependencies",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _get_deployed_objects_rules() -> List[ValidationRule]:
+        """Validation rules for get_deployed_objects tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="object_types",
+                validation_type=ValidationType.STRING,
+                required=False
+            ),
+            ValidationRule(
+                param_name="runtime_status",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=50
+            ),
+            ValidationRule(
+                param_name="include_metrics",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            ),
+            ValidationRule(
+                param_name="top",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="skip",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            )
+        ]
+
+    @staticmethod
     def get_all_tool_names() -> List[str]:
         """Get list of all tools with validators"""
         return [
@@ -802,7 +916,10 @@ class ToolValidators:
             "list_analytical_datasets",
             "get_analytical_model",
             "query_analytical_data",
-            "get_analytical_service_document"
+            "get_analytical_service_document",
+            "list_repository_objects",
+            "get_object_definition",
+            "get_deployed_objects"
         ]
 
     @staticmethod

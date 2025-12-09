@@ -192,7 +192,12 @@ Phase 3.1: Metadata & Schema Discovery Tools
 🗄️  get_relational_metadata     → Get relational schema with SQL type mapping for ETL planning
 🔍 get_repository_search_metadata → Discover repository search capabilities and entity definitions
 
-Phase 4.1: Analytical Model Access Tools (NEW)
+Phase 3.2: Repository Object Discovery Tools (NEW)
+🗂️  list_repository_objects     → Browse all repository objects (tables, views, models, data flows) with dependencies
+📋 get_object_definition       → Get complete design-time object definitions with structure, logic, and metadata
+🚀 get_deployed_objects        → List runtime/deployed objects with execution metrics and performance statistics
+
+Phase 4.1: Analytical Model Access Tools
 📊 list_analytical_datasets    → List available analytical datasets within an asset for BI and reporting
 📈 get_analytical_model        → Get OData service document and metadata with dimensions/measures
 🔍 query_analytical_data       → Execute OData queries with full syntax ($select, $filter, $apply aggregations)
@@ -258,7 +263,15 @@ Phase 3.1: Metadata & Schema Discovery Tools
 "Show me the repository search metadata to understand searchable object types and fields"
 "Extract OData metadata for SAP_CONTENT.FINANCIAL_TRANSACTIONS in relational format"
 
-NEW: Phase 4.1: Analytical Model Access Tools
+NEW: Phase 3.2: Repository Object Discovery Tools
+"List all repository objects in SAP_CONTENT space with their types and statuses"
+"Get the complete definition for FINANCIAL_TRANSACTIONS table including columns, keys, and indexes"
+"Show me all data flows in SAP_CONTENT with their transformation logic and schedules"
+"List deployed objects in SAP_CONTENT with runtime metrics and execution history"
+"Get object definition for CUSTOMER_VIEW including SQL definition and dependencies"
+"Show all active deployed objects with performance statistics"
+
+Phase 4.1: Analytical Model Access Tools
 "List all analytical datasets available in SALES_ANALYTICS.REVENUE_ANALYSIS"
 "Get the analytical model for SALES_ANALYTICS.REVENUE_ANALYSIS with dimensions and measures"
 "Query analytical data: select CustomerID, TotalAmount where Amount > 1000 order by TotalAmount desc"
@@ -511,7 +524,16 @@ This MCP server implementation was significantly enhanced through collaboration 
 - **XML Parsing**: Sophisticated CSDL parsing with SAP annotation extraction
 - **Flexible Output**: Both parsed JSON and raw XML formats supported
 
-#### 📈 **Analytical Model Access (Phase 4.1 - NEW)**
+#### 🗂️ **Repository Object Discovery (Phase 3.2 - NEW)**
+- **Repository Object Listing**: Browse all design-time objects (tables, views, models, data flows)
+- **Object Definition Retrieval**: Complete structure, logic, transformations, and metadata
+- **Deployed Object Monitoring**: Runtime status, execution metrics, and performance statistics
+- **Dependency Mapping**: Upstream and downstream dependencies for impact analysis
+- **Type-Specific Details**: Tables (columns, keys, indexes), Views (SQL definitions), DataFlows (transformations)
+- **Filtering & Pagination**: Object type filters, status filters, and efficient pagination
+- **Comprehensive Testing**: 9 test cases covering all object types and scenarios
+
+#### 📈 **Analytical Model Access (Phase 4.1)**
 - **Analytical Dataset Listing**: Enumerate all available datasets within analytical assets
 - **OData Service Discovery**: Get service documents with entity set definitions
 - **Dimension & Measure Identification**: Automatic extraction from CSDL metadata using SAP annotations

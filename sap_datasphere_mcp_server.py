@@ -749,6 +749,112 @@ async def handle_list_tools() -> list[Tool]:
                 },
                 "required": ["space_id", "asset_id"]
             }
+        ),
+
+        # Phase 3.2: Repository Object Discovery Tools
+        Tool(
+            name="list_repository_objects",
+            description="Browse all repository objects in a SAP Datasphere space including tables, views, analytical models, data flows, and transformations. This tool provides comprehensive metadata, dependency information, and lineage for design-time objects. Use this for object inventory, data cataloging, and understanding what assets exist in a space.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT', 'SALES_ANALYTICS')"
+                    },
+                    "object_types": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Filter by object types: Table, View, AnalyticalModel, DataFlow, Transformation, StoredProcedure, CalculationView, Hierarchy, Entity, Association"
+                    },
+                    "status_filter": {
+                        "type": "string",
+                        "description": "Filter by status: Active, Inactive, Draft, Deployed"
+                    },
+                    "include_dependencies": {
+                        "type": "boolean",
+                        "description": "Include dependency information (upstream and downstream objects)",
+                        "default": False
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (default: 50, max: 500)",
+                        "default": 50
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of results to skip for pagination (default: 0)",
+                        "default": 0
+                    }
+                },
+                "required": ["space_id"]
+            }
+        ),
+        Tool(
+            name="get_object_definition",
+            description="Get complete design-time object definition from SAP Datasphere repository. Retrieves detailed structure, logic, transformations, and metadata for tables (with columns, keys, indexes), views (with SQL definitions), analytical models (with dimensions/measures), and data flows (with transformation steps). Use this for understanding object implementation details, extracting schema information, or planning migrations.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "object_id": {
+                        "type": "string",
+                        "description": "Object identifier/name (e.g., 'FINANCIAL_TRANSACTIONS', 'CUSTOMER_VIEW')"
+                    },
+                    "include_full_definition": {
+                        "type": "boolean",
+                        "description": "Include complete object definition with all details (columns, transformations, logic)",
+                        "default": True
+                    },
+                    "include_dependencies": {
+                        "type": "boolean",
+                        "description": "Include dependency information (upstream sources and downstream consumers)",
+                        "default": True
+                    }
+                },
+                "required": ["space_id", "object_id"]
+            }
+        ),
+        Tool(
+            name="get_deployed_objects",
+            description="List runtime/deployed objects that are actively running in SAP Datasphere. Returns deployment status, runtime metrics, execution history for data flows, and performance statistics. Use this for monitoring deployed assets, tracking execution status, analyzing runtime performance, and identifying active vs inactive objects.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "object_types": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Filter by object types: Table, View, AnalyticalModel, DataFlow"
+                    },
+                    "runtime_status": {
+                        "type": "string",
+                        "description": "Filter by runtime status: Active, Running, Idle, Error, Suspended"
+                    },
+                    "include_metrics": {
+                        "type": "boolean",
+                        "description": "Include runtime performance metrics (query times, execution stats, cache hit rates)",
+                        "default": True
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (default: 50, max: 500)",
+                        "default": 50
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of results to skip for pagination (default: 0)",
+                        "default": 0
+                    }
+                },
+                "required": ["space_id"]
+            }
         )
     ]
 
@@ -3009,6 +3115,521 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 return [types.TextContent(
                     type="text",
                     text=f"Error fetching service document: {str(e)}"
+                )]
+
+    # Phase 3.2: Repository Object Discovery Tools
+    elif name == "list_repository_objects":
+        space_id = arguments["space_id"]
+        object_types = arguments.get("object_types")
+        status_filter = arguments.get("status_filter")
+        include_dependencies = arguments.get("include_dependencies", False)
+        top = arguments.get("top", 50)
+        skip = arguments.get("skip", 0)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock repository objects
+            mock_objects = [
+                {
+                    "id": "repo-obj-12345",
+                    "objectType": "Table",
+                    "name": "FINANCIAL_TRANSACTIONS",
+                    "businessName": "Financial Transactions Table",
+                    "technicalName": "FINANCIAL_TRANSACTIONS",
+                    "description": "Core financial transaction data with account information",
+                    "spaceId": space_id,
+                    "spaceName": "SAP Content",
+                    "status": "Active",
+                    "deploymentStatus": "Deployed",
+                    "owner": "SYSTEM",
+                    "createdBy": "SYSTEM",
+                    "createdAt": "2024-01-15T10:30:00Z",
+                    "modifiedBy": "ADMIN",
+                    "modifiedAt": "2024-11-20T14:22:00Z",
+                    "version": "2.1",
+                    "packageName": "sap.content.finance",
+                    "tags": ["finance", "transactions", "core"],
+                    "columns": [
+                        {"name": "TRANSACTION_ID", "dataType": "NVARCHAR(50)", "isPrimaryKey": True},
+                        {"name": "AMOUNT", "dataType": "DECIMAL(15,2)", "isPrimaryKey": False},
+                        {"name": "CURRENCY", "dataType": "NVARCHAR(3)", "isPrimaryKey": False}
+                    ],
+                    "dependencies": {
+                        "upstream": ["SOURCE_SYSTEM_TABLE"],
+                        "downstream": ["FIN_ANALYTICS_VIEW", "FIN_REPORT_MODEL"]
+                    }
+                },
+                {
+                    "id": "repo-obj-67890",
+                    "objectType": "View",
+                    "name": "CUSTOMER_FINANCIAL_SUMMARY",
+                    "businessName": "Customer Financial Summary View",
+                    "technicalName": "CUSTOMER_FIN_SUMMARY_VIEW",
+                    "description": "Aggregated customer financial data",
+                    "spaceId": space_id,
+                    "spaceName": "SAP Content",
+                    "status": "Active",
+                    "deploymentStatus": "Deployed",
+                    "owner": "FIN_ADMIN",
+                    "createdBy": "FIN_ADMIN",
+                    "createdAt": "2024-03-10T08:15:00Z",
+                    "modifiedBy": "FIN_ADMIN",
+                    "modifiedAt": "2024-10-05T16:45:00Z",
+                    "version": "1.3",
+                    "packageName": "sap.content.finance.views",
+                    "tags": ["customer", "finance", "summary"],
+                    "basedOn": ["FINANCIAL_TRANSACTIONS", "CUSTOMER_MASTER"],
+                    "dependencies": {
+                        "upstream": ["FINANCIAL_TRANSACTIONS", "CUSTOMER_MASTER"],
+                        "downstream": ["CUSTOMER_DASHBOARD"]
+                    }
+                },
+                {
+                    "id": "repo-obj-11111",
+                    "objectType": "AnalyticalModel",
+                    "name": "SALES_ANALYTICS_MODEL",
+                    "businessName": "Sales Analytics Model",
+                    "technicalName": "SALES_ANALYTICS_MODEL",
+                    "description": "Comprehensive sales analytics with dimensions and measures",
+                    "spaceId": space_id,
+                    "spaceName": "Sales Analytics",
+                    "status": "Active",
+                    "deploymentStatus": "Deployed",
+                    "owner": "SALES_ADMIN",
+                    "version": "3.0",
+                    "dimensions": ["Customer", "Product", "Time", "Region"],
+                    "measures": ["Revenue", "Quantity", "Profit"],
+                    "dependencies": {
+                        "upstream": ["SALES_ORDERS", "SALES_ITEMS", "CUSTOMER_MASTER"],
+                        "downstream": ["SALES_DASHBOARD", "EXECUTIVE_REPORT"]
+                    }
+                },
+                {
+                    "id": "repo-obj-22222",
+                    "objectType": "DataFlow",
+                    "name": "LOAD_FINANCIAL_DATA",
+                    "businessName": "Financial Data Load Process",
+                    "technicalName": "LOAD_FINANCIAL_DATA",
+                    "description": "ETL process for loading financial transactions from ERP",
+                    "spaceId": space_id,
+                    "status": "Active",
+                    "deploymentStatus": "Deployed",
+                    "owner": "ETL_ADMIN",
+                    "version": "1.5",
+                    "sourceObjects": ["ERP_TRANSACTIONS"],
+                    "targetObjects": ["FINANCIAL_TRANSACTIONS"],
+                    "schedule": {"frequency": "Daily", "time": "02:00:00"},
+                    "lastRun": {
+                        "timestamp": "2024-12-04T02:00:00Z",
+                        "status": "Success",
+                        "recordsProcessed": 125000
+                    }
+                }
+            ]
+
+            # Filter by object types
+            if object_types:
+                mock_objects = [obj for obj in mock_objects if obj["objectType"] in object_types]
+
+            # Filter by status
+            if status_filter:
+                mock_objects = [obj for obj in mock_objects if obj["status"] == status_filter]
+
+            # Apply pagination
+            paginated_objects = mock_objects[skip:skip + top]
+
+            # Remove dependencies if not requested
+            if not include_dependencies:
+                for obj in paginated_objects:
+                    obj.pop("dependencies", None)
+
+            # Build summary
+            type_counts = {}
+            for obj in paginated_objects:
+                obj_type = obj["objectType"]
+                type_counts[obj_type] = type_counts.get(obj_type, 0) + 1
+
+            result = {
+                "space_id": space_id,
+                "objects": paginated_objects,
+                "returned_count": len(paginated_objects),
+                "has_more": (skip + len(paginated_objects)) < len(mock_objects),
+                "summary": {
+                    "total_objects": len(paginated_objects),
+                    "by_type": type_counts
+                }
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Repository Objects in {space_id}:\n\n" +
+                     json.dumps(result, indent=2) +
+                     f"\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real repository data."
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot list repository objects."
+                )]
+
+            try:
+                # Build endpoint URL
+                url = f"{DATASPHERE_CONFIG['base_url']}/deepsea/repository/{space_id}/objects"
+                params = {"$top": top, "$skip": skip}
+
+                # Build filter expression
+                filters = []
+                if object_types:
+                    type_filters = " or ".join([f"objectType eq '{t}'" for t in object_types])
+                    filters.append(f"({type_filters})")
+                if status_filter:
+                    filters.append(f"status eq '{status_filter}'")
+                if filters:
+                    params["$filter"] = " and ".join(filters)
+
+                # Add expand for dependencies
+                if include_dependencies:
+                    params["$expand"] = "dependencies"
+
+                headers = await datasphere_connector._get_headers()
+                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+
+                        # Build summary
+                        objects = data.get("value", [])
+                        type_counts = {}
+                        for obj in objects:
+                            obj_type = obj.get("objectType", "Unknown")
+                            type_counts[obj_type] = type_counts.get(obj_type, 0) + 1
+
+                        result = {
+                            "space_id": space_id,
+                            "objects": objects,
+                            "returned_count": len(objects),
+                            "has_more": len(objects) == top,
+                            "summary": {
+                                "total_objects": len(objects),
+                                "by_type": type_counts
+                            }
+                        }
+
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Repository Objects in {space_id}:\n\n" +
+                                 json.dumps(result, indent=2)
+                        )]
+                    else:
+                        error_text = await response.text()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Error listing repository objects (HTTP {response.status}):\n{error_text}"
+                        )]
+            except Exception as e:
+                logger.error(f"Error listing repository objects: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error listing repository objects: {str(e)}"
+                )]
+
+    elif name == "get_object_definition":
+        space_id = arguments["space_id"]
+        object_id = arguments["object_id"]
+        include_full_definition = arguments.get("include_full_definition", True)
+        include_dependencies = arguments.get("include_dependencies", True)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock object definition (Table example)
+            mock_definition = {
+                "id": object_id,
+                "objectType": "Table",
+                "name": object_id,
+                "businessName": f"{object_id} Table",
+                "technicalName": object_id,
+                "description": f"Complete definition for {object_id}",
+                "spaceId": space_id,
+                "status": "Active",
+                "deploymentStatus": "Deployed",
+                "owner": "SYSTEM",
+                "version": "2.1"
+            }
+
+            if include_full_definition:
+                mock_definition["definition"] = {
+                    "type": "Table",
+                    "columns": [
+                        {
+                            "name": "TRANSACTION_ID",
+                            "technicalName": "TRANSACTION_ID",
+                            "dataType": "NVARCHAR",
+                            "length": 50,
+                            "isPrimaryKey": True,
+                            "isNullable": False,
+                            "description": "Unique transaction identifier",
+                            "semanticType": "BusinessKey"
+                        },
+                        {
+                            "name": "AMOUNT",
+                            "technicalName": "AMOUNT",
+                            "dataType": "DECIMAL",
+                            "precision": 15,
+                            "scale": 2,
+                            "isPrimaryKey": False,
+                            "isNullable": False,
+                            "description": "Transaction amount",
+                            "semanticType": "Amount"
+                        },
+                        {
+                            "name": "CURRENCY",
+                            "technicalName": "CURRENCY",
+                            "dataType": "NVARCHAR",
+                            "length": 3,
+                            "isPrimaryKey": False,
+                            "isNullable": False,
+                            "description": "Currency code",
+                            "semanticType": "CurrencyCode"
+                        }
+                    ],
+                    "primaryKey": {
+                        "name": "PK_TRANSACTION",
+                        "columns": ["TRANSACTION_ID"]
+                    },
+                    "indexes": [
+                        {"name": "IDX_AMOUNT", "columns": ["AMOUNT"], "isUnique": False}
+                    ]
+                }
+
+            if include_dependencies:
+                mock_definition["dependencies"] = {
+                    "upstream": ["SOURCE_SYSTEM_TABLE"],
+                    "downstream": ["FIN_ANALYTICS_VIEW", "FIN_REPORT_MODEL"]
+                }
+
+            mock_definition["metadata"] = {
+                "rowCount": 15000000,
+                "sizeInMB": 2500,
+                "lastModified": "2024-11-20T14:22:00Z"
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Object Definition for {space_id}/{object_id}:\n\n" +
+                     json.dumps(mock_definition, indent=2) +
+                     f"\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real object definition."
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot get object definition."
+                )]
+
+            try:
+                # Build endpoint URL
+                url = f"{DATASPHERE_CONFIG['base_url']}/deepsea/repository/{space_id}/designobjects/{object_id}"
+                params = {}
+
+                if include_full_definition:
+                    params["includeDefinition"] = "true"
+                if include_dependencies:
+                    params["$expand"] = "dependencies"
+
+                headers = await datasphere_connector._get_headers()
+                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Object Definition for {space_id}/{object_id}:\n\n" +
+                                 json.dumps(data, indent=2)
+                        )]
+                    else:
+                        error_text = await response.text()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Error getting object definition (HTTP {response.status}):\n{error_text}"
+                        )]
+            except Exception as e:
+                logger.error(f"Error getting object definition: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error getting object definition: {str(e)}"
+                )]
+
+    elif name == "get_deployed_objects":
+        space_id = arguments["space_id"]
+        object_types = arguments.get("object_types")
+        runtime_status = arguments.get("runtime_status")
+        include_metrics = arguments.get("include_metrics", True)
+        top = arguments.get("top", 50)
+        skip = arguments.get("skip", 0)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock deployed objects
+            mock_deployed = [
+                {
+                    "id": "deployed-12345",
+                    "objectId": "FINANCIAL_TRANSACTIONS",
+                    "objectType": "Table",
+                    "name": "FINANCIAL_TRANSACTIONS",
+                    "businessName": "Financial Transactions Table",
+                    "spaceId": space_id,
+                    "deploymentStatus": "Deployed",
+                    "deployedBy": "SYSTEM",
+                    "deployedAt": "2024-01-15T10:30:00Z",
+                    "version": "2.1",
+                    "runtimeStatus": "Active",
+                    "lastAccessed": "2024-12-04T15:30:00Z",
+                    "accessCount": 15234,
+                    "runtimeMetrics": {
+                        "rowCount": 15000000,
+                        "sizeInMB": 2500,
+                        "avgQueryTime": "0.25s",
+                        "queriesPerDay": 1250
+                    }
+                },
+                {
+                    "id": "deployed-67890",
+                    "objectId": "LOAD_FINANCIAL_DATA",
+                    "objectType": "DataFlow",
+                    "name": "LOAD_FINANCIAL_DATA",
+                    "businessName": "Financial Data Load Process",
+                    "spaceId": space_id,
+                    "deploymentStatus": "Deployed",
+                    "deployedBy": "ETL_ADMIN",
+                    "deployedAt": "2024-01-20T10:00:00Z",
+                    "version": "1.5",
+                    "runtimeStatus": "Running",
+                    "schedule": {
+                        "frequency": "Daily",
+                        "nextRun": "2024-12-05T02:00:00Z",
+                        "lastRun": "2024-12-04T02:00:00Z"
+                    },
+                    "lastExecution": {
+                        "runId": "run-20241204-020000",
+                        "startTime": "2024-12-04T02:00:00Z",
+                        "endTime": "2024-12-04T02:15:32Z",
+                        "status": "Success",
+                        "recordsProcessed": 125000,
+                        "duration": "00:15:32"
+                    },
+                    "runtimeMetrics": {
+                        "totalRuns": 320,
+                        "successRate": 99.7,
+                        "avgDuration": "00:14:25",
+                        "avgRecordsProcessed": 123500
+                    }
+                }
+            ]
+
+            # Filter by object types
+            if object_types:
+                mock_deployed = [obj for obj in mock_deployed if obj["objectType"] in object_types]
+
+            # Filter by runtime status
+            if runtime_status:
+                mock_deployed = [obj for obj in mock_deployed if obj["runtimeStatus"] == runtime_status]
+
+            # Apply pagination
+            paginated_deployed = mock_deployed[skip:skip + top]
+
+            # Remove metrics if not requested
+            if not include_metrics:
+                for obj in paginated_deployed:
+                    obj.pop("runtimeMetrics", None)
+
+            # Build summary
+            status_counts = {}
+            type_counts = {}
+            for obj in paginated_deployed:
+                status = obj["runtimeStatus"]
+                obj_type = obj["objectType"]
+                status_counts[status] = status_counts.get(status, 0) + 1
+                type_counts[obj_type] = type_counts.get(obj_type, 0) + 1
+
+            result = {
+                "space_id": space_id,
+                "deployed_objects": paginated_deployed,
+                "returned_count": len(paginated_deployed),
+                "has_more": (skip + len(paginated_deployed)) < len(mock_deployed),
+                "summary": {
+                    "total_deployed": len(paginated_deployed),
+                    "by_status": status_counts,
+                    "by_type": type_counts
+                }
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Deployed Objects in {space_id}:\n\n" +
+                     json.dumps(result, indent=2) +
+                     f"\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real deployment data."
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot get deployed objects."
+                )]
+
+            try:
+                # Build endpoint URL
+                url = f"{DATASPHERE_CONFIG['base_url']}/deepsea/repository/{space_id}/deployedobjects"
+                params = {"$top": top, "$skip": skip}
+
+                # Build filter expression
+                filters = ["deploymentStatus eq 'Deployed'"]  # Always filter for deployed objects
+                if object_types:
+                    type_filters = " or ".join([f"objectType eq '{t}'" for t in object_types])
+                    filters.append(f"({type_filters})")
+                if runtime_status:
+                    filters.append(f"runtimeStatus eq '{runtime_status}'")
+                if filters:
+                    params["$filter"] = " and ".join(filters)
+
+                headers = await datasphere_connector._get_headers()
+                async with datasphere_connector._session.get(url, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+
+                        # Build summary
+                        objects = data.get("value", [])
+                        status_counts = {}
+                        type_counts = {}
+                        for obj in objects:
+                            status = obj.get("runtimeStatus", "Unknown")
+                            obj_type = obj.get("objectType", "Unknown")
+                            status_counts[status] = status_counts.get(status, 0) + 1
+                            type_counts[obj_type] = type_counts.get(obj_type, 0) + 1
+
+                        result = {
+                            "space_id": space_id,
+                            "deployed_objects": objects,
+                            "returned_count": len(objects),
+                            "has_more": len(objects) == top,
+                            "summary": {
+                                "total_deployed": len(objects),
+                                "by_status": status_counts,
+                                "by_type": type_counts
+                            }
+                        }
+
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Deployed Objects in {space_id}:\n\n" +
+                                 json.dumps(result, indent=2)
+                        )]
+                    else:
+                        error_text = await response.text()
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Error getting deployed objects (HTTP {response.status}):\n{error_text}"
+                        )]
+            except Exception as e:
+                logger.error(f"Error getting deployed objects: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error getting deployed objects: {str(e)}"
                 )]
 
     else:
