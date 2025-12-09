@@ -197,6 +197,144 @@ class AuthorizationManager:
             description="List all assets within a specific space",
             risk_level="low"
         ),
+
+        # Phase 2.2: Universal Search Tools
+        "search_catalog": ToolPermission(
+            tool_name="search_catalog",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Universal catalog search with advanced syntax",
+            risk_level="low"
+        ),
+        "search_repository": ToolPermission(
+            tool_name="search_repository",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Repository object search with lineage tracking",
+            risk_level="low"
+        ),
+        "get_catalog_metadata": ToolPermission(
+            tool_name="get_catalog_metadata",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Retrieve CSDL metadata schema for catalog service",
+            risk_level="low"
+        ),
+
+        # Phase 3.1: Metadata & Schema Discovery Tools
+        "get_consumption_metadata": ToolPermission(
+            tool_name="get_consumption_metadata",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get consumption layer metadata (OData schema)",
+            risk_level="low"
+        ),
+        "get_analytical_metadata": ToolPermission(
+            tool_name="get_analytical_metadata",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get analytical metadata with dimensions/measures identification",
+            risk_level="low"
+        ),
+        "get_relational_metadata": ToolPermission(
+            tool_name="get_relational_metadata",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get relational metadata with SQL type mapping",
+            risk_level="low"
+        ),
+        "get_repository_search_metadata": ToolPermission(
+            tool_name="get_repository_search_metadata",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get searchable object types and field metadata",
+            risk_level="low"
+        ),
+
+        # Phase 3.2: Repository Object Discovery Tools
+        "list_repository_objects": ToolPermission(
+            tool_name="list_repository_objects",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Browse repository objects with filtering and dependencies",
+            risk_level="low"
+        ),
+        "get_object_definition": ToolPermission(
+            tool_name="get_object_definition",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get complete design-time object definitions",
+            risk_level="low"
+        ),
+        "get_deployed_objects": ToolPermission(
+            tool_name="get_deployed_objects",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="List runtime/deployed objects with execution metrics",
+            risk_level="low"
+        ),
+
+        # Phase 4.1: Analytical Model Access Tools
+        "list_analytical_datasets": ToolPermission(
+            tool_name="list_analytical_datasets",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="List all analytical datasets available for querying",
+            risk_level="low"
+        ),
+        "get_analytical_model": ToolPermission(
+            tool_name="get_analytical_model",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get analytical model structure and metadata",
+            risk_level="low"
+        ),
+        "query_analytical_data": ToolPermission(
+            tool_name="query_analytical_data",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.DATA_ACCESS,
+            requires_consent=False,
+            description="Query analytical model data with OData parameters",
+            risk_level="medium"
+        ),
+        "get_analytical_service_document": ToolPermission(
+            tool_name="get_analytical_service_document",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get OData service document for analytical model",
+            risk_level="low"
+        ),
+
+        # Connection and testing tools
+        "get_connection_info": ToolPermission(
+            tool_name="get_connection_info",
+            permission_level=PermissionLevel.ADMIN,
+            category=ToolCategory.CONNECTION,
+            requires_consent=False,
+            description="Get detailed information about a specific connection",
+            risk_level="medium"
+        ),
+        "test_connection": ToolPermission(
+            tool_name="test_connection",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.CONNECTION,
+            requires_consent=False,
+            description="Test OAuth authentication and server connectivity",
+            risk_level="low"
+        ),
     }
 
     def __init__(self):
