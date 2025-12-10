@@ -1179,31 +1179,33 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                # Use simple API call without complex filters (API doesn't support contains/tolower)
-                # We'll filter client-side instead
+                # Use simple API call without ANY filters (API doesn't support ANY OData filters)
+                # Do ALL filtering client-side (same approach as list_catalog_assets)
                 endpoint = "/api/v1/datasphere/consumption/catalog/assets"
                 params = {"$top": 500}  # Get more assets to ensure we catch matches
 
-                # Only use simple space filter if provided (this usually works)
-                if space_filter:
-                    params["$filter"] = f"spaceId eq '{space_filter}'"
-
-                logger.info(f"Getting catalog assets for client-side search (space: {space_filter or 'all'})")
+                # NO filters in API call - even spaceId filter causes 400 error
+                logger.info(f"Getting all catalog assets for client-side search")
                 data = await datasphere_connector.get(endpoint, params=params)
 
                 all_assets = data.get("value", [])
 
-                # Client-side filtering for asset types and search term
+                # Client-side filtering for space, asset types, and search term
                 filtered_assets = []
                 search_term_lower = search_term.lower() if search_term else ""
 
                 for asset in all_assets:
+                    # Filter by space if specified (client-side)
+                    if space_filter:
+                        if asset.get("spaceId") != space_filter:
+                            continue
+
                     # Filter by asset type if specified
                     if asset_types:
                         if asset.get("assetType") not in asset_types:
                             continue
 
-                    # Filter by search term in name or description
+                    # Filter by search term in name, label, or description
                     if search_term:
                         name = asset.get("name", "").lower()
                         label = asset.get("label", "").lower()
