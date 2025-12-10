@@ -338,9 +338,9 @@ class DatasphereAuthConnector:
             Connection status dictionary
         """
         try:
-            # Use a lightweight endpoint that actually exists
-            # Try consumption metadata endpoint (returns XML, not JSON)
-            url = f"{self.config.base_url}/api/v1/datasphere/consumption/$metadata"
+            # Use a lightweight endpoint that we know works
+            # Use spaces endpoint (returns JSON with list of spaces)
+            url = f"{self.config.base_url}/api/v1/datasphere/consumption/catalog/spaces"
             headers = await self._get_headers()
 
             # Ensure session is created
