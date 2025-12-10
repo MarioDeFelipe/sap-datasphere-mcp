@@ -1137,28 +1137,94 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         return response
 
     elif name == "search_tables":
-        search_term = arguments["search_term"].lower()
+        search_term = arguments["search_term"]
         space_filter = arguments.get("space_id")
+        asset_types = arguments.get("asset_types", ["Table", "View"])
+        top = arguments.get("top", 50)
 
-        found_tables = []
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode
+            search_term_lower = search_term.lower()
+            found_tables = []
 
-        for space_id, tables in MOCK_DATA["tables"].items():
-            if space_filter and space_id != space_filter:
-                continue
+            for space_id, tables in MOCK_DATA["tables"].items():
+                if space_filter and space_id != space_filter:
+                    continue
 
-            for table in tables:
-                if (search_term in table["name"].lower() or
-                    search_term in table["description"].lower()):
+                for table in tables:
+                    if (search_term_lower in table["name"].lower() or
+                        search_term_lower in table["description"].lower()):
 
-                    table_info = table.copy()
-                    table_info["space_id"] = space_id
-                    found_tables.append(table_info)
+                        table_info = table.copy()
+                        table_info["space_id"] = space_id
+                        found_tables.append(table_info)
 
-        return [types.TextContent(
-            type="text",
-            text=f"Found {len(found_tables)} tables matching '{search_term}':\n\n" +
-                 json.dumps(found_tables, indent=2)
-        )]
+            result = {
+                "search_term": search_term,
+                "results": found_tables,
+                "total_matches": len(found_tables),
+                "search_timestamp": datetime.now().isoformat()
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"{json.dumps(result, indent=2)}\n\nNote: Mock data. Configure OAuth credentials to access real SAP Datasphere data."
+            )]
+        else:
+            # Real API mode
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Please configure DATASPHERE_CLIENT_ID and DATASPHERE_CLIENT_SECRET."
+                )]
+
+            try:
+                # Build filter for tables/views with search term
+                filter_parts = []
+
+                # Asset type filter
+                if asset_types:
+                    type_filters = [f"assetType eq '{t}'" for t in asset_types]
+                    filter_parts.append(f"({' or '.join(type_filters)})")
+
+                # Space filter
+                if space_filter:
+                    filter_parts.append(f"spaceId eq '{space_filter}'")
+
+                # Search term filter (search in name and description)
+                if search_term:
+                    filter_parts.append(f"(contains(tolower(name), '{search_term.lower()}') or contains(tolower(description), '{search_term.lower()}'))")
+
+                filter_expression = " and ".join(filter_parts) if filter_parts else None
+
+                endpoint = "/api/v1/datasphere/consumption/catalog/assets"
+                params = {"$top": top}
+                if filter_expression:
+                    params["$filter"] = filter_expression
+
+                logger.info(f"Searching tables with filter: {filter_expression}")
+                data = await datasphere_connector.get(endpoint, params=params)
+
+                assets = data.get("value", [])
+
+                result = {
+                    "search_term": search_term,
+                    "results": assets,
+                    "total_matches": len(assets),
+                    "search_timestamp": datetime.now().isoformat()
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps(result, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Error searching tables: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error searching tables: {str(e)}"
+                )]
 
     elif name == "get_table_schema":
         space_id = arguments["space_id"]
@@ -1542,93 +1608,146 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         count = arguments.get("count", False)
         orderby = arguments.get("orderby")
 
-        # Get catalog assets (mock data supports space_id and asset_type filtering)
-        # Parse filter_expression for supported filters
-        space_id_filter = None
-        asset_type_filter = None
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock data mode
+            space_id_filter = None
+            asset_type_filter = None
 
-        if filter_expression:
-            # Simple parsing for common filters (production would use OData parser)
-            if "spaceId eq" in filter_expression:
-                # Extract space ID from filter like "spaceId eq 'SAP_CONTENT'"
+            if filter_expression:
                 import re
                 match = re.search(r"spaceId eq '([^']+)'", filter_expression)
                 if match:
                     space_id_filter = match.group(1)
-            if "assetType eq" in filter_expression:
-                # Extract asset type from filter like "assetType eq 'AnalyticalModel'"
-                import re
                 match = re.search(r"assetType eq '([^']+)'", filter_expression)
                 if match:
                     asset_type_filter = match.group(1)
 
-        # Get filtered assets
-        assets = get_mock_catalog_assets(space_id=space_id_filter, asset_type=asset_type_filter)
+            assets = get_mock_catalog_assets(space_id=space_id_filter, asset_type=asset_type_filter)
 
-        # Apply select fields if specified
-        if select_fields:
-            assets = [
-                {field: asset.get(field) for field in select_fields if field in asset}
-                for asset in assets
-            ]
+            if select_fields:
+                assets = [{field: asset.get(field) for field in select_fields if field in asset} for asset in assets]
 
-        # Apply orderby (simple implementation)
-        if orderby:
-            field = orderby.split()[0]  # e.g., "name asc" -> "name"
-            reverse = "desc" in orderby.lower()
-            assets = sorted(assets, key=lambda x: x.get(field, ""), reverse=reverse)
+            if orderby:
+                field = orderby.split()[0]
+                reverse = "desc" in orderby.lower()
+                assets = sorted(assets, key=lambda x: x.get(field, ""), reverse=reverse)
 
-        # Get total count before pagination
-        total_count = len(assets)
+            total_count = len(assets)
+            assets = assets[skip:skip + top]
 
-        # Apply pagination
-        assets = assets[skip:skip + top]
+            result = {"value": assets, "count": total_count if count else None, "top": top, "skip": skip, "returned": len(assets)}
 
-        result = {
-            "value": assets,
-            "count": total_count if count else None,
-            "top": top,
-            "skip": skip,
-            "returned": len(assets)
-        }
+            return [types.TextContent(
+                type="text",
+                text=f"Found {total_count} catalog assets (showing {len(assets)}):\n\n{json.dumps(result, indent=2)}\n\nNote: Mock data."
+            )]
+        else:
+            # Real API mode
+            if not datasphere_connector:
+                return [types.TextContent(type="text", text="Error: OAuth connector not initialized.")]
 
-        return [types.TextContent(
-            type="text",
-            text=f"Found {total_count} catalog assets (showing {len(assets)}):\n\n" +
-                 json.dumps(result, indent=2) +
-                 f"\n\n⚠️  NOTE: This is mock data. Real catalog browsing requires OAuth authentication."
-        )]
+            try:
+                endpoint = "/api/v1/datasphere/consumption/catalog/assets"
+                params = {"$top": top, "$skip": skip}
+
+                if filter_expression:
+                    params["$filter"] = filter_expression
+                if count:
+                    params["$count"] = "true"
+                if orderby:
+                    params["$orderby"] = orderby
+                if select_fields:
+                    params["$select"] = ",".join(select_fields) if isinstance(select_fields, list) else select_fields
+
+                data = await datasphere_connector.get(endpoint, params=params)
+                assets = data.get("value", [])
+                total_count = data.get("@odata.count", len(assets))
+
+                result = {"value": assets, "count": total_count if count else None, "top": top, "skip": skip, "returned": len(assets)}
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Found {total_count} catalog assets (showing {len(assets)}):\n\n{json.dumps(result, indent=2)}"
+                )]
+            except Exception as e:
+                logger.error(f"Error listing catalog assets: {e}")
+                return [types.TextContent(type="text", text=f"Error listing catalog assets: {e}")]
 
     elif name == "get_asset_details":
         space_id = arguments["space_id"]
         asset_id = arguments["asset_id"]
         select_fields = arguments.get("select_fields")
 
-        # Get detailed asset information
-        asset = get_mock_asset_details(space_id, asset_id)
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode
+            # Get detailed asset information
+            asset = get_mock_asset_details(space_id, asset_id)
 
-        if not asset:
+            if not asset:
+                return [types.TextContent(
+                    type="text",
+                    text=f">>> Asset Not Found <<<\n\n"
+                         f"Asset '{asset_id}' not found in space '{space_id}'.\n\n"
+                         f"Possible reasons:\n"
+                         f"- Asset ID is incorrect (check exact case and spelling)\n"
+                         f"- Space ID is incorrect\n"
+                         f"- Asset was deleted or moved\n\n"
+                         f"Try using list_catalog_assets or get_space_assets to find available assets."
+                )]
+
+            # Apply select fields if specified
+            if select_fields:
+                asset = {field: asset.get(field) for field in select_fields if field in asset}
+
             return [types.TextContent(
                 type="text",
-                text=f">>> Asset Not Found <<<\n\n"
-                     f"Asset '{asset_id}' not found in space '{space_id}'.\n\n"
-                     f"Possible reasons:\n"
-                     f"- Asset ID is incorrect (check exact case and spelling)\n"
-                     f"- Space ID is incorrect\n"
-                     f"- Asset was deleted or moved\n\n"
-                     f"Try using list_catalog_assets or get_space_assets to find available assets."
+                text=f"{json.dumps(asset, indent=2)}\n\nNote: Mock data. Configure OAuth credentials to access real SAP Datasphere data."
             )]
+        else:
+            # Real API mode
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Please configure DATASPHERE_CLIENT_ID and DATASPHERE_CLIENT_SECRET."
+                )]
 
-        # Apply select fields if specified
-        if select_fields:
-            asset = {field: asset.get(field) for field in select_fields if field in asset}
+            try:
+                # Get asset details from catalog API
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets('{asset_id}')"
+                params = {}
+                if select_fields:
+                    params["$select"] = ",".join(select_fields) if isinstance(select_fields, list) else select_fields
 
-        return [types.TextContent(
-            type="text",
-            text=f"Asset Details for '{asset_id}' in space '{space_id}':\n\n" +
-                 json.dumps(asset, indent=2) +
-                 f"\n\n⚠️  NOTE: This is mock data. Real catalog browsing requires OAuth authentication."
-        )]
+                logger.info(f"Getting asset details for {asset_id} in space {space_id}")
+                asset = await datasphere_connector.get(endpoint, params=params)
+
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps(asset, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Error getting asset details: {e}")
+
+                # Check if it's a 404 error
+                if "404" in str(e):
+                    return [types.TextContent(
+                        type="text",
+                        text=f">>> Asset Not Found <<<\n\n"
+                             f"Asset '{asset_id}' not found in space '{space_id}'.\n\n"
+                             f"Possible reasons:\n"
+                             f"- Asset ID is incorrect (check exact case and spelling)\n"
+                             f"- Space ID is incorrect\n"
+                             f"- Asset was deleted or moved\n"
+                             f"- You don't have permission to access this asset\n\n"
+                             f"Try using list_catalog_assets or get_space_assets to find available assets.\n\n"
+                             f"Error: {str(e)}"
+                    )]
+                else:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Error getting asset details: {str(e)}"
+                    )]
 
     elif name == "get_asset_by_compound_key":
         # Tool schema provides space_id and asset_id directly
