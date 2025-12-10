@@ -335,6 +335,30 @@ class AuthorizationManager:
             description="Test OAuth authentication and server connectivity",
             risk_level="low"
         ),
+        "get_current_user": ToolPermission(
+            tool_name="get_current_user",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get authenticated user information and permissions",
+            risk_level="low"
+        ),
+        "get_tenant_info": ToolPermission(
+            tool_name="get_tenant_info",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get SAP Datasphere tenant configuration and system info",
+            risk_level="low"
+        ),
+        "get_available_scopes": ToolPermission(
+            tool_name="get_available_scopes",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="List available OAuth2 scopes and permissions",
+            risk_level="low"
+        ),
     }
 
     def __init__(self):
