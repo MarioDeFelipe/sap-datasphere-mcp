@@ -1608,44 +1608,137 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         user_definition = arguments["user_definition"]
         output_file = arguments.get("output_file")
 
-        # Generate a secure password
-        password = secrets.token_urlsafe(16)
-        full_username = f"{space_id}#{database_user_id}"
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode
+            password = secrets.token_urlsafe(16)
+            full_username = f"{space_id}#{database_user_id}"
 
-        # Create the user result
-        result = {
-            "status": "SUCCESS",
-            "message": f"Database user '{database_user_id}' created successfully in space '{space_id}'",
-            "user": {
-                "user_id": database_user_id,
-                "full_name": full_username,
-                "status": "ACTIVE",
-                "created_date": datetime.utcnow().isoformat() + "Z",
-                "credentials": {
-                    "username": full_username,
-                    "password": password,
-                    "note": "IMPORTANT: Save this password securely! It will not be shown again."
+            result = {
+                "status": "SUCCESS",
+                "message": f"Database user '{database_user_id}' created successfully in space '{space_id}'",
+                "user": {
+                    "user_id": database_user_id,
+                    "full_name": full_username,
+                    "status": "ACTIVE",
+                    "created_date": datetime.utcnow().isoformat() + "Z",
+                    "credentials": {
+                        "username": full_username,
+                        "password": password,
+                        "note": "IMPORTANT: Save this password securely! It will not be shown again."
+                    },
+                    "permissions": user_definition
                 },
-                "permissions": user_definition
-            },
-            "next_steps": [
-                "Save the credentials securely (use output_file parameter recommended)",
-                "Communicate password to user via secure channel (not email!)",
-                "User must change password on first login",
-                "Test connection with the provided credentials"
-            ]
-        }
+                "next_steps": [
+                    "Save the credentials securely (use output_file parameter recommended)",
+                    "Communicate password to user via secure channel (not email!)",
+                    "User must change password on first login",
+                    "Test connection with the provided credentials"
+                ]
+            }
 
-        if output_file:
-            result["output_file"] = output_file
-            result["note"] = f"In production, credentials would be saved to {output_file}"
+            if output_file:
+                result["output_file"] = output_file
+                result["note"] = f"In production, credentials would be saved to {output_file}"
 
-        return [types.TextContent(
-            type="text",
-            text=f"Database User Created:\n\n" +
-                 json.dumps(result, indent=2) +
-                 f"\n\n⚠️  WARNING: This is mock data. Real user creation requires OAuth authentication."
-        )]
+            return [types.TextContent(
+                type="text",
+                text=f"Database User Created:\n\n" +
+                     json.dumps(result, indent=2) +
+                     f"\n\n⚠️  WARNING: This is mock data. Set USE_MOCK_DATA=false for real user creation."
+            )]
+        else:
+            # Real CLI execution
+            try:
+                import subprocess
+                import tempfile
+                import os
+
+                logger.info(f"Creating database user {database_user_id} in space {space_id}")
+
+                # Write user definition to temporary JSON file
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+                    json.dump(user_definition, temp_file, indent=2)
+                    temp_file_path = temp_file.name
+
+                try:
+                    # Execute datasphere CLI command
+                    cmd = [
+                        "datasphere", "dbusers", "create",
+                        "--space", space_id,
+                        "--databaseuser", database_user_id,
+                        "--file-path", temp_file_path
+                    ]
+
+                    logger.info(f"Executing CLI: {' '.join(cmd)}")
+
+                    result_proc = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                        timeout=60
+                    )
+
+                    cli_output = result_proc.stdout.strip()
+
+                    # Try to parse CLI output
+                    try:
+                        result_data = json.loads(cli_output)
+                    except json.JSONDecodeError:
+                        result_data = {"raw_output": cli_output}
+
+                    response = {
+                        "status": "SUCCESS",
+                        "message": f"Database user '{database_user_id}' created successfully",
+                        "space_id": space_id,
+                        "database_user_id": database_user_id,
+                        "cli_output": result_data,
+                        "source": "SAP Datasphere CLI"
+                    }
+
+                    if output_file:
+                        response["output_file"] = output_file
+                        response["note"] = f"To save credentials, use CLI output redirection"
+
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Database User Created:\n\n" +
+                             json.dumps(response, indent=2)
+                    )]
+
+                finally:
+                    # Clean up temporary file
+                    if os.path.exists(temp_file_path):
+                        os.unlink(temp_file_path)
+
+            except subprocess.CalledProcessError as e:
+                logger.error(f"CLI command failed: {e.stderr}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error creating database user: {e.stderr}\n\n"
+                         f"Command failed with exit code: {e.returncode}\n\n"
+                         f"Troubleshooting:\n"
+                         f"1. Verify user_definition format matches SAP requirements\n"
+                         f"2. Check permissions to create database users\n"
+                         f"3. Ensure user doesn't already exist\n"
+                         f"4. Verify space ID is correct"
+                )]
+            except FileNotFoundError:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: datasphere CLI not found. Please install and configure the CLI."
+                )]
+            except subprocess.TimeoutExpired:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: CLI command timed out after 60 seconds."
+                )]
+            except Exception as e:
+                logger.error(f"Unexpected error creating database user: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Unexpected error: {str(e)}"
+                )]
 
     elif name == "reset_database_user_password":
         space_id = arguments["space_id"]
