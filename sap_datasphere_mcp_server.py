@@ -1201,13 +1201,14 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 for asset in all_assets:
                     # Filter by space if specified (client-side)
                     if space_filter:
-                        if asset.get("spaceId") != space_filter:
+                        if asset.get("spaceName") != space_filter:
                             continue
 
                     # Filter by asset type if specified
-                    if asset_types:
-                        if asset.get("assetType") not in asset_types:
-                            continue
+                    # Note: assetType field doesn't exist in API response, skipping this filter
+                    # if asset_types:
+                    #     if asset.get("assetType") not in asset_types:
+                    #         continue
 
                     # Filter by search term in name, label, or description
                     if search_term:
