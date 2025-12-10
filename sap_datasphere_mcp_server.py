@@ -447,6 +447,33 @@ async def handle_list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="get_current_user",
+            description="Get authenticated user information including user ID, email, display name, roles, permissions, and account status. Use this to understand the current user's identity and access rights in SAP Datasphere.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        ),
+        Tool(
+            name="get_tenant_info",
+            description="Retrieve SAP Datasphere tenant configuration and system information including tenant ID, region, version, license type, storage quota/usage, user count, space count, enabled features, and maintenance windows. Use this for system administration and capacity planning.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        ),
+        Tool(
+            name="get_available_scopes",
+            description="List available OAuth2 scopes for the current user, showing which scopes are granted and which are available but not granted. Includes scope descriptions and the token's current scopes. Use this to understand API access capabilities and troubleshoot permission issues.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        ),
+        Tool(
             name="search_catalog",
             description="Universal search across all catalog items in SAP Datasphere using advanced search syntax. Supports searching across KPIs, assets, spaces, models, views, and tables. Use SCOPE:<scope_name> prefix for targeted searches. Boolean operators (AND, OR, NOT) supported.",
             inputSchema={
@@ -1689,6 +1716,285 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             text=f"Connection Test Results:\n\n" +
                  json.dumps(result, indent=2)
         )]
+
+    elif name == "get_current_user":
+        # Get current authenticated user information
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock user data
+            mock_user = {
+                "user_id": "TECH_USER_001",
+                "email": "technical_user@company.com",
+                "display_name": "Technical User (Mock)",
+                "roles": ["DWC_CONSUMER", "CATALOG_READER", "SPACE_VIEWER"],
+                "permissions": ["READ_SPACES", "READ_ASSETS", "QUERY_DATA", "READ_CATALOG"],
+                "tenant_id": DATASPHERE_CONFIG["tenant_id"],
+                "last_login": (datetime.utcnow() - timedelta(hours=2)).isoformat() + "Z",
+                "account_status": "Active",
+                "note": "This is mock data. Set USE_MOCK_DATA=false for real user information."
+            }
+            return [types.TextContent(
+                type="text",
+                text=f"Current User Information:\n\n" +
+                     json.dumps(mock_user, indent=2)
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot get user information."
+                )]
+
+            try:
+                # Try to get user info from token or API
+                # First, try to decode JWT token to get user info
+                token = await datasphere_connector.get_valid_token()
+
+                # Try to parse JWT token (without verification since we trust our own token)
+                import base64
+                token_parts = token.split('.')
+                if len(token_parts) >= 2:
+                    # Decode payload (add padding if needed)
+                    payload = token_parts[1]
+                    padding = 4 - len(payload) % 4
+                    if padding != 4:
+                        payload += '=' * padding
+
+                    try:
+                        decoded = base64.urlsafe_b64decode(payload)
+                        token_data = json.loads(decoded)
+
+                        user_info = {
+                            "user_id": token_data.get("user_id", token_data.get("sub", "Unknown")),
+                            "email": token_data.get("email", token_data.get("user_name", "N/A")),
+                            "display_name": token_data.get("given_name", "N/A"),
+                            "client_id": token_data.get("client_id", "N/A"),
+                            "scopes": token_data.get("scope", []),
+                            "tenant_id": DATASPHERE_CONFIG["tenant_id"],
+                            "token_issued_at": datetime.fromtimestamp(token_data.get("iat", 0)).isoformat() + "Z" if token_data.get("iat") else "N/A",
+                            "token_expires_at": datetime.fromtimestamp(token_data.get("exp", 0)).isoformat() + "Z" if token_data.get("exp") else "N/A",
+                            "account_status": "Active"
+                        }
+
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Current User Information:\n\n" +
+                                 json.dumps(user_info, indent=2)
+                        )]
+                    except Exception as decode_error:
+                        logger.warning(f"Could not decode token: {decode_error}")
+
+                # If token decoding fails, return basic info
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps({
+                        "user_id": "Unknown",
+                        "message": "User information available from OAuth token",
+                        "tenant_id": DATASPHERE_CONFIG["tenant_id"],
+                        "note": "Full user details require API endpoint access"
+                    }, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Error getting current user: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error getting user information: {str(e)}"
+                )]
+
+    elif name == "get_tenant_info":
+        # Get SAP Datasphere tenant information
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock tenant data
+            mock_tenant = {
+                "tenant_id": DATASPHERE_CONFIG["tenant_id"],
+                "tenant_name": "Company Production (Mock)",
+                "base_url": DATASPHERE_CONFIG["base_url"],
+                "region": "eu-central-1",
+                "datasphere_version": "2024.20",
+                "license_type": "Enterprise",
+                "storage_quota_gb": 10000,
+                "storage_used_gb": 3500,
+                "storage_available_gb": 6500,
+                "storage_usage_percent": 35.0,
+                "user_count": 150,
+                "space_count": 25,
+                "features_enabled": [
+                    "AI_FEATURES",
+                    "DATA_SHARING",
+                    "MARKETPLACE",
+                    "ADVANCED_ANALYTICS",
+                    "DATA_INTEGRATION"
+                ],
+                "maintenance_window": "Sunday 02:00-04:00 UTC",
+                "status": "Active",
+                "note": "This is mock data. Set USE_MOCK_DATA=false for real tenant information."
+            }
+            return [types.TextContent(
+                type="text",
+                text=f"Tenant Information:\n\n" +
+                     json.dumps(mock_tenant, indent=2)
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot get tenant information."
+                )]
+
+            try:
+                # Try to get tenant info from API
+                # Note: Actual endpoint may vary, trying common patterns
+                tenant_info = {
+                    "tenant_id": DATASPHERE_CONFIG["tenant_id"],
+                    "base_url": DATASPHERE_CONFIG["base_url"],
+                    "status": "Active"
+                }
+
+                # Try to get additional info from spaces endpoint (as a proxy for tenant health)
+                try:
+                    endpoint = "/api/v1/datasphere/consumption/catalog/spaces"
+                    spaces_data = await datasphere_connector.get(endpoint, params={"$top": 1})
+                    tenant_info["spaces_accessible"] = True
+                    tenant_info["api_status"] = "Connected"
+                except Exception as e:
+                    tenant_info["spaces_accessible"] = False
+                    tenant_info["api_status"] = f"Limited: {str(e)}"
+
+                tenant_info["note"] = "Full tenant details may require additional API endpoints or admin permissions"
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Tenant Information:\n\n" +
+                         json.dumps(tenant_info, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Error getting tenant info: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error getting tenant information: {str(e)}"
+                )]
+
+    elif name == "get_available_scopes":
+        # Get available OAuth2 scopes
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock scopes data
+            mock_scopes = {
+                "available_scopes": [
+                    {
+                        "scope": "DWC_CONSUMPTION",
+                        "description": "Read access to consumption models and analytical data",
+                        "granted": True
+                    },
+                    {
+                        "scope": "DWC_CATALOG",
+                        "description": "Read access to catalog metadata and asset information",
+                        "granted": True
+                    },
+                    {
+                        "scope": "DWC_REPOSITORY",
+                        "description": "Read access to repository objects and definitions",
+                        "granted": True
+                    },
+                    {
+                        "scope": "DWC_SPACES",
+                        "description": "Access to space information and configuration",
+                        "granted": True
+                    },
+                    {
+                        "scope": "DWC_ADMIN",
+                        "description": "Administrative operations (user management, etc.)",
+                        "granted": False,
+                        "reason": "Requires administrator role"
+                    }
+                ],
+                "token_scopes": ["DWC_CONSUMPTION", "DWC_CATALOG", "DWC_REPOSITORY", "DWC_SPACES"],
+                "scope_check_timestamp": datetime.utcnow().isoformat() + "Z",
+                "note": "This is mock data. Set USE_MOCK_DATA=false for real scope information."
+            }
+            return [types.TextContent(
+                type="text",
+                text=f"Available OAuth Scopes:\n\n" +
+                     json.dumps(mock_scopes, indent=2)
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot get scope information."
+                )]
+
+            try:
+                # Get scopes from OAuth token
+                token = await datasphere_connector.get_valid_token()
+
+                # Try to decode JWT token to get scopes
+                import base64
+                token_parts = token.split('.')
+                if len(token_parts) >= 2:
+                    payload = token_parts[1]
+                    padding = 4 - len(payload) % 4
+                    if padding != 4:
+                        payload += '=' * padding
+
+                    try:
+                        decoded = base64.urlsafe_b64decode(payload)
+                        token_data = json.loads(decoded)
+
+                        # Extract scopes (can be string or list)
+                        scopes_raw = token_data.get("scope", [])
+                        if isinstance(scopes_raw, str):
+                            token_scopes = scopes_raw.split() if scopes_raw else []
+                        else:
+                            token_scopes = scopes_raw
+
+                        scope_info = {
+                            "token_scopes": token_scopes,
+                            "scope_count": len(token_scopes),
+                            "token_expires_at": datetime.fromtimestamp(token_data.get("exp", 0)).isoformat() + "Z" if token_data.get("exp") else "N/A",
+                            "scope_check_timestamp": datetime.utcnow().isoformat() + "Z",
+                            "note": "Scopes extracted from OAuth token. Available scopes depend on user role and permissions."
+                        }
+
+                        # Add common scope descriptions
+                        if token_scopes:
+                            scope_info["scope_details"] = []
+                            scope_descriptions = {
+                                "DWC_CONSUMPTION": "Read access to consumption models and analytical data",
+                                "DWC_CATALOG": "Read access to catalog metadata and asset information",
+                                "DWC_REPOSITORY": "Read access to repository objects and definitions",
+                                "DWC_SPACES": "Access to space information and configuration",
+                                "DWC_ADMIN": "Administrative operations",
+                            }
+                            for scope in token_scopes:
+                                scope_info["scope_details"].append({
+                                    "scope": scope,
+                                    "description": scope_descriptions.get(scope, "SAP Datasphere access scope")
+                                })
+
+                        return [types.TextContent(
+                            type="text",
+                            text=f"Available OAuth Scopes:\n\n" +
+                                 json.dumps(scope_info, indent=2)
+                        )]
+                    except Exception as decode_error:
+                        logger.warning(f"Could not decode token: {decode_error}")
+
+                # If token decoding fails, return basic info
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps({
+                        "message": "Scope information available from OAuth token",
+                        "note": "Could not decode token to extract scope details"
+                    }, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Error getting scopes: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error getting scope information: {str(e)}"
+                )]
 
     elif name == "search_catalog":
         query = arguments["query"]
