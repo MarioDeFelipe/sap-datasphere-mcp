@@ -1485,33 +1485,122 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         space_id = arguments["space_id"]
         output_file = arguments.get("output_file")
 
-        # Get database users for the space
-        users = MOCK_DATA["database_users"].get(space_id, [])
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode
+            users = MOCK_DATA["database_users"].get(space_id, [])
 
-        if not users:
+            if not users:
+                return [types.TextContent(
+                    type="text",
+                    text=f"No database users found in space '{space_id}'.\n\n"
+                         f"This could mean:\n"
+                         f"- The space exists but has no database users configured\n"
+                         f"- The space ID might be incorrect\n\n"
+                         f"Use list_spaces to see available spaces.\n\n"
+                         f"Note: This is mock data. Set USE_MOCK_DATA=false for real database users."
+                )]
+
+            result = {
+                "space_id": space_id,
+                "user_count": len(users),
+                "users": users
+            }
+
+            if output_file:
+                result["note"] = f"In production, output would be saved to {output_file}"
+
             return [types.TextContent(
                 type="text",
-                text=f"No database users found in space '{space_id}'.\n\n"
-                     f"This could mean:\n"
-                     f"- The space exists but has no database users configured\n"
-                     f"- The space ID might be incorrect\n\n"
-                     f"Use list_spaces to see available spaces."
+                text=f"Database Users in '{space_id}':\n\n" +
+                     json.dumps(result, indent=2) +
+                     f"\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real database users."
             )]
+        else:
+            # Real CLI execution
+            try:
+                import subprocess
 
-        result = {
-            "space_id": space_id,
-            "user_count": len(users),
-            "users": users
-        }
+                logger.info(f"Executing CLI: datasphere dbusers list --space {space_id}")
 
-        if output_file:
-            result["note"] = f"In production, output would be saved to {output_file}"
+                # Execute datasphere CLI command
+                result = subprocess.run(
+                    ["datasphere", "dbusers", "list", "--space", space_id],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30
+                )
 
-        return [types.TextContent(
-            type="text",
-            text=f"Database Users in '{space_id}':\n\n" +
-                 json.dumps(result, indent=2)
-        )]
+                # Parse CLI output (assuming JSON format)
+                cli_output = result.stdout.strip()
+
+                if not cli_output:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"No database users found in space '{space_id}'.\n\n"
+                             f"This could mean:\n"
+                             f"- The space exists but has no database users configured\n"
+                             f"- The space ID might be incorrect\n\n"
+                             f"Use list_spaces to see available spaces."
+                    )]
+
+                # Try to parse as JSON
+                try:
+                    users_data = json.loads(cli_output)
+                except json.JSONDecodeError:
+                    # If not JSON, return raw output
+                    users_data = {"raw_output": cli_output}
+
+                response = {
+                    "space_id": space_id,
+                    "users": users_data,
+                    "source": "SAP Datasphere CLI"
+                }
+
+                if output_file:
+                    response["output_file"] = output_file
+                    response["note"] = f"To save output, redirect: datasphere dbusers list --space {space_id} > {output_file}"
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Database Users in '{space_id}':\n\n" +
+                         json.dumps(response, indent=2)
+                )]
+
+            except subprocess.CalledProcessError as e:
+                logger.error(f"CLI command failed: {e.stderr}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error listing database users: {e.stderr}\n\n"
+                         f"Command: datasphere dbusers list --space {space_id}\n"
+                         f"Exit code: {e.returncode}\n\n"
+                         f"Troubleshooting:\n"
+                         f"1. Ensure datasphere CLI is installed and in PATH\n"
+                         f"2. Verify CLI is authenticated (run: datasphere login)\n"
+                         f"3. Check space ID is correct (run: datasphere spaces list)\n"
+                         f"4. Verify permissions to list database users"
+                )]
+            except FileNotFoundError:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: datasphere CLI not found.\n\n"
+                         f"Please install the SAP Datasphere CLI:\n"
+                         f"1. Download from: https://help.sap.com/docs/SAP_DATASPHERE\n"
+                         f"2. Ensure it's in your system PATH\n"
+                         f"3. Authenticate with: datasphere login"
+                )]
+            except subprocess.TimeoutExpired:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: CLI command timed out after 30 seconds.\n\n"
+                         f"The space may have many users, or the CLI is unresponsive."
+                )]
+            except Exception as e:
+                logger.error(f"Unexpected error listing database users: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Unexpected error listing database users: {str(e)}"
+                )]
 
     elif name == "create_database_user":
         space_id = arguments["space_id"]
