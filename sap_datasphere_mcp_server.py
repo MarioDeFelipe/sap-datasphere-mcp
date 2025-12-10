@@ -1099,30 +1099,41 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             logger.debug(f"Cache hit for get_space_info: {space_id}")
             return cached_result
 
-        # Not in cache, fetch data
-        space = next((s for s in MOCK_DATA["spaces"] if s["id"] == space_id), None)
-        if not space:
-            # Enhanced error message with suggestions
-            error_msg = ErrorHelpers.space_not_found(space_id, MOCK_DATA["spaces"])
-            return [types.TextContent(
+        # Check if we should use mock data or real API
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock data mode
+            space = next((s for s in MOCK_DATA["spaces"] if s["id"] == space_id), None)
+            if not space:
+                error_msg = ErrorHelpers.space_not_found(space_id, MOCK_DATA["spaces"])
+                return [types.TextContent(type="text", text=error_msg)]
+
+            tables = MOCK_DATA["tables"].get(space_id, [])
+            space_info = space.copy()
+            space_info["tables"] = tables
+
+            response = [types.TextContent(
                 type="text",
-                text=error_msg
+                text=f"Space Information for '{space_id}':\n\n{json.dumps(space_info, indent=2)}\n\nNote: Mock data."
             )]
+        else:
+            # Real API mode
+            if not datasphere_connector:
+                return [types.TextContent(type="text", text="Error: OAuth connector not initialized.")]
 
-        # Add table information
-        tables = MOCK_DATA["tables"].get(space_id, [])
-        space_info = space.copy()
-        space_info["tables"] = tables
+            try:
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')"
+                space_data = await datasphere_connector.get(endpoint)
+                response = [types.TextContent(
+                    type="text",
+                    text=f"Space Information for '{space_id}':\n\n{json.dumps(space_data, indent=2)}"
+                )]
+            except Exception as e:
+                logger.error(f"Error getting space info: {e}")
+                if "404" in str(e):
+                    return [types.TextContent(type="text", text=f"Space '{space_id}' not found. Use list_spaces.")]
+                return [types.TextContent(type="text", text=f"Error: {e}")]
 
-        response = [types.TextContent(
-            type="text",
-            text=f"Space Information for '{space_id}':\n\n" +
-                 json.dumps(space_info, indent=2)
-        )]
-
-        # Cache the response
         cache_manager.set(space_id, response, CacheCategory.SPACE_INFO)
-
         return response
 
     elif name == "search_tables":
