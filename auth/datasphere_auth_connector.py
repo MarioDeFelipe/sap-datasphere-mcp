@@ -340,7 +340,7 @@ class DatasphereAuthConnector:
         try:
             # Use a lightweight endpoint that actually exists
             # Try consumption metadata endpoint (returns XML, not JSON)
-            url = f"{self.base_url}/api/v1/datasphere/consumption/$metadata"
+            url = f"{self.config.base_url}/api/v1/datasphere/consumption/$metadata"
             headers = await self._get_headers()
 
             async with self._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
