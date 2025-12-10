@@ -3166,6 +3166,32 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
+                # IMPORTANT: Check if asset supports analytical queries BEFORE calling metadata endpoint
+                # This prevents 400 Bad Request errors on assets that only support relational queries
+                logger.info(f"Checking if {space_id}/{asset_id} supports analytical queries...")
+                asset_endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets('{asset_id}')"
+                asset_data = await datasphere_connector.get(asset_endpoint)
+
+                supports_analytical = asset_data.get("supportsAnalyticalQueries", False)
+                if not supports_analytical:
+                    # Asset doesn't support analytical queries - provide helpful error
+                    error_msg = f"Asset {asset_id} does not support analytical queries.\n\n"
+                    error_msg += f"supportsAnalyticalQueries: {supports_analytical}\n\n"
+                    error_msg += "Suggestions:\n"
+                    error_msg += "1. Use get_relational_metadata instead for this asset\n"
+                    error_msg += "2. Check asset details with get_asset_details first\n"
+                    error_msg += "3. Look for assets with supportsAnalyticalQueries=true\n\n"
+                    error_msg += f"Asset type: {asset_data.get('assetType', 'Unknown')}\n"
+                    if asset_data.get('assetRelationalMetadataUrl'):
+                        error_msg += f"Use relational metadata URL: {asset_data.get('assetRelationalMetadataUrl')}"
+
+                    return [types.TextContent(
+                        type="text",
+                        text=error_msg
+                    )]
+
+                logger.info(f"Asset supports analytical queries - proceeding with metadata retrieval")
+
                 endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/$metadata"
                 url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
 
