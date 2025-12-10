@@ -88,6 +88,22 @@ class DatasphereAuthConnector:
             'User-Agent': 'Datasphere-Metadata-Sync/2.0'  # Required for API access
         }
 
+    async def get_valid_token(self) -> str:
+        """
+        Get a valid OAuth access token
+
+        Returns:
+            Valid OAuth access token string
+
+        Raises:
+            OAuthError: If token cannot be acquired
+        """
+        if not self.oauth_handler:
+            raise OAuthError("OAuth handler not initialized")
+
+        token = await self.oauth_handler.get_token()
+        return token.access_token
+
     async def _make_request(
         self,
         method: str,
