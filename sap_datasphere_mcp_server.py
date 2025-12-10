@@ -3599,15 +3599,17 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}
-                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
-                params = {}
-                if top:
-                    params["$top"] = top
-                if skip:
-                    params["$skip"] = skip
+                # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}/
+                # NOTE: Use trailing slash and NO query parameters ($top, $skip not supported)
+                # This returns the OData service document for the analytical asset
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/"
 
+                # DO NOT pass $top or $skip parameters - they cause 400 Bad Request
+                params = {}
+
+                logger.info(f"Getting analytical datasets for {space_id}/{asset_id} (no params)")
                 data = await datasphere_connector.get(endpoint, params=params)
+
                 return [types.TextContent(
                     type="text",
                     text=f"Analytical Datasets in {space_id}/{asset_id}:\n\n" +
@@ -3616,9 +3618,17 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             except Exception as e:
                 logger.error(f"Error fetching analytical datasets: {str(e)}")
+
+                # Provide helpful error message with suggestions
+                error_msg = f"Error fetching analytical datasets: {str(e)}\n\n"
+                error_msg += "Possible causes:\n"
+                error_msg += "1. Asset doesn't support analytical queries (check supportsAnalyticalQueries field)\n"
+                error_msg += "2. Asset metadata URL not available\n"
+                error_msg += "3. Use get_asset_details first to verify asset capabilities"
+
                 return [types.TextContent(
                     type="text",
-                    text=f"Error fetching analytical datasets: {str(e)}"
+                    text=error_msg
                 )]
 
     elif name == "get_analytical_model":
