@@ -343,6 +343,10 @@ class DatasphereAuthConnector:
             url = f"{self.config.base_url}/api/v1/datasphere/consumption/$metadata"
             headers = await self._get_headers()
 
+            # Ensure session is created
+            if not self._session:
+                self._session = aiohttp.ClientSession()
+
             async with self._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
                 if response.status == 200:
                     return {
