@@ -1179,39 +1179,53 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                # Build filter for tables/views with search term
-                filter_parts = []
-
-                # Asset type filter
-                if asset_types:
-                    type_filters = [f"assetType eq '{t}'" for t in asset_types]
-                    filter_parts.append(f"({' or '.join(type_filters)})")
-
-                # Space filter
-                if space_filter:
-                    filter_parts.append(f"spaceId eq '{space_filter}'")
-
-                # Search term filter (search in name and description)
-                if search_term:
-                    filter_parts.append(f"(contains(tolower(name), '{search_term.lower()}') or contains(tolower(description), '{search_term.lower()}'))")
-
-                filter_expression = " and ".join(filter_parts) if filter_parts else None
-
+                # Use simple API call without complex filters (API doesn't support contains/tolower)
+                # We'll filter client-side instead
                 endpoint = "/api/v1/datasphere/consumption/catalog/assets"
-                params = {"$top": top}
-                if filter_expression:
-                    params["$filter"] = filter_expression
+                params = {"$top": 500}  # Get more assets to ensure we catch matches
 
-                logger.info(f"Searching tables with filter: {filter_expression}")
+                # Only use simple space filter if provided (this usually works)
+                if space_filter:
+                    params["$filter"] = f"spaceId eq '{space_filter}'"
+
+                logger.info(f"Getting catalog assets for client-side search (space: {space_filter or 'all'})")
                 data = await datasphere_connector.get(endpoint, params=params)
 
-                assets = data.get("value", [])
+                all_assets = data.get("value", [])
+
+                # Client-side filtering for asset types and search term
+                filtered_assets = []
+                search_term_lower = search_term.lower() if search_term else ""
+
+                for asset in all_assets:
+                    # Filter by asset type if specified
+                    if asset_types:
+                        if asset.get("assetType") not in asset_types:
+                            continue
+
+                    # Filter by search term in name or description
+                    if search_term:
+                        name = asset.get("name", "").lower()
+                        label = asset.get("label", "").lower()
+                        description = asset.get("description", "").lower()
+
+                        if not (search_term_lower in name or
+                                search_term_lower in label or
+                                search_term_lower in description):
+                            continue
+
+                    filtered_assets.append(asset)
+
+                # Apply pagination on filtered results
+                paginated_assets = filtered_assets[:top]
 
                 result = {
                     "search_term": search_term,
-                    "results": assets,
-                    "total_matches": len(assets),
-                    "search_timestamp": datetime.now().isoformat()
+                    "results": paginated_assets,
+                    "total_matches": len(filtered_assets),
+                    "returned": len(paginated_assets),
+                    "search_timestamp": datetime.now().isoformat(),
+                    "note": "Client-side filtering used (API doesn't support complex OData filters)"
                 }
 
                 return [types.TextContent(
