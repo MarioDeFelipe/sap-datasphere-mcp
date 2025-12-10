@@ -1745,60 +1745,139 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         database_user_id = arguments["database_user_id"]
         output_file = arguments.get("output_file")
 
-        # Check if user exists
-        users = MOCK_DATA["database_users"].get(space_id, [])
-        user = next((u for u in users if u["user_id"] == database_user_id), None)
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode
+            users = MOCK_DATA["database_users"].get(space_id, [])
+            user = next((u for u in users if u["user_id"] == database_user_id), None)
 
-        if not user:
+            if not user:
+                return [types.TextContent(
+                    type="text",
+                    text=f">>> User Not Found <<<\n\n"
+                         f"Database user '{database_user_id}' does not exist in space '{space_id}'.\n\n"
+                         f"Available users in {space_id}:\n" +
+                         "\n".join(f"- {u['user_id']}" for u in users) if users else "No users found." +
+                         f"\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real password reset."
+                )]
+
+            new_password = secrets.token_urlsafe(16)
+            full_username = f"{space_id}#{database_user_id}"
+
+            result = {
+                "status": "SUCCESS",
+                "message": f"Password reset successfully for user '{database_user_id}' in space '{space_id}'",
+                "user": {
+                    "user_id": database_user_id,
+                    "full_name": full_username,
+                    "credentials": {
+                        "username": full_username,
+                        "new_password": new_password,
+                        "note": "IMPORTANT: Save this password securely! It will not be shown again."
+                    },
+                    "reset_date": datetime.utcnow().isoformat() + "Z"
+                },
+                "security_actions": [
+                    "Old password invalidated immediately",
+                    "All active sessions terminated",
+                    "Password must be changed on next login",
+                    "Action logged for security audit"
+                ],
+                "next_steps": [
+                    "Save new credentials securely (use output_file parameter recommended)",
+                    "Communicate new password via secure channel (not email!)",
+                    "Verify user identity before sharing password",
+                    "Document password reset in change log"
+                ]
+            }
+
+            if output_file:
+                result["output_file"] = output_file
+                result["note"] = f"In production, credentials would be saved to {output_file}"
+
             return [types.TextContent(
                 type="text",
-                text=f">>> User Not Found <<<\n\n"
-                     f"Database user '{database_user_id}' does not exist in space '{space_id}'.\n\n"
-                     f"Available users in {space_id}:\n" +
-                     "\n".join(f"- {u['user_id']}" for u in users) if users else "No users found."
+                text=f"Password Reset Complete:\n\n" +
+                     json.dumps(result, indent=2) +
+                     f"\n\n⚠️  WARNING: This is mock data. Set USE_MOCK_DATA=false for real password reset."
             )]
+        else:
+            # Real CLI execution
+            try:
+                import subprocess
 
-        # Generate new password
-        new_password = secrets.token_urlsafe(16)
-        full_username = f"{space_id}#{database_user_id}"
+                logger.info(f"Resetting password for database user {database_user_id} in space {space_id}")
 
-        result = {
-            "status": "SUCCESS",
-            "message": f"Password reset successfully for user '{database_user_id}' in space '{space_id}'",
-            "user": {
-                "user_id": database_user_id,
-                "full_name": full_username,
-                "credentials": {
-                    "username": full_username,
-                    "new_password": new_password,
-                    "note": "IMPORTANT: Save this password securely! It will not be shown again."
-                },
-                "reset_date": datetime.utcnow().isoformat() + "Z"
-            },
-            "security_actions": [
-                "Old password invalidated immediately",
-                "All active sessions terminated",
-                "Password must be changed on next login",
-                "Action logged for security audit"
-            ],
-            "next_steps": [
-                "Save new credentials securely (use output_file parameter recommended)",
-                "Communicate new password via secure channel (not email!)",
-                "Verify user identity before sharing password",
-                "Document password reset in change log"
-            ]
-        }
+                # Execute datasphere CLI command
+                cmd = [
+                    "datasphere", "dbusers", "password", "reset",
+                    "--space", space_id,
+                    "--databaseuser", database_user_id
+                ]
 
-        if output_file:
-            result["output_file"] = output_file
-            result["note"] = f"In production, credentials would be saved to {output_file}"
+                logger.info(f"Executing CLI: {' '.join(cmd)}")
 
-        return [types.TextContent(
-            type="text",
-            text=f"Password Reset Complete:\n\n" +
-                 json.dumps(result, indent=2) +
-                 f"\n\n⚠️  WARNING: This is mock data. Real password reset requires OAuth authentication."
-        )]
+                result_proc = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=60
+                )
+
+                cli_output = result_proc.stdout.strip()
+
+                # Try to parse CLI output
+                try:
+                    result_data = json.loads(cli_output)
+                except json.JSONDecodeError:
+                    result_data = {"raw_output": cli_output}
+
+                response = {
+                    "status": "SUCCESS",
+                    "message": f"Password reset successfully for user '{database_user_id}'",
+                    "space_id": space_id,
+                    "database_user_id": database_user_id,
+                    "cli_output": result_data,
+                    "source": "SAP Datasphere CLI",
+                    "security_note": "New password provided in CLI output - save securely!"
+                }
+
+                if output_file:
+                    response["output_file"] = output_file
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Password Reset Complete:\n\n" +
+                         json.dumps(response, indent=2)
+                )]
+
+            except subprocess.CalledProcessError as e:
+                logger.error(f"CLI command failed: {e.stderr}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error resetting password: {e.stderr}\n\n"
+                         f"Command failed with exit code: {e.returncode}\n\n"
+                         f"Troubleshooting:\n"
+                         f"1. Verify user exists (use list_database_users)\n"
+                         f"2. Check permissions to reset passwords\n"
+                         f"3. Ensure CLI is authenticated"
+                )]
+            except FileNotFoundError:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: datasphere CLI not found. Please install and configure the CLI."
+                )]
+            except subprocess.TimeoutExpired:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: CLI command timed out after 60 seconds."
+                )]
+            except Exception as e:
+                logger.error(f"Unexpected error resetting password: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Unexpected error: {str(e)}"
+                )]
 
     elif name == "update_database_user":
         space_id = arguments["space_id"]
