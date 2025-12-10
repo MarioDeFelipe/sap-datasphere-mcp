@@ -1021,25 +1021,69 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             logger.debug(f"Cache hit for list_spaces")
             return cached_result
 
-        # Not in cache, fetch data
-        if include_details:
-            result = MOCK_DATA["spaces"]
-        else:
-            result = [
-                {
-                    "id": space["id"],
-                    "name": space["name"],
-                    "status": space["status"],
-                    "tables_count": space["tables_count"]
-                }
-                for space in MOCK_DATA["spaces"]
-            ]
+        # Check if we should use mock data or real API
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock data mode
+            if include_details:
+                result = MOCK_DATA["spaces"]
+            else:
+                result = [
+                    {
+                        "id": space["id"],
+                        "name": space["name"],
+                        "status": space["status"],
+                        "tables_count": space["tables_count"]
+                    }
+                    for space in MOCK_DATA["spaces"]
+                ]
 
-        response = [types.TextContent(
-            type="text",
-            text=f"Found {len(result)} Datasphere spaces:\n\n" +
-                 json.dumps(result, indent=2)
-        )]
+            response = [types.TextContent(
+                type="text",
+                text=f"Found {len(result)} Datasphere spaces:\n\n" +
+                     json.dumps(result, indent=2) +
+                     "\n\nNote: This is mock data. Set USE_MOCK_DATA=false for real spaces."
+            )]
+        else:
+            # Real API mode
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot list spaces."
+                )]
+
+            try:
+                # Call the real API
+                endpoint = "/api/v1/datasphere/consumption/catalog/spaces"
+                data = await datasphere_connector.get(endpoint)
+
+                # Extract spaces from response
+                spaces = data.get("value", [])
+
+                # Format the response
+                if include_details:
+                    result = spaces
+                else:
+                    result = [
+                        {
+                            "id": space.get("spaceId", space.get("id")),
+                            "name": space.get("spaceName", space.get("name")),
+                            "status": space.get("status", "ACTIVE"),
+                            "description": space.get("description", "")
+                        }
+                        for space in spaces
+                    ]
+
+                response = [types.TextContent(
+                    type="text",
+                    text=f"Found {len(result)} Datasphere spaces:\n\n" +
+                         json.dumps(result, indent=2)
+                )]
+            except Exception as e:
+                logger.error(f"Error listing spaces: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error listing spaces: {str(e)}"
+                )]
 
         # Cache the response
         cache_manager.set(cache_key, response, CacheCategory.SPACES)
