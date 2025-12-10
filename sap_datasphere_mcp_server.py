@@ -3698,6 +3698,304 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             text=f"Unknown tool: {name}"
         )]
 
+
+# ============================================================================
+# Repository Helper Functions
+# ============================================================================
+
+def build_dependency_graph(objects: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Build dependency graph from repository objects.
+
+    Args:
+        objects: List of repository objects with dependency information
+
+    Returns:
+        Dictionary with 'nodes' and 'edges' representing the dependency graph
+
+    Example:
+        objects = [
+            {"id": "TABLE_A", "name": "Table A", "objectType": "Table",
+             "dependencies": {"upstream": [], "downstream": ["VIEW_B"]}},
+            {"id": "VIEW_B", "name": "View B", "objectType": "View",
+             "dependencies": {"upstream": ["TABLE_A"], "downstream": []}}
+        ]
+        graph = build_dependency_graph(objects)
+        # Returns: {
+        #   'nodes': [{'id': 'TABLE_A', 'name': 'Table A', 'type': 'Table'}, ...],
+        #   'edges': [{'from': 'TABLE_A', 'to': 'VIEW_B', 'type': 'upstream'}, ...]
+        # }
+    """
+    graph = {
+        'nodes': [],
+        'edges': []
+    }
+
+    # Add nodes
+    for obj in objects:
+        graph['nodes'].append({
+            'id': obj.get('id', obj.get('objectId', 'Unknown')),
+            'name': obj.get('name', 'Unknown'),
+            'type': obj.get('objectType', obj.get('object_type', 'Unknown')),
+            'status': obj.get('status', 'Unknown')
+        })
+
+    # Add edges
+    for obj in objects:
+        obj_id = obj.get('id', obj.get('objectId'))
+        if not obj_id:
+            continue
+
+        dependencies = obj.get('dependencies', {})
+
+        # Upstream dependencies (sources)
+        for upstream in dependencies.get('upstream', []):
+            graph['edges'].append({
+                'from': upstream,
+                'to': obj_id,
+                'type': 'upstream'
+            })
+
+        # Downstream dependencies (consumers)
+        for downstream in dependencies.get('downstream', []):
+            graph['edges'].append({
+                'from': obj_id,
+                'to': downstream,
+                'type': 'downstream'
+            })
+
+    return graph
+
+
+def analyze_impact(object_id: str, objects: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Analyze impact of changing an object.
+
+    Performs recursive downstream dependency analysis to identify all objects
+    that would be affected by changes to the specified object.
+
+    Args:
+        object_id: ID of the object to analyze
+        objects: List of repository objects with dependency information
+
+    Returns:
+        Dictionary containing:
+        - object_id: The analyzed object ID
+        - direct_downstream: List of directly dependent objects
+        - indirect_downstream: List of indirectly dependent objects
+        - total_affected: Total count of affected objects
+        - affected_by_type: Breakdown by object type
+
+    Example:
+        impact = analyze_impact("TABLE_A", objects)
+        # Returns: {
+        #   'object_id': 'TABLE_A',
+        #   'direct_downstream': ['VIEW_B', 'VIEW_C'],
+        #   'indirect_downstream': ['MODEL_D', 'REPORT_E'],
+        #   'total_affected': 4,
+        #   'affected_by_type': {'View': 2, 'AnalyticalModel': 1, 'Report': 1}
+        # }
+    """
+    impact = {
+        'object_id': object_id,
+        'direct_downstream': [],
+        'indirect_downstream': [],
+        'total_affected': 0,
+        'affected_by_type': {}
+    }
+
+    # Find the object
+    obj = next((o for o in objects if o.get('id') == object_id or o.get('objectId') == object_id), None)
+    if not obj:
+        impact['error'] = f"Object '{object_id}' not found"
+        return impact
+
+    # Get direct downstream dependencies
+    dependencies = obj.get('dependencies', {})
+    direct = dependencies.get('downstream', [])
+    impact['direct_downstream'] = direct
+
+    # Recursively find indirect downstream dependencies
+    visited = set([object_id])
+    queue = list(direct)
+
+    while queue:
+        current = queue.pop(0)
+        if current in visited:
+            continue
+
+        visited.add(current)
+        impact['indirect_downstream'].append(current)
+
+        # Find the current object to get its downstream dependencies
+        current_obj = next((o for o in objects if o.get('id') == current or o.get('objectId') == current), None)
+        if current_obj:
+            # Count by type
+            obj_type = current_obj.get('objectType', current_obj.get('object_type', 'Unknown'))
+            impact['affected_by_type'][obj_type] = impact['affected_by_type'].get(obj_type, 0) + 1
+
+            # Add downstream dependencies to queue
+            current_deps = current_obj.get('dependencies', {})
+            downstream = current_deps.get('downstream', [])
+            queue.extend(downstream)
+
+    # Total affected objects (excluding the source object itself)
+    impact['total_affected'] = len(visited) - 1
+
+    return impact
+
+
+# Object type categories for classification
+OBJECT_TYPE_CATEGORIES = {
+    'data_objects': ['Table', 'View', 'Entity'],
+    'analytical_objects': ['AnalyticalModel', 'CalculationView', 'Hierarchy'],
+    'integration_objects': ['DataFlow', 'Transformation', 'Replication'],
+    'logic_objects': ['StoredProcedure', 'Function', 'Script']
+}
+
+
+def categorize_objects(objects: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Categorize objects by type.
+
+    Groups repository objects into logical categories:
+    - data_objects: Tables, Views, Entities
+    - analytical_objects: Analytical Models, Calculation Views, Hierarchies
+    - integration_objects: Data Flows, Transformations, Replications
+    - logic_objects: Stored Procedures, Functions, Scripts
+    - other: Any objects not matching the above categories
+
+    Args:
+        objects: List of repository objects
+
+    Returns:
+        Dictionary with categories as keys and lists of objects as values
+
+    Example:
+        categorized = categorize_objects(objects)
+        # Returns: {
+        #   'data_objects': [table1, table2, view1],
+        #   'analytical_objects': [model1, model2],
+        #   'integration_objects': [flow1],
+        #   'logic_objects': [],
+        #   'other': []
+        # }
+    """
+    categorized = {
+        'data_objects': [],
+        'analytical_objects': [],
+        'integration_objects': [],
+        'logic_objects': [],
+        'other': []
+    }
+
+    for obj in objects:
+        obj_type = obj.get('objectType', obj.get('object_type', 'Unknown'))
+        categorized_flag = False
+
+        for category, types in OBJECT_TYPE_CATEGORIES.items():
+            if obj_type in types:
+                categorized[category].append(obj)
+                categorized_flag = True
+                break
+
+        if not categorized_flag:
+            categorized['other'].append(obj)
+
+    return categorized
+
+
+def compare_design_deployed(design_obj: Dict[str, Any], deployed_obj: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Compare design-time and deployed object definitions.
+
+    Identifies differences between design-time and deployed versions of an object,
+    including version mismatches, column changes, and schema modifications.
+
+    Args:
+        design_obj: Design-time object definition
+        deployed_obj: Deployed object definition
+
+    Returns:
+        Dictionary containing:
+        - object_id: Object identifier
+        - version_match: Boolean indicating if versions match
+        - deployment_status: Deployment status
+        - differences: List of identified differences
+        - has_differences: Boolean indicating if any differences found
+
+    Example:
+        comparison = compare_design_deployed(design_obj, deployed_obj)
+        # Returns: {
+        #   'object_id': 'TABLE_A',
+        #   'version_match': False,
+        #   'differences': [
+        #     {'type': 'version_mismatch', 'design_version': '2.0', 'deployed_version': '1.5'},
+        #     {'type': 'columns_added', 'columns': ['NEW_COLUMN']}
+        #   ],
+        #   'has_differences': True
+        # }
+    """
+    comparison = {
+        'object_id': design_obj.get('id', design_obj.get('objectId')),
+        'version_match': design_obj.get('version') == deployed_obj.get('version'),
+        'deployment_status': deployed_obj.get('deploymentStatus', deployed_obj.get('deployment_status')),
+        'differences': []
+    }
+
+    # Compare versions
+    if not comparison['version_match']:
+        comparison['differences'].append({
+            'type': 'version_mismatch',
+            'design_version': design_obj.get('version'),
+            'deployed_version': deployed_obj.get('version')
+        })
+
+    # Compare columns (for tables/views)
+    design_def = design_obj.get('definition', {})
+    deployed_def = deployed_obj.get('definition', {})
+
+    if 'columns' in design_def:
+        design_cols = {c['name']: c for c in design_def['columns']}
+        deployed_cols = {}
+
+        if 'columns' in deployed_def:
+            deployed_cols = {c['name']: c for c in deployed_def['columns']}
+
+        # Find added columns
+        added = set(design_cols.keys()) - set(deployed_cols.keys())
+        if added:
+            comparison['differences'].append({
+                'type': 'columns_added',
+                'columns': list(added)
+            })
+
+        # Find removed columns
+        removed = set(deployed_cols.keys()) - set(design_cols.keys())
+        if removed:
+            comparison['differences'].append({
+                'type': 'columns_removed',
+                'columns': list(removed)
+            })
+
+        # Find modified columns (data type changes)
+        for col_name in set(design_cols.keys()) & set(deployed_cols.keys()):
+            design_col = design_cols[col_name]
+            deployed_col = deployed_cols[col_name]
+
+            if design_col.get('dataType') != deployed_col.get('dataType'):
+                comparison['differences'].append({
+                    'type': 'column_type_changed',
+                    'column': col_name,
+                    'design_type': design_col.get('dataType'),
+                    'deployed_type': deployed_col.get('dataType')
+                })
+
+    comparison['has_differences'] = len(comparison['differences']) > 0
+
+    return comparison
+
+
 async def main():
     """Main function to run the MCP server"""
     global datasphere_connector
