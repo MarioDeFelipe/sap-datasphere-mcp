@@ -1181,11 +1181,15 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             try:
                 # Use simple API call without ANY filters (API doesn't support ANY OData filters)
                 # Do ALL filtering client-side (same approach as list_catalog_assets)
+                # IMPORTANT: Must use BOTH $top and $skip parameters (matching list_catalog_assets)
                 endpoint = "/api/v1/datasphere/consumption/catalog/assets"
-                params = {"$top": 500}  # Get more assets to ensure we catch matches
+                params = {
+                    "$top": 50,    # Match list_catalog_assets parameter
+                    "$skip": 0     # Required - API returns empty without this
+                }
 
                 # NO filters in API call - even spaceId filter causes 400 error
-                logger.info(f"Getting all catalog assets for client-side search")
+                logger.info(f"Getting catalog assets with params: {params}")
                 data = await datasphere_connector.get(endpoint, params=params)
 
                 all_assets = data.get("value", [])
