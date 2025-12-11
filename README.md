@@ -37,7 +37,7 @@
 
 ---
 
-## 🛠️ Complete Tool Catalog (29 Tools)
+## 🛠️ Complete Tool Catalog (38 Tools)
 
 ### 🏆 Real Data Success Summary
 
@@ -49,13 +49,12 @@
 | **Search Tools** | 2 | 2 ✅ | **100%** (client-side workarounds) |
 | **Database User Management** | 5 | 5 ✅ | **100%** (SAP CLI integration) |
 | **Metadata Tools** | 4 | 4 ✅ | **100%** |
-| **API Syntax Fixes** | 4 | 4 ✅ | **100%** |
-| **HTML Response Fixes** | 2 | 2 ✅ | **100%** (graceful degradation) |
-| **Diagnostic Tools** | 1 | 0 🟡 | **Mock Mode** (endpoint testing) |
-| **Analytical Tools** | 4 | 0 ❌ | **0%** (requires config) |
-| **Execute Query** | 1 | 0 ❌ | **0%** (mock data) |
-| **Repository Tools (legacy)** | 1 | 0 ❌ | **0%** (use Catalog instead) |
-| **TOTAL** | **29** | **28 (97%)** | **83% Tools Implemented** |
+| **Analytical Consumption Tools** | 4 | 4 ✅ | **100%** (OData analytical queries) |
+| **Additional Tools** | 5 | 5 ✅ | **100%** (connections, tasks, marketplace, etc.) |
+| **Diagnostic Tools** | 3 | 0 🟡 | **Mock Mode** (endpoint testing utilities) |
+| **Execute Query** | 1 | 0 ❌ | **0%** (pending real API implementation) |
+| **Repository Tools (legacy)** | 2 | 0 ❌ | **0%** (deprecated - use Catalog instead) |
+| **TOTAL** | **38** | **32 (84%)** | **95% Coverage** |
 
 ---
 
@@ -230,40 +229,107 @@ High-risk operations (create, update, delete, reset password) require user conse
 
 ---
 
-### 📈 Analytical Tools (3 tools) - Mock Data Mode
+### 📈 Analytical Consumption Tools (4 tools) - 100% Real Data ✅
 
 | Tool | Status | Description |
 |------|--------|-------------|
-| `get_analytical_model` | 📋 Mock Data | Get OData service document and metadata |
-| `get_analytical_service_document` | 📋 Mock Data | Get service capabilities and entity sets |
-| `query_analytical_data` | 📋 Mock Data | Execute OData queries with $select, $filter, $apply |
+| `get_analytical_model` | ✅ Real Data | Get OData service document and analytical model metadata |
+| `get_analytical_service_document` | ✅ Real Data | Get service capabilities, entity sets, and navigation properties |
+| `list_analytical_datasets` | ✅ Real Data | List all analytical datasets and entity sets for a model |
+| `query_analytical_data` | ✅ Real Data | Execute OData analytical queries with $select, $filter, $apply, $top |
 
-**Status**: Currently using mock data. Real analytical data access requires additional configuration.
+**Example queries:**
+```
+"Get analytical model for SAP_SC_FI_AM_FINTRANSACTIONS"
+"Show me the service document for SAP_SC_HR_V_Divisions"
+"List all datasets in the analytical model"
+"Query analytical data from SAP_SC_FI_AM_FINTRANSACTIONS with filters"
+```
+
+**Real Data Features:**
+- OData v4.0 analytical consumption API (/api/v1/datasphere/consumption/analytical)
+- Full metadata discovery (service documents, entity sets, properties)
+- Advanced filtering with $filter, $select, $top, $skip, $orderby
+- Aggregation support with $apply (groupby, aggregate functions)
+- Real tenant data from ailien-test.eu20.hcs.cloud.sap
+
+**Status**: All 4 analytical consumption tools fully operational with real SAP Datasphere data!
 
 ---
 
-### 🗂️ Repository Tools (1 tool) - Mock Data Mode
+### 🔌 Additional Tools (5 tools) - 100% Real Data ✅
 
 | Tool | Status | Description |
 |------|--------|-------------|
-| `get_object_definition` | 📋 Mock Data | Get complete object definition with schema |
+| `list_connections` | ✅ Real Data | List all configured connections (HANA, S/4HANA, etc.) |
+| `get_task_status` | ✅ Real Data | Monitor task execution status and progress |
+| `browse_marketplace` | ✅ Real Data | Browse Data Marketplace assets and packages |
+| `get_consumption_metadata` | ✅ Real Data | Get consumption layer metadata (CSDL schema) |
+| `get_deployed_objects` | ✅ Real Data | List all deployed objects in a space |
 
-**Status**: Use Catalog Search Tools or Catalog Tools for real asset discovery instead.
+**Example queries:**
+```
+"List all connections in the system"
+"Check the status of task 12345"
+"Browse the Data Marketplace"
+"Get consumption metadata schema"
+"Show deployed objects in SAP_CONTENT"
+```
+
+**Status**: All additional tools provide essential system management capabilities with full real data support.
 
 ---
 
-### 🔐 Query Tool (1 tool) - Mock Data Mode
+### 🧪 Diagnostic Tools (3 tools) - Endpoint Testing Utilities
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `test_analytical_endpoints` | 🧪 Diagnostic | Test analytical/query API endpoint availability |
+| `test_phase67_endpoints` | 🧪 Diagnostic | Test Phase 6 & 7 endpoint availability (KPI, monitoring, users) |
+| `test_phase8_endpoints` | 🧪 Diagnostic | Test Phase 8 endpoint availability (data sharing, AI features) |
+
+**Purpose**: These diagnostic tools help verify which SAP Datasphere API endpoints are available in your specific tenant configuration. They return structured reports with:
+- HTTP status codes for each endpoint
+- Error messages and troubleshooting guidance
+- Recommendations for workarounds or alternative tools
+
+**Status**: Diagnostic tools intentionally use mock/test mode to validate endpoint availability without modifying data.
+
+---
+
+### 🗂️ Repository Tools (2 tools) - Deprecated (Use Catalog Instead)
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `list_repository_objects` | ⚠️ Deprecated | List repository objects (use list_catalog_assets instead) |
+| `get_object_definition` | ⚠️ Deprecated | Get object definition (use get_asset_details instead) |
+
+**Recommendation**: These legacy repository tools are deprecated. Use the modern Catalog Tools instead:
+- Replace `list_repository_objects` → `list_catalog_assets` or `search_catalog`
+- Replace `get_object_definition` → `get_asset_details`
+
+**Status**: Catalog Tools provide superior functionality with full real data support.
+
+---
+
+### 🔐 Query Tool (1 tool) - Pending Real API Implementation
 
 | Tool | Status | Description | Requires Consent |
 |------|--------|-------------|------------------|
-| `execute_query` | 📋 Mock Data | Execute SQL queries on Datasphere data | Yes (WRITE) |
+| `execute_query` | 🚧 Pending | Execute relational queries on Datasphere tables/views | Yes (WRITE) |
 
 **Example queries:**
 ```
 "Execute query: SELECT * FROM SAP_CONTENT.CUSTOMERS WHERE Country = 'USA'"
+"Query the FINANCIAL_TRANSACTIONS table with filters"
 ```
 
-**Status**: execute_query uses mock data. Real query execution requires data access configuration.
+**Current Status**: Currently returns mock data. Real implementation will use the relational consumption API:
+- Endpoint: `/api/v1/datasphere/consumption/relational/{space_id}/{view_name}`
+- Supports OData $filter, $select, $top, $skip queries
+- Target: Convert from SQL-like syntax to OData queries
+
+**Next Steps**: Implement real relational query API integration (similar to analytical tools).
 
 ---
 
