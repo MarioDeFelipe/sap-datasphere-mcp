@@ -648,6 +648,115 @@ async def handle_list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="list_relational_entities",
+            description="List all available relational entities (tables/views) within a specific SAP Datasphere asset for row-level data access and ETL operations. Returns OData entity sets that can be queried for detailed data extraction.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS')"
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of entities to return (default: 50, max: 1000)",
+                        "default": 50
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        ),
+        Tool(
+            name="get_relational_entity_metadata",
+            description="Get detailed metadata for a specific relational entity including column definitions, data types, SQL type mappings, and ETL extraction capabilities. Optimized for data warehouse loading and transformation workflows.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset/entity identifier (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS')"
+                    },
+                    "include_sql_types": {
+                        "type": "boolean",
+                        "description": "Include SQL type mappings for target databases (default: true)",
+                        "default": True
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        ),
+        Tool(
+            name="query_relational_entity",
+            description="Execute OData queries on relational entities for ETL data extraction. Supports large batch processing (up to 50,000 records), advanced filtering, column selection, and pagination. Optimized for data warehouse loading and analytics pipelines.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "entity_name": {
+                        "type": "string",
+                        "description": "Entity/table name (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS')"
+                    },
+                    "filter": {
+                        "type": "string",
+                        "description": "OData $filter expression (e.g., \"amount gt 1000 and status eq 'ACTIVE'\")"
+                    },
+                    "select": {
+                        "type": "string",
+                        "description": "Comma-separated column list for $select (e.g., \"customer_id,amount,date\")"
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum records to return (default: 1000, max: 50000 for ETL)",
+                        "default": 1000
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of records to skip for pagination",
+                        "default": 0
+                    },
+                    "orderby": {
+                        "type": "string",
+                        "description": "OData $orderby expression (e.g., \"amount desc, date asc\")"
+                    }
+                },
+                "required": ["space_id", "entity_name"]
+            }
+        ),
+        Tool(
+            name="get_relational_odata_service",
+            description="Get the OData service document for a relational asset showing available entity sets, navigation properties, function imports, and query capabilities. Essential for ETL planning and understanding data extraction options.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS')"
+                    },
+                    "include_capabilities": {
+                        "type": "boolean",
+                        "description": "Include query capability analysis (default: true)",
+                        "default": True
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        ),
+        Tool(
             name="get_repository_search_metadata",
             description="Get metadata for repository search capabilities. Retrieves information about searchable object types, searchable fields, available filters, and entity definitions. Essential for building advanced search queries and understanding repository structure.",
             inputSchema={
@@ -4292,6 +4401,317 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     type="text",
                     text=f"Error retrieving relational metadata: {str(e)}"
                 )]
+
+    elif name == "list_relational_entities":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+        top = arguments.get("top", 50)
+
+        if not datasphere_connector:
+            return [types.TextContent(
+                type="text",
+                text="Error: OAuth connector not initialized. Cannot list relational entities."
+            )]
+
+        try:
+            # Use relational consumption API to get entity sets
+            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}"
+            params = {"$top": min(top, 1000)}
+
+            logger.info(f"Listing relational entities for {space_id}/{asset_id}")
+            data = await datasphere_connector.get(endpoint, params=params, timeout=30)
+
+            # Format response with ETL-optimized metadata
+            result = {
+                "space_id": space_id,
+                "asset_id": asset_id,
+                "entities": data.get("value", []),
+                "entity_count": len(data.get("value", [])),
+                "odata_context": data.get("@odata.context", ""),
+                "metadata_url": f"{endpoint}/$metadata",
+                "extraction_type": "row_level_etl",
+                "max_batch_size": 50000,
+                "query_timestamp": datetime.now().isoformat()
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Relational Entities:\n\n" + json.dumps(result, indent=2)
+            )]
+
+        except Exception as e:
+            logger.error(f"Error listing relational entities: {str(e)}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error listing relational entities: {str(e)}\n\n"
+                     f"Possible causes:\n"
+                     f"1. Asset doesn't exist in the space\n"
+                     f"2. Asset name is case-sensitive (try uppercase)\n"
+                     f"3. Use list_catalog_assets to find correct asset name"
+            )]
+
+    elif name == "get_relational_entity_metadata":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+        include_sql_types = arguments.get("include_sql_types", True)
+
+        if not datasphere_connector:
+            return [types.TextContent(
+                type="text",
+                text="Error: OAuth connector not initialized. Cannot get entity metadata."
+            )]
+
+        try:
+            # Get CSDL metadata for the entity
+            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/$metadata"
+            url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
+
+            logger.info(f"Getting entity metadata for {space_id}/{asset_id}")
+
+            # Metadata endpoints return XML
+            import aiohttp
+            headers = await datasphere_connector._get_headers()
+            headers['Accept'] = 'application/xml'
+
+            async with datasphere_connector._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                response.raise_for_status()
+                xml_content = await response.text()
+
+            # Parse XML to extract entity metadata
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(xml_content)
+
+            namespaces = {
+                'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
+                'edm': 'http://docs.oasis-open.org/odata/ns/edm'
+            }
+
+            # OData to SQL type mapping for ETL
+            def odata_to_sql(odata_type, precision=None, scale=None, max_length=None):
+                type_map = {
+                    "Edm.String": f"NVARCHAR({max_length or 'MAX'})",
+                    "Edm.Int32": "INT",
+                    "Edm.Int64": "BIGINT",
+                    "Edm.Decimal": f"DECIMAL({precision or 18},{scale or 2})",
+                    "Edm.Double": "DOUBLE",
+                    "Edm.Boolean": "BOOLEAN",
+                    "Edm.Date": "DATE",
+                    "Edm.DateTime": "TIMESTAMP",
+                    "Edm.DateTimeOffset": "TIMESTAMP",
+                    "Edm.Time": "TIME",
+                    "Edm.Guid": "VARCHAR(36)"
+                }
+                return type_map.get(odata_type, odata_type)
+
+            metadata = {
+                "space_id": space_id,
+                "asset_id": asset_id,
+                "entities": [],
+                "etl_optimized": True
+            }
+
+            # Extract all entity types
+            for entity_type in root.findall('.//edm:EntityType', namespaces):
+                entity_info = {
+                    "name": entity_type.get('Name'),
+                    "key_columns": [],
+                    "columns": []
+                }
+
+                # Extract key columns
+                key_element = entity_type.find('edm:Key', namespaces)
+                if key_element is not None:
+                    for prop_ref in key_element.findall('edm:PropertyRef', namespaces):
+                        entity_info['key_columns'].append(prop_ref.get('Name'))
+
+                # Extract all columns with SQL type mapping
+                for prop in entity_type.findall('edm:Property', namespaces):
+                    odata_type = prop.get('Type')
+                    col_info = {
+                        "name": prop.get('Name'),
+                        "odata_type": odata_type,
+                        "nullable": prop.get('Nullable', 'true') == 'true'
+                    }
+
+                    # Add type details
+                    if prop.get('MaxLength'):
+                        col_info['max_length'] = prop.get('MaxLength')
+                    if prop.get('Precision'):
+                        col_info['precision'] = prop.get('Precision')
+                    if prop.get('Scale'):
+                        col_info['scale'] = prop.get('Scale')
+
+                    # Add SQL type mapping for ETL
+                    if include_sql_types:
+                        col_info['sql_type'] = odata_to_sql(
+                            odata_type,
+                            col_info.get('precision'),
+                            col_info.get('scale'),
+                            col_info.get('max_length')
+                        )
+
+                    entity_info['columns'].append(col_info)
+
+                metadata['entities'].append(entity_info)
+
+            # Add ETL extraction guidance
+            metadata['etl_guidance'] = {
+                "batch_size_recommendation": "10000-50000 records per batch",
+                "pagination_method": "Use $top and $skip for pagination",
+                "filtering_method": "OData $filter for incremental extraction",
+                "recommended_timeout": "60 seconds for large batches"
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Entity Metadata (ETL-Optimized):\n\n" + json.dumps(metadata, indent=2)
+            )]
+
+        except Exception as e:
+            logger.error(f"Error getting entity metadata: {str(e)}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error getting entity metadata: {str(e)}\n\n"
+                     f"Possible causes:\n"
+                     f"1. Entity doesn't exist or is not accessible\n"
+                     f"2. Use list_relational_entities to find available entities"
+            )]
+
+    elif name == "query_relational_entity":
+        space_id = arguments["space_id"]
+        entity_name = arguments["entity_name"]
+        filter_expr = arguments.get("filter")
+        select = arguments.get("select")
+        top = arguments.get("top", 1000)
+        skip = arguments.get("skip", 0)
+        orderby = arguments.get("orderby")
+
+        if not datasphere_connector:
+            return [types.TextContent(
+                type="text",
+                text="Error: OAuth connector not initialized. Cannot query relational entity."
+            )]
+
+        try:
+            # Build OData query for ETL extraction
+            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{entity_name}"
+
+            params = {
+                "$top": min(top, 50000)  # ETL mode: allow up to 50K records
+            }
+
+            if skip:
+                params["$skip"] = skip
+            if filter_expr:
+                params["$filter"] = filter_expr
+            if select:
+                params["$select"] = select
+            if orderby:
+                params["$orderby"] = orderby
+
+            logger.info(f"Querying relational entity {space_id}/{entity_name} (ETL mode, top={params['$top']})")
+
+            start_time = time.time()
+            data = await datasphere_connector.get(endpoint, params=params, timeout=60)
+            execution_time = time.time() - start_time
+
+            # Format response with ETL metadata
+            result = {
+                "space_id": space_id,
+                "entity_name": entity_name,
+                "execution_time_seconds": round(execution_time, 3),
+                "rows_returned": len(data.get("value", [])),
+                "odata_params": params,
+                "extraction_mode": "etl_batch",
+                "data": data.get("value", [])
+            }
+
+            # Add pagination guidance if more data available
+            if len(data.get("value", [])) == params["$top"]:
+                result["pagination_hint"] = {
+                    "more_data_available": "likely",
+                    "next_batch_skip": params["$top"] + skip,
+                    "recommendation": f"Use skip={params['$top'] + skip} to get next batch"
+                }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Query Results (ETL Mode):\n\n" + json.dumps(result, indent=2)
+            )]
+
+        except Exception as e:
+            logger.error(f"Error querying relational entity: {str(e)}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error querying relational entity: {str(e)}\n\n"
+                     f"Possible causes:\n"
+                     f"1. Entity doesn't exist in the space\n"
+                     f"2. Invalid $filter expression\n"
+                     f"3. Selected columns don't exist\n"
+                     f"4. Use get_relational_entity_metadata to verify schema"
+            )]
+
+    elif name == "get_relational_odata_service":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+        include_capabilities = arguments.get("include_capabilities", True)
+
+        if not datasphere_connector:
+            return [types.TextContent(
+                type="text",
+                text="Error: OAuth connector not initialized. Cannot get OData service document."
+            )]
+
+        try:
+            # Get OData service document
+            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}"
+
+            logger.info(f"Getting OData service document for {space_id}/{asset_id}")
+            data = await datasphere_connector.get(endpoint, timeout=30)
+
+            # Build service document with ETL planning info
+            result = {
+                "space_id": space_id,
+                "asset_id": asset_id,
+                "odata_version": "4.0",
+                "service_root": endpoint,
+                "entity_sets": data.get("value", []),
+                "entity_count": len(data.get("value", [])),
+                "metadata_url": f"{endpoint}/$metadata"
+            }
+
+            if include_capabilities:
+                result["query_capabilities"] = {
+                    "filtering": "$filter supported (OData v4 expressions)",
+                    "projection": "$select supported (comma-separated columns)",
+                    "pagination": "$top and $skip supported",
+                    "sorting": "$orderby supported (asc/desc)",
+                    "max_page_size": 50000,
+                    "recommended_batch_size": "10000-20000 for optimal performance"
+                }
+
+                result["etl_features"] = {
+                    "incremental_extraction": "Use $filter with date columns",
+                    "parallel_extraction": "Use $skip with multiple concurrent requests",
+                    "delta_detection": "Compare timestamps or use change tracking if available",
+                    "type_mapping": "OData types map to SQL types (use get_relational_entity_metadata)"
+                }
+
+            return [types.TextContent(
+                type="text",
+                text=f"OData Service Document (ETL Planning):\n\n" + json.dumps(result, indent=2)
+            )]
+
+        except Exception as e:
+            logger.error(f"Error getting OData service document: {str(e)}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error getting OData service document: {str(e)}\n\n"
+                     f"Possible causes:\n"
+                     f"1. Asset doesn't exist in the space\n"
+                     f"2. Asset is not accessible via relational consumption\n"
+                     f"3. Use list_catalog_assets to find available assets"
+            )]
 
     elif name == "get_repository_search_metadata":
         include_field_details = arguments.get("include_field_details", True)

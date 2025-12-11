@@ -390,6 +390,43 @@ class AuthorizationManager:
             risk_level="low"
         ),
 
+        # Phase 5.1: ETL-Optimized Relational Data Access Tools
+        "list_relational_entities": ToolPermission(
+            tool_name="list_relational_entities",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="List available relational entities for ETL extraction",
+            risk_level="low"
+        ),
+
+        "get_relational_entity_metadata": ToolPermission(
+            tool_name="get_relational_entity_metadata",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get entity metadata with SQL type mappings for ETL",
+            risk_level="low"
+        ),
+
+        "query_relational_entity": ToolPermission(
+            tool_name="query_relational_entity",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.DATA_ACCESS,
+            requires_consent=False,
+            description="Execute ETL-optimized queries (up to 50K records)",
+            risk_level="medium"
+        ),
+
+        "get_relational_odata_service": ToolPermission(
+            tool_name="get_relational_odata_service",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get OData service document for ETL planning",
+            risk_level="low"
+        ),
+
         # Phase 6 & 7 tools removed (endpoints not available as REST APIs)
     }
 
