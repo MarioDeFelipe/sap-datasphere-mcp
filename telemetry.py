@@ -24,6 +24,7 @@ class MetricType(Enum):
     AUTHORIZATION_CHECK = "authorization_check"
     CACHE_HIT = "cache_hit"
     CACHE_MISS = "cache_miss"
+    CACHE_EVENT = "cache_event"
 
 
 @dataclass
@@ -86,6 +87,7 @@ class TelemetryManager:
         self._cache_misses = 0
         self._validation_failures = 0
         self._authorization_denials = 0
+        self._cache_events = defaultdict(lambda: defaultdict(int))  # {category: {event_type: count}}
 
         logger.info(f"Telemetry manager initialized (max_history={max_history})")
 
@@ -147,6 +149,24 @@ class TelemetryManager:
             f"Metric recorded: {tool_name} "
             f"({duration_ms:.2f}ms, success={success}, cached={cached})"
         )
+
+    def record_cache_event(self, event_type: str, category: str, details: str = ""):
+        """
+        Record a cache event (hit/miss)
+
+        Args:
+            event_type: Type of event ("hit" or "miss")
+            category: Cache category (e.g., "catalog_assets", "spaces")
+            details: Optional details about the event
+        """
+        self._cache_events[category][event_type] += 1
+
+        if event_type == "hit":
+            self._cache_hits += 1
+        elif event_type == "miss":
+            self._cache_misses += 1
+
+        logger.debug(f"Cache {event_type}: {category} ({details})")
 
     def get_stats(self, window_minutes: Optional[int] = None) -> TelemetryStats:
         """
@@ -308,7 +328,8 @@ class TelemetryManager:
                     if (stats.cache_hits + stats.cache_misses) > 0
                     else 0.0,
                     2
-                )
+                ),
+                "by_category": dict(self._cache_events)
             },
             "security": {
                 "validation_failures": stats.validation_failures,
