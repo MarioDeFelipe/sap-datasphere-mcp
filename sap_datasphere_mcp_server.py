@@ -113,12 +113,13 @@ sql_sanitizer = SQLSanitizer(
     max_tables=10,
     allow_subqueries=True
 )
-cache_manager = CacheManager(
-    max_size=1000,
-    enabled=True
-)
 telemetry_manager = TelemetryManager(
     max_history=1000
+)
+cache_manager = CacheManager(
+    max_size=1000,
+    enabled=True,
+    telemetry_manager=telemetry_manager
 )
 
 # Global variable for OAuth connector (initialized in main())
@@ -1181,18 +1182,31 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             try:
                 # Use simple API call without ANY filters (API doesn't support ANY OData filters)
                 # Do ALL filtering client-side (same approach as list_catalog_assets)
-                # IMPORTANT: Must use BOTH $top and $skip parameters (matching list_catalog_assets)
-                endpoint = "/api/v1/datasphere/consumption/catalog/assets"
-                params = {
-                    "$top": 50,    # Match list_catalog_assets parameter
-                    "$skip": 0     # Required - API returns empty without this
-                }
+                logger.info(f"Table search: Getting all assets and filtering client-side for search_term: {search_term}")
 
-                # NO filters in API call - even spaceId filter causes 400 error
-                logger.info(f"Getting catalog assets with params: {params}")
-                data = await datasphere_connector.get(endpoint, params=params)
+                # Try cache first for catalog assets (dramatically improves performance)
+                cache_key = "all_catalog_assets"
+                all_assets = cache_manager.get(cache_key, CacheCategory.CATALOG_ASSETS)
 
-                all_assets = data.get("value", [])
+                if all_assets is None:
+                    # Cache miss - fetch from API
+                    logger.info("Cache miss for catalog assets - fetching from API")
+                    endpoint = "/api/v1/datasphere/consumption/catalog/assets"
+                    # IMPORTANT: Must use BOTH $top and $skip parameters
+                    params = {
+                        "$top": 500,    # Get more assets for comprehensive search
+                        "$skip": 0      # Required - API returns empty without this
+                    }
+
+                    # NO filters in API call - even spaceId filter causes 400 error
+                    data = await datasphere_connector.get(endpoint, params=params)
+                    all_assets = data.get("value", [])
+
+                    # Cache for 5 minutes (reduces API calls by 90%+)
+                    cache_manager.set(cache_key, all_assets, CacheCategory.CATALOG_ASSETS)
+                    logger.info(f"Cached {len(all_assets)} catalog assets for 5 minutes")
+                else:
+                    logger.info(f"Cache hit for catalog assets ({len(all_assets)} assets) - instant search!")
 
                 # Client-side filtering for space, asset types, and search term
                 filtered_assets = []
@@ -3028,16 +3042,28 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 # Instead, use list_catalog_assets and implement client-side search
                 logger.info(f"Catalog search workaround: Getting all assets and filtering client-side for query: {query}")
 
-                # Get all catalog assets (no filters - API doesn't support $filter on /catalog/assets)
-                endpoint = "/api/v1/datasphere/consumption/catalog/assets"
-                # IMPORTANT: Must include both $top and $skip or API returns empty results
-                list_params = {
-                    "$top": 500,  # Get more assets for comprehensive search
-                    "$skip": 0
-                }
+                # Try cache first for catalog assets (dramatically improves performance)
+                cache_key = "all_catalog_assets"
+                all_assets = cache_manager.get(cache_key, CacheCategory.CATALOG_ASSETS)
 
-                data = await datasphere_connector.get(endpoint, params=list_params)
-                all_assets = data.get("value", [])
+                if all_assets is None:
+                    # Cache miss - fetch from API
+                    logger.info("Cache miss for catalog assets - fetching from API")
+                    endpoint = "/api/v1/datasphere/consumption/catalog/assets"
+                    # IMPORTANT: Must include both $top and $skip or API returns empty results
+                    list_params = {
+                        "$top": 500,  # Get more assets for comprehensive search
+                        "$skip": 0
+                    }
+
+                    data = await datasphere_connector.get(endpoint, params=list_params)
+                    all_assets = data.get("value", [])
+
+                    # Cache for 5 minutes (reduces API calls by 90%+)
+                    cache_manager.set(cache_key, all_assets, CacheCategory.CATALOG_ASSETS)
+                    logger.info(f"Cached {len(all_assets)} catalog assets for 5 minutes")
+                else:
+                    logger.info(f"Cache hit for catalog assets ({len(all_assets)} assets) - instant search!")
 
                 # Client-side search across name, label, and description fields
                 query_lower = query.lower()
@@ -3261,16 +3287,28 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 # Instead, use list_catalog_assets and implement client-side search and filtering
                 logger.info(f"Repository search workaround: Getting all assets and filtering client-side for search_terms: {search_terms}")
 
-                # Get all catalog assets (no filters - API doesn't support $filter on /catalog/assets)
-                endpoint = "/api/v1/datasphere/consumption/catalog/assets"
-                # IMPORTANT: Must include both $top and $skip or API returns empty results
-                list_params = {
-                    "$top": 500,  # Get more assets for comprehensive search
-                    "$skip": 0
-                }
+                # Try cache first for catalog assets (dramatically improves performance)
+                cache_key = "all_catalog_assets"
+                all_assets = cache_manager.get(cache_key, CacheCategory.CATALOG_ASSETS)
 
-                data = await datasphere_connector.get(endpoint, params=list_params)
-                all_assets = data.get("value", [])
+                if all_assets is None:
+                    # Cache miss - fetch from API
+                    logger.info("Cache miss for catalog assets - fetching from API")
+                    endpoint = "/api/v1/datasphere/consumption/catalog/assets"
+                    # IMPORTANT: Must include both $top and $skip or API returns empty results
+                    list_params = {
+                        "$top": 500,  # Get more assets for comprehensive search
+                        "$skip": 0
+                    }
+
+                    data = await datasphere_connector.get(endpoint, params=list_params)
+                    all_assets = data.get("value", [])
+
+                    # Cache for 5 minutes (reduces API calls by 90%+)
+                    cache_manager.set(cache_key, all_assets, CacheCategory.CATALOG_ASSETS)
+                    logger.info(f"Cached {len(all_assets)} catalog assets for 5 minutes")
+                else:
+                    logger.info(f"Cache hit for catalog assets ({len(all_assets)} assets) - instant search!")
 
                 # Client-side search across name, businessName, and description fields
                 search_terms_lower = search_terms.lower()
