@@ -239,11 +239,8 @@ class ToolValidators:
                 max_length=64,
                 pattern=r'^[A-Z][A-Z0-9_]*$'  # Uppercase, alphanumeric with underscores
             ),
-            ValidationRule(
-                param_name="user_definition",
-                validation_type=ValidationType.STRING,  # Will be validated as JSON object
-                required=True
-            ),
+            # user_definition is validated by MCP tool schema (type: object)
+            # No custom validation needed - it's already a dict/object
             ValidationRule(
                 param_name="output_file",
                 validation_type=ValidationType.STRING,
@@ -302,11 +299,8 @@ class ToolValidators:
                 max_length=64,
                 pattern=r'^[A-Z][A-Z0-9_]*$'
             ),
-            ValidationRule(
-                param_name="updated_definition",
-                validation_type=ValidationType.STRING,  # Will be validated as JSON object
-                required=True
-            ),
+            # updated_definition is validated by MCP tool schema (type: object)
+            # No custom validation needed - it's already a dict/object
             ValidationRule(
                 param_name="output_file",
                 validation_type=ValidationType.STRING,
