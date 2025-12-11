@@ -1342,6 +1342,26 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     text=json.dumps(tasks, indent=2)
                 )]
 
+            except ValueError as e:
+                # Check if it's HTML response error
+                if "HTML instead of JSON" in str(e):
+                    logger.warning(f"Task API returned HTML: {e}")
+                    return [types.TextContent(
+                        type="text",
+                        text=f">>> Task API Not Available <<<\n\n"
+                             f"The task monitoring API endpoint returned HTML instead of JSON.\n\n"
+                             f"Possible reasons:\n"
+                             f"- This endpoint may be designed for browser/UI access only\n"
+                             f"- The /api/v1/dwc/tasks endpoint may not be available on this tenant\n"
+                             f"- This could be a legacy Data Warehouse Cloud (DWC) endpoint\n\n"
+                             f"Alternatives:\n"
+                             f"1. Check task status directly in SAP Datasphere UI\n"
+                             f"2. Use datasphere CLI if available: datasphere tasks list\n"
+                             f"3. Contact SAP support to confirm REST API availability\n\n"
+                             f"Technical details: {str(e)}"
+                    )]
+                raise
+
             except Exception as e:
                 logger.error(f"Error getting task status: {e}")
 
@@ -1433,6 +1453,26 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     type="text",
                     text=json.dumps(result, indent=2)
                 )]
+
+            except ValueError as e:
+                # Check if it's HTML response error
+                if "HTML instead of JSON" in str(e):
+                    logger.warning(f"Marketplace API returned HTML: {e}")
+                    return [types.TextContent(
+                        type="text",
+                        text=f">>> Marketplace API Not Available <<<\n\n"
+                             f"The marketplace API endpoint returned HTML instead of JSON.\n\n"
+                             f"Possible reasons:\n"
+                             f"- This endpoint may be designed for browser/UI access only\n"
+                             f"- The /api/v1/datasphere/marketplace/packages endpoint is not a REST API\n"
+                             f"- Marketplace browsing may only be available through the web UI\n\n"
+                             f"Alternatives:\n"
+                             f"1. Browse marketplace directly in SAP Datasphere UI\n"
+                             f"2. Contact SAP support to confirm REST API availability\n"
+                             f"3. Check SAP API documentation for marketplace endpoints\n\n"
+                             f"Technical details: {str(e)}"
+                    )]
+                raise
 
             except Exception as e:
                 logger.error(f"Error browsing marketplace: {e}")
