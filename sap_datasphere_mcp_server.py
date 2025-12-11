@@ -890,6 +890,21 @@ async def handle_list_tools() -> list[Tool]:
                 "required": ["space_id"]
             }
         ),
+        # DIAGNOSTIC TOOL: Test Phase 6 & 7 endpoint availability
+        Tool(
+            name="test_phase67_endpoints",
+            description="Diagnostic tool to test availability of Phase 6 & 7 API endpoints (KPI Management, System Monitoring, User Administration). Returns detailed status for each endpoint including HTTP response codes, error messages, and recommendations. Use this to determine which endpoints are available in your tenant before using the Phase 6 & 7 tools.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "detailed": {
+                        "type": "boolean",
+                        "description": "Include detailed response data for successful endpoints (default: false)",
+                        "default": False
+                    }
+                }
+            }
+        ),
         # PHASE 6: KPI Management Tools (3 tools)
         Tool(
             name="search_kpis",
@@ -5486,6 +5501,176 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     type="text",
                     text=f"Error getting deployed objects: {str(e)}"
                 )]
+
+    # ========================================================================
+    # DIAGNOSTIC TOOL: Test Phase 6 & 7 Endpoint Availability
+    # ========================================================================
+
+    elif name == "test_phase67_endpoints":
+        detailed = arguments.get("detailed", False)
+
+        if not datasphere_connector:
+            return [types.TextContent(
+                type="text",
+                text="Error: OAuth connector not initialized. Cannot test endpoints."
+            )]
+
+        # Define all Phase 6 & 7 endpoints to test
+        endpoints_to_test = {
+            "KPI Management": {
+                "kpi_search": {
+                    "endpoint": "/api/v1/datasphere/search",
+                    "params": {"search": "SCOPE:comsapcatalogsearchprivateSearchKPIsAdmin *", "$top": 1},
+                    "description": "Search for KPIs"
+                },
+                "kpi_list": {
+                    "endpoint": "/api/v1/datasphere/kpis",
+                    "params": {"$top": 1},
+                    "description": "List all KPIs"
+                }
+            },
+            "System Monitoring": {
+                "systems_overview": {
+                    "endpoint": "/api/v1/datasphere/systems/overview",
+                    "params": {},
+                    "description": "Get systems overview"
+                },
+                "logs_search": {
+                    "endpoint": "/api/v1/datasphere/logs/search",
+                    "params": {"$top": 1},
+                    "description": "Search system logs"
+                },
+                "logs_export": {
+                    "endpoint": "/api/v1/datasphere/logs/export",
+                    "params": {"format": "JSON", "max_records": 1},
+                    "description": "Export system logs"
+                },
+                "logs_facets": {
+                    "endpoint": "/api/v1/datasphere/logs/facets",
+                    "params": {"facet_fields": "level"},
+                    "description": "Get log facets"
+                }
+            },
+            "User Administration": {
+                "users_list": {
+                    "endpoint": "/api/v1/datasphere/users",
+                    "params": {"$top": 1},
+                    "description": "List users"
+                }
+            }
+        }
+
+        results = {
+            "test_timestamp": datetime.now().isoformat(),
+            "categories": {},
+            "summary": {
+                "total_endpoints": 0,
+                "available": 0,
+                "unavailable": 0,
+                "errors": 0
+            }
+        }
+
+        # Test each endpoint
+        for category, endpoints in endpoints_to_test.items():
+            results["categories"][category] = {}
+
+            for name, config in endpoints.items():
+                results["summary"]["total_endpoints"] += 1
+
+                try:
+                    logger.info(f"Testing endpoint: {config['endpoint']}")
+                    response_data = await datasphere_connector.get(
+                        config["endpoint"],
+                        params=config["params"]
+                    )
+
+                    # Endpoint is available
+                    results["categories"][category][name] = {
+                        "status": "available",
+                        "http_code": 200,
+                        "description": config["description"],
+                        "endpoint": config["endpoint"],
+                        "message": "✅ Endpoint is available and working"
+                    }
+
+                    if detailed and response_data:
+                        results["categories"][category][name]["sample_data"] = response_data
+
+                    results["summary"]["available"] += 1
+                    logger.info(f"✅ {config['endpoint']} - Available")
+
+                except Exception as e:
+                    error_str = str(e)
+
+                    # Determine status based on error
+                    if "404" in error_str or "Not Found" in error_str:
+                        status = "not_found"
+                        http_code = 404
+                        message = "❌ Endpoint does not exist in this tenant"
+                    elif "403" in error_str or "Forbidden" in error_str:
+                        status = "forbidden"
+                        http_code = 403
+                        message = "⚠️ Endpoint exists but requires admin permissions"
+                    elif "401" in error_str or "Unauthorized" in error_str:
+                        status = "unauthorized"
+                        http_code = 401
+                        message = "⚠️ Endpoint exists but authentication failed"
+                    elif "400" in error_str or "Bad Request" in error_str:
+                        status = "bad_request"
+                        http_code = 400
+                        message = "⚠️ Endpoint exists but parameters may need adjustment"
+                    else:
+                        status = "error"
+                        http_code = None
+                        message = f"❌ Error: {error_str}"
+
+                    results["categories"][category][name] = {
+                        "status": status,
+                        "http_code": http_code,
+                        "description": config["description"],
+                        "endpoint": config["endpoint"],
+                        "message": message,
+                        "error": error_str
+                    }
+
+                    if status == "not_found":
+                        results["summary"]["unavailable"] += 1
+                    else:
+                        results["summary"]["errors"] += 1
+
+                    logger.warning(f"⚠️ {config['endpoint']} - {status}")
+
+        # Add recommendations
+        results["recommendations"] = []
+
+        if results["summary"]["available"] == 0:
+            results["recommendations"].append(
+                "No Phase 6 & 7 endpoints are available. All tools will use mock data."
+            )
+            results["recommendations"].append(
+                "These features may require specific tenant configuration or admin permissions."
+            )
+        elif results["summary"]["available"] < results["summary"]["total_endpoints"]:
+            results["recommendations"].append(
+                f"{results['summary']['available']}/{results['summary']['total_endpoints']} endpoints available. "
+                "Some tools can use real data, others will use mock data."
+            )
+        else:
+            results["recommendations"].append(
+                "All Phase 6 & 7 endpoints are available! You can enable real data for all 10 tools."
+            )
+
+        if results["summary"]["errors"] > 0:
+            results["recommendations"].append(
+                "Some endpoints returned permission or authentication errors. "
+                "Check user roles and OAuth scopes."
+            )
+
+        return [types.TextContent(
+            type="text",
+            text=f"Phase 6 & 7 Endpoint Availability Test:\n\n{json.dumps(results, indent=2)}"
+        )]
 
     # ========================================================================
     # PHASE 6: KPI MANAGEMENT TOOLS
