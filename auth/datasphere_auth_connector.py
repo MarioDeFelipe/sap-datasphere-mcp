@@ -158,9 +158,21 @@ class DatasphereAuthConnector:
                         timeout=aiohttp.ClientTimeout(total=30)
                     ) as retry_response:
                         retry_response.raise_for_status()
+
+                        # Check content-type before parsing JSON
+                        content_type = retry_response.headers.get('content-type', '').lower()
+                        if 'text/html' in content_type:
+                            raise ValueError(f"API returned HTML instead of JSON. This endpoint may be UI-only or not available via REST API. URL: {url}")
+
                         return await retry_response.json()
 
                 response.raise_for_status()
+
+                # Check content-type before parsing JSON
+                content_type = response.headers.get('content-type', '').lower()
+                if 'text/html' in content_type:
+                    raise ValueError(f"API returned HTML instead of JSON. This endpoint may be UI-only or not available via REST API. URL: {url}")
+
                 return await response.json()
 
         except aiohttp.ClientError as e:
