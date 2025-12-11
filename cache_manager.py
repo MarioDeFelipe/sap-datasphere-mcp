@@ -7,11 +7,14 @@ and reduce redundant API calls. Uses TTL-based expiration and LRU eviction.
 
 import time
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 from datetime import datetime, timedelta
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
+
+if TYPE_CHECKING:
+    from telemetry import TelemetryManager
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +27,7 @@ class CacheCategory(Enum):
     CONNECTIONS = "connections"    # Connection status (TTL: 1 minute)
     TASKS = "tasks"                # Task status (TTL: 30 seconds)
     MARKETPLACE = "marketplace"    # Marketplace packages (TTL: 1 hour)
+    CATALOG_ASSETS = "catalog_assets"  # Catalog assets list (TTL: 5 minutes)
 
 
 @dataclass
@@ -70,18 +74,21 @@ class CacheManager:
         CacheCategory.CONNECTIONS: 60,     # 1 minute
         CacheCategory.TASKS: 30,           # 30 seconds
         CacheCategory.MARKETPLACE: 3600,   # 1 hour
+        CacheCategory.CATALOG_ASSETS: 300, # 5 minutes
     }
 
-    def __init__(self, max_size: int = 1000, enabled: bool = True):
+    def __init__(self, max_size: int = 1000, enabled: bool = True, telemetry_manager: Optional["TelemetryManager"] = None):
         """
         Initialize cache manager
 
         Args:
             max_size: Maximum number of entries to cache
             enabled: Whether caching is enabled
+            telemetry_manager: Optional telemetry manager for metrics logging
         """
         self.max_size = max_size
         self.enabled = enabled
+        self.telemetry_manager = telemetry_manager
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self._stats = {
             "hits": 0,
@@ -118,6 +125,8 @@ class CacheManager:
                 logger.debug(f"Cache expired: {cache_key}")
                 del self._cache[cache_key]
                 self._stats["misses"] += 1
+                if self.telemetry_manager:
+                    self.telemetry_manager.record_cache_event("miss", category.value, "expired")
                 return None
 
             # Move to end (LRU)
@@ -125,10 +134,17 @@ class CacheManager:
             entry.touch()
             self._stats["hits"] += 1
 
+            # Log cache hit to telemetry
+            if self.telemetry_manager:
+                age_seconds = time.time() - entry.created_at
+                self.telemetry_manager.record_cache_event("hit", category.value, f"age={age_seconds:.1f}s")
+
             logger.debug(f"Cache hit: {cache_key} (age: {time.time() - entry.created_at:.1f}s)")
             return entry.value
 
         self._stats["misses"] += 1
+        if self.telemetry_manager:
+            self.telemetry_manager.record_cache_event("miss", category.value, "not_found")
         logger.debug(f"Cache miss: {cache_key}")
         return None
 
