@@ -360,6 +360,16 @@ class AuthorizationManager:
             risk_level="low"
         ),
 
+        # Diagnostic Tool: Test Phase 6 & 7 endpoint availability
+        "test_phase67_endpoints": ToolPermission(
+            tool_name="test_phase67_endpoints",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=False,
+            description="Test availability of Phase 6 & 7 API endpoints",
+            risk_level="low"
+        ),
+
         # Phase 6: KPI Management Tools
         "search_kpis": ToolPermission(
             tool_name="search_kpis",
