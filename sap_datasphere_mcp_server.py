@@ -3024,23 +3024,97 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                # Fixed: Use proper Catalog API endpoint instead of UI endpoint
-                endpoint = "/api/v1/datasphere/consumption/catalog/search"
-                response = await datasphere_connector.get(endpoint, params=params)
+                # WORKAROUND: The /api/v1/datasphere/consumption/catalog/search endpoint returns 404 Not Found
+                # Instead, use list_catalog_assets and implement client-side search
+                logger.info(f"Catalog search workaround: Getting all assets and filtering client-side for query: {query}")
+
+                # Get all catalog assets (no filters - API doesn't support $filter on /catalog/assets)
+                endpoint = "/api/v1/datasphere/consumption/catalog/assets"
+                # IMPORTANT: Must include both $top and $skip or API returns empty results
+                list_params = {
+                    "$top": 500,  # Get more assets for comprehensive search
+                    "$skip": 0
+                }
+
+                data = await datasphere_connector.get(endpoint, params=list_params)
+                all_assets = data.get("value", [])
+
+                # Client-side search across name, label, and description fields
+                query_lower = query.lower()
+                search_results = []
+
+                for asset in all_assets:
+                    # Search in name, label, and description
+                    name = asset.get("name", "").lower()
+                    label = asset.get("label", "").lower()
+                    description = asset.get("description", "").lower()
+
+                    # Check if query matches any field
+                    if (query_lower in name or
+                        query_lower in label or
+                        query_lower in description):
+
+                        # Track which fields matched for why_found
+                        if include_why_found:
+                            matched_fields = []
+                            if query_lower in name:
+                                matched_fields.append(f"name: '{asset.get('name')}'")
+                            if query_lower in label:
+                                matched_fields.append(f"label: '{asset.get('label')}'")
+                            if query_lower in description:
+                                matched_fields.append(f"description: '{asset.get('description')[:50]}...'")
+
+                            asset["_whyFound"] = ", ".join(matched_fields)
+
+                        search_results.append(asset)
+
+                # Calculate facets if requested (client-side aggregation)
+                facet_data = None
+                if facets:
+                    facet_data = {}
+
+                    # Count by objectType
+                    if "objectType" in facets or facets == "objectType":
+                        type_counts = {}
+                        for asset in search_results:
+                            obj_type = asset.get("objectType", "Unknown")
+                            type_counts[obj_type] = type_counts.get(obj_type, 0) + 1
+
+                        facet_data["objectType"] = [
+                            {"value": k, "count": v}
+                            for k, v in sorted(type_counts.items(), key=lambda x: x[1], reverse=True)[:facet_limit]
+                        ]
+
+                    # Count by spaceId
+                    if "spaceId" in facets or facets == "spaceId":
+                        space_counts = {}
+                        for asset in search_results:
+                            space = asset.get("spaceName", "Unknown")
+                            space_counts[space] = space_counts.get(space, 0) + 1
+
+                        facet_data["spaceId"] = [
+                            {"value": k, "count": v}
+                            for k, v in sorted(space_counts.items(), key=lambda x: x[1], reverse=True)[:facet_limit]
+                        ]
+
+                # Apply pagination to search results
+                total_count = len(search_results)
+                paginated_results = search_results[skip:skip + top]
 
                 # Format results
                 results = {
                     "search_query": query,
-                    "value": response.get("value", []),
-                    "count": response.get("@odata.count") if include_count else None,
+                    "value": paginated_results,
+                    "count": total_count if include_count else None,
                     "top": top,
                     "skip": skip,
-                    "returned": len(response.get("value", [])),
-                    "has_more": len(response.get("value", [])) == top
+                    "returned": len(paginated_results),
+                    "has_more": (skip + top) < total_count,
+                    "note": "Client-side search workaround - /catalog/search endpoint not available"
                 }
 
-                if facets and "facets" in response:
-                    results["facets"] = response["facets"]
+                if facet_data:
+                    results["facets"] = facet_data
 
                 return [types.TextContent(
                     type="text",
@@ -3183,20 +3257,62 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                # Fixed: Repository APIs are UI endpoints; use Catalog API instead
-                endpoint = "/api/v1/datasphere/consumption/catalog/search"
-                response = await datasphere_connector.get(endpoint, params=params)
+                # WORKAROUND: The /api/v1/datasphere/consumption/catalog/search endpoint returns 404 Not Found
+                # Instead, use list_catalog_assets and implement client-side search and filtering
+                logger.info(f"Repository search workaround: Getting all assets and filtering client-side for search_terms: {search_terms}")
+
+                # Get all catalog assets (no filters - API doesn't support $filter on /catalog/assets)
+                endpoint = "/api/v1/datasphere/consumption/catalog/assets"
+                # IMPORTANT: Must include both $top and $skip or API returns empty results
+                list_params = {
+                    "$top": 500,  # Get more assets for comprehensive search
+                    "$skip": 0
+                }
+
+                data = await datasphere_connector.get(endpoint, params=list_params)
+                all_assets = data.get("value", [])
+
+                # Client-side search across name, businessName, and description fields
+                search_terms_lower = search_terms.lower()
+                search_results = []
+
+                for asset in all_assets:
+                    # Search in name, businessName, and description
+                    name = asset.get("name", "").lower()
+                    business_name = asset.get("businessName", "").lower()
+                    description = asset.get("description", "").lower()
+
+                    # Check if search_terms matches any field
+                    if (search_terms_lower in name or
+                        search_terms_lower in business_name or
+                        search_terms_lower in description):
+
+                        # Filter by object_types if specified
+                        if object_types:
+                            if asset.get("objectType") not in object_types:
+                                continue
+
+                        # Filter by space_id if specified
+                        if space_id:
+                            if asset.get("spaceName") != space_id:
+                                continue
+
+                        search_results.append(asset)
+
+                # Apply pagination to search results
+                total_count = len(search_results)
+                paginated_results = search_results[skip:skip + top]
 
                 # Parse and format results
                 objects = []
-                for item in response.get("value", []):
+                for item in paginated_results:
                     obj = {
                         "id": item.get("id"),
                         "object_type": item.get("objectType"),
                         "name": item.get("name"),
                         "business_name": item.get("businessName"),
                         "description": item.get("description"),
-                        "space_id": item.get("spaceId"),
+                        "space_id": item.get("spaceName"),  # Use spaceName field
                         "status": item.get("status"),
                         "deployment_status": item.get("deploymentStatus"),
                         "owner": item.get("owner"),
@@ -3217,16 +3333,17 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                             for col in item["columns"]
                         ]
 
-                    # Add dependencies if requested
-                    if include_dependencies and item.get("dependencies"):
+                    # Note: Dependencies and lineage data not available from catalog API
+                    # These would require additional API calls per asset
+                    if include_dependencies:
                         obj["dependencies"] = {
-                            "upstream": item["dependencies"].get("upstream", []),
-                            "downstream": item["dependencies"].get("downstream", [])
+                            "note": "Dependencies not available from catalog API - would require individual asset queries"
                         }
 
-                    # Add lineage if requested
-                    if include_lineage and item.get("lineage"):
-                        obj["lineage"] = item["lineage"]
+                    if include_lineage:
+                        obj["lineage"] = {
+                            "note": "Lineage not available from catalog API - would require individual asset queries"
+                        }
 
                     objects.append(obj)
 
@@ -3234,7 +3351,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     "search_terms": search_terms,
                     "objects": objects,
                     "returned_count": len(objects),
-                    "has_more": len(objects) == top
+                    "total_matches": total_count,
+                    "has_more": (skip + top) < total_count,
+                    "note": "Client-side search workaround - /catalog/search endpoint not available"
                 }
 
                 return [types.TextContent(
