@@ -380,6 +380,16 @@ class AuthorizationManager:
             risk_level="low"
         ),
 
+        # Diagnostic Tool: Test Analytical & Query endpoints
+        "test_analytical_endpoints": ToolPermission(
+            tool_name="test_analytical_endpoints",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=False,
+            description="Test availability of Analytical and Query API endpoints (6 remaining mock tools)",
+            risk_level="low"
+        ),
+
         # Phase 6 & 7 tools removed (endpoints not available as REST APIs)
     }
 

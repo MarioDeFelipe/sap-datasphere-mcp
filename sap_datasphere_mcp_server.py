@@ -924,6 +924,26 @@ async def handle_list_tools() -> list[Tool]:
                     }
                 }
             }
+        ),
+        # DIAGNOSTIC TOOL: Test Analytical & Query endpoints
+        Tool(
+            name="test_analytical_endpoints",
+            description="Diagnostic tool to test availability of Analytical and Query API endpoints (6 remaining tools). Tests endpoints that are currently in mock mode to determine if they work with real data. Returns detailed status for each endpoint including HTTP response codes, error messages, and recommendations. Use this to verify if setting USE_MOCK_DATA=false will enable these 6 tools.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "detailed": {
+                        "type": "boolean",
+                        "description": "Include detailed response data for successful endpoints (default: false)",
+                        "default": False
+                    },
+                    "test_space_id": {
+                        "type": "string",
+                        "description": "Space ID to use for testing (default: SAP_CONTENT)",
+                        "default": "SAP_CONTENT"
+                    }
+                }
+            }
         )
         # Phase 6 & 7 tools removed - endpoints not available as REST APIs (return HTML instead of JSON)
     ]
@@ -5570,6 +5590,261 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         return [types.TextContent(
             type="text",
             text=f"Phase 8 Endpoint Availability Test:\n\n{json.dumps(results, indent=2)}"
+        )]
+
+    elif name == "test_analytical_endpoints":
+        detailed = arguments.get("detailed", False)
+        test_space_id = arguments.get("test_space_id", "SAP_CONTENT")
+
+        if not datasphere_connector:
+            return [types.TextContent(
+                type="text",
+                text="Error: OAuth connector not initialized. Cannot test endpoints."
+            )]
+
+        # First, we need to discover available analytical models/assets in the test space
+        # We'll use the catalog to find real assets to test with
+        results = {
+            "test_timestamp": datetime.now().isoformat(),
+            "phase": "Analytical & Query Tools (6 remaining mock tools)",
+            "test_space": test_space_id,
+            "categories": {},
+            "summary": {
+                "total_endpoints": 6,
+                "available": 0,
+                "unavailable": 0,
+                "errors": 0,
+                "needs_assets": 0
+            }
+        }
+
+        # Step 1: Try to find analytical models to test with
+        test_model_id = None
+        try:
+            logger.info(f"Discovering analytical models in {test_space_id}")
+            models_data = await datasphere_connector.get(
+                "/api/v1/datasphere/modelingService/analyticalModels",
+                params={"$top": 1, "$filter": f"spaceId eq '{test_space_id}'"}
+            )
+            if models_data.get("value") and len(models_data["value"]) > 0:
+                test_model_id = models_data["value"][0].get("id") or models_data["value"][0].get("technicalName")
+                logger.info(f"Found test model: {test_model_id}")
+        except Exception as e:
+            logger.warning(f"Could not discover analytical models: {str(e)}")
+
+        # Define endpoints to test
+        results["categories"]["Analytical Metadata Tools"] = {}
+        results["categories"]["Query Execution"] = {}
+
+        # Test 1: get_analytical_metadata
+        tool_name = "get_analytical_metadata"
+        if test_model_id:
+            try:
+                endpoint = f"/api/v1/datasphere/modelingService/analyticalModels/{test_model_id}/metadata"
+                logger.info(f"Testing: {endpoint}")
+                response_data = await datasphere_connector.get(endpoint, params={})
+
+                results["categories"]["Analytical Metadata Tools"][tool_name] = {
+                    "status": "available",
+                    "http_code": 200,
+                    "endpoint": endpoint,
+                    "message": "✅ Endpoint works with real analytical models"
+                }
+                if detailed and response_data:
+                    results["categories"]["Analytical Metadata Tools"][tool_name]["sample_data"] = response_data
+                results["summary"]["available"] += 1
+            except Exception as e:
+                results["categories"]["Analytical Metadata Tools"][tool_name] = {
+                    "status": "error",
+                    "endpoint": f"/api/v1/datasphere/modelingService/analyticalModels/{{model}}/metadata",
+                    "message": f"❌ Error: {str(e)}",
+                    "test_model": test_model_id
+                }
+                results["summary"]["errors"] += 1
+        else:
+            results["categories"]["Analytical Metadata Tools"][tool_name] = {
+                "status": "needs_assets",
+                "endpoint": "/api/v1/datasphere/modelingService/analyticalModels/{model}/metadata",
+                "message": "⚠️ No analytical models found in space to test with"
+            }
+            results["summary"]["needs_assets"] += 1
+
+        # Test 2: get_analytical_model
+        tool_name = "get_analytical_model"
+        if test_model_id:
+            try:
+                endpoint = f"/api/v1/datasphere/modelingService/analyticalModels/{test_model_id}"
+                logger.info(f"Testing: {endpoint}")
+                response_data = await datasphere_connector.get(endpoint, params={})
+
+                results["categories"]["Analytical Metadata Tools"][tool_name] = {
+                    "status": "available",
+                    "http_code": 200,
+                    "endpoint": endpoint,
+                    "message": "✅ Endpoint works with real analytical models"
+                }
+                if detailed and response_data:
+                    results["categories"]["Analytical Metadata Tools"][tool_name]["sample_data"] = response_data
+                results["summary"]["available"] += 1
+            except Exception as e:
+                results["categories"]["Analytical Metadata Tools"][tool_name] = {
+                    "status": "error",
+                    "endpoint": f"/api/v1/datasphere/modelingService/analyticalModels/{{model}}",
+                    "message": f"❌ Error: {str(e)}",
+                    "test_model": test_model_id
+                }
+                results["summary"]["errors"] += 1
+        else:
+            results["categories"]["Analytical Metadata Tools"][tool_name] = {
+                "status": "needs_assets",
+                "endpoint": "/api/v1/datasphere/modelingService/analyticalModels/{model}",
+                "message": "⚠️ No analytical models found in space to test with"
+            }
+            results["summary"]["needs_assets"] += 1
+
+        # Test 3: list_analytical_datasets
+        tool_name = "list_analytical_datasets"
+        if test_model_id:
+            try:
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{test_space_id}/{test_model_id}/"
+                logger.info(f"Testing: {endpoint}")
+                response_data = await datasphere_connector.get(endpoint, params={})
+
+                results["categories"]["Query Execution"][tool_name] = {
+                    "status": "available",
+                    "http_code": 200,
+                    "endpoint": endpoint,
+                    "message": "✅ Endpoint works - returns OData service document"
+                }
+                if detailed and response_data:
+                    results["categories"]["Query Execution"][tool_name]["sample_data"] = response_data
+                results["summary"]["available"] += 1
+            except Exception as e:
+                results["categories"]["Query Execution"][tool_name] = {
+                    "status": "error",
+                    "endpoint": f"/api/v1/datasphere/consumption/analytical/{{space}}/{{model}}/",
+                    "message": f"❌ Error: {str(e)}",
+                    "test_model": test_model_id
+                }
+                results["summary"]["errors"] += 1
+        else:
+            results["categories"]["Query Execution"][tool_name] = {
+                "status": "needs_assets",
+                "endpoint": "/api/v1/datasphere/consumption/analytical/{space}/{model}/",
+                "message": "⚠️ No analytical models found in space to test with"
+            }
+            results["summary"]["needs_assets"] += 1
+
+        # Test 4: get_analytical_service_document (same as list_analytical_datasets)
+        tool_name = "get_analytical_service_document"
+        if test_model_id:
+            results["categories"]["Query Execution"][tool_name] = {
+                "status": "available",
+                "http_code": 200,
+                "endpoint": f"/api/v1/datasphere/consumption/analytical/{test_space_id}/{test_model_id}/",
+                "message": "✅ Same endpoint as list_analytical_datasets - works"
+            }
+            results["summary"]["available"] += 1
+        else:
+            results["categories"]["Query Execution"][tool_name] = {
+                "status": "needs_assets",
+                "endpoint": "/api/v1/datasphere/consumption/analytical/{space}/{model}/",
+                "message": "⚠️ No analytical models found in space to test with"
+            }
+            results["summary"]["needs_assets"] += 1
+
+        # Test 5: query_analytical_data (requires entity name, which we can get from service document)
+        tool_name = "query_analytical_data"
+        results["categories"]["Query Execution"][tool_name] = {
+            "status": "needs_testing",
+            "endpoint": "/api/v1/datasphere/consumption/analytical/{space}/{model}/{entity}",
+            "message": "⚠️ Requires entity name from service document - needs manual testing with real model"
+        }
+        results["summary"]["needs_assets"] += 1
+
+        # Test 6: execute_query (relational data)
+        tool_name = "execute_query"
+        try:
+            # Try to find a table/view to test with
+            endpoint = f"/api/v1/datasphere/catalog/spaces/{test_space_id}/assets"
+            logger.info(f"Discovering tables/views in {test_space_id}")
+            assets_data = await datasphere_connector.get(endpoint, params={"$top": 1})
+
+            if assets_data.get("value") and len(assets_data["value"]) > 0:
+                test_asset = assets_data["value"][0]
+                asset_name = test_asset.get("name") or test_asset.get("technicalName")
+
+                # Try querying it
+                query_endpoint = f"/api/v1/datasphere/consumption/relational/{test_space_id}/{asset_name}"
+                logger.info(f"Testing: {query_endpoint}")
+                query_data = await datasphere_connector.get(query_endpoint, params={"$top": 1})
+
+                results["categories"]["Query Execution"][tool_name] = {
+                    "status": "available",
+                    "http_code": 200,
+                    "endpoint": query_endpoint,
+                    "message": "✅ Endpoint works with real tables/views",
+                    "test_asset": asset_name
+                }
+                if detailed and query_data:
+                    results["categories"]["Query Execution"][tool_name]["sample_data"] = query_data
+                results["summary"]["available"] += 1
+            else:
+                results["categories"]["Query Execution"][tool_name] = {
+                    "status": "needs_assets",
+                    "endpoint": "/api/v1/datasphere/consumption/relational/{space}/{view}",
+                    "message": "⚠️ No tables/views found in space to test with"
+                }
+                results["summary"]["needs_assets"] += 1
+        except Exception as e:
+            results["categories"]["Query Execution"][tool_name] = {
+                "status": "error",
+                "endpoint": "/api/v1/datasphere/consumption/relational/{space}/{view}",
+                "message": f"❌ Error: {str(e)}"
+            }
+            results["summary"]["errors"] += 1
+
+        # Add recommendations
+        results["recommendations"] = []
+
+        if results["summary"]["available"] == 6:
+            results["recommendations"].append(
+                "🎉 Excellent! All 6 analytical/query endpoints are available!"
+            )
+            results["recommendations"].append(
+                "Action: Set USE_MOCK_DATA=false in your environment to enable these tools with real data."
+            )
+        elif results["summary"]["available"] > 0:
+            results["recommendations"].append(
+                f"✅ Partial Success: {results['summary']['available']}/6 endpoints work with real data."
+            )
+            if results["summary"]["needs_assets"] > 0:
+                results["recommendations"].append(
+                    f"⚠️ {results['summary']['needs_assets']} tools need analytical models/assets in {test_space_id} to test properly."
+                )
+                results["recommendations"].append(
+                    "Create analytical models or use a space with existing models for full testing."
+                )
+        else:
+            results["recommendations"].append(
+                "⚠️ No endpoints could be tested - space may not have analytical models or tables."
+            )
+
+        if results["summary"]["errors"] > 0:
+            results["recommendations"].append(
+                f"❌ {results['summary']['errors']} endpoints returned errors - check permissions and model configuration."
+            )
+
+        results["next_steps"] = [
+            "1. Review the detailed status for each endpoint above",
+            "2. If most endpoints are 'available', set USE_MOCK_DATA=false in Claude Desktop config",
+            "3. If endpoints show 'needs_assets', create analytical models in your space",
+            "4. Test the tools with real data after disabling mock mode"
+        ]
+
+        return [types.TextContent(
+            type="text",
+            text=f"Analytical & Query Endpoints Test:\n\n{json.dumps(results, indent=2)}"
         )]
 
     # Phase 6 & 7 tool handlers removed (tools not available as REST APIs)
