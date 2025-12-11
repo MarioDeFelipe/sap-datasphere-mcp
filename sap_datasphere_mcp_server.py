@@ -1571,25 +1571,129 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         sql_query = arguments["sql_query"]
         limit = arguments.get("limit", 100)
 
-        # Simulate query execution with mock results
-        mock_result = {
-            "query": sql_query,
-            "space": space_id,
-            "execution_time": "0.245 seconds",
-            "rows_returned": min(limit, 50),  # Simulate some results
-            "sample_data": [
-                {"CUSTOMER_ID": "C001", "CUSTOMER_NAME": "Acme Corp", "COUNTRY": "USA"},
-                {"CUSTOMER_ID": "C002", "CUSTOMER_NAME": "Global Tech", "COUNTRY": "Germany"},
-                {"CUSTOMER_ID": "C003", "CUSTOMER_NAME": "Data Solutions", "COUNTRY": "UK"}
-            ][:limit],
-            "note": "This is simulated data. Real query execution requires OAuth authentication."
-        }
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode - simulate query execution
+            mock_result = {
+                "query": sql_query,
+                "space": space_id,
+                "execution_time": "0.245 seconds",
+                "rows_returned": min(limit, 50),
+                "sample_data": [
+                    {"CUSTOMER_ID": "C001", "CUSTOMER_NAME": "Acme Corp", "COUNTRY": "USA"},
+                    {"CUSTOMER_ID": "C002", "CUSTOMER_NAME": "Global Tech", "COUNTRY": "Germany"},
+                    {"CUSTOMER_ID": "C003", "CUSTOMER_NAME": "Data Solutions", "COUNTRY": "UK"}
+                ][:limit],
+                "note": "This is mock data. Set USE_MOCK_DATA=false for real query execution."
+            }
 
-        return [types.TextContent(
-            type="text",
-            text=f"Query Execution Results:\n\n" +
-                 json.dumps(mock_result, indent=2)
-        )]
+            return [types.TextContent(
+                type="text",
+                text=f"Query Execution Results:\n\n" +
+                     json.dumps(mock_result, indent=2)
+            )]
+        else:
+            # Real API mode - use relational consumption endpoint
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot execute queries."
+                )]
+
+            try:
+                # Parse SQL query to extract table name
+                # Simple parser: SELECT ... FROM table_name ...
+                import re
+
+                # Extract table name from SQL
+                # Match: FROM <table_name> or FROM <space>.<table_name>
+                from_match = re.search(r'FROM\s+(?:(\w+)\.)?(\w+)', sql_query, re.IGNORECASE)
+
+                if not from_match:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Error: Could not parse table name from query.\n\n"
+                             f"Query: {sql_query}\n\n"
+                             f"Expected format: SELECT ... FROM table_name ...\n"
+                             f"Use search_tables() to find available tables."
+                    )]
+
+                # Extract table name (group 2 is table name, group 1 is optional space prefix)
+                table_name = from_match.group(2)
+
+                logger.info(f"Executing query on table {table_name} in space {space_id}")
+
+                # Use relational consumption API
+                # Endpoint: /api/v1/datasphere/consumption/relational/{spaceId}/{viewName}
+                endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{table_name}"
+
+                # Build OData parameters
+                params = {
+                    "$top": min(limit, 1000)  # Cap at 1000 for safety
+                }
+
+                # Try to extract WHERE clause for $filter (basic support)
+                where_match = re.search(r'WHERE\s+(.+?)(?:ORDER BY|GROUP BY|LIMIT|$)', sql_query, re.IGNORECASE)
+                if where_match:
+                    where_clause = where_match.group(1).strip()
+                    # Convert simple SQL WHERE to OData $filter
+                    # Replace = with eq, AND with and, OR with or
+                    odata_filter = where_clause.replace(" = ", " eq ").replace(" AND ", " and ").replace(" OR ", " or ")
+                    params["$filter"] = odata_filter
+                    logger.info(f"Converted WHERE clause to $filter: {odata_filter}")
+
+                # Try to extract SELECT columns for $select (basic support)
+                select_match = re.search(r'SELECT\s+(.+?)\s+FROM', sql_query, re.IGNORECASE)
+                if select_match:
+                    select_clause = select_match.group(1).strip()
+                    if select_clause != "*":
+                        # Extract column names (simplified - doesn't handle functions/aliases)
+                        columns = [col.strip() for col in select_clause.split(',')]
+                        params["$select"] = ",".join(columns)
+                        logger.info(f"Using $select: {params['$select']}")
+
+                # Execute query
+                logger.info(f"GET {endpoint} with params: {params}")
+                start_time = time.time()
+                data = await datasphere_connector.get(endpoint, params=params, timeout=60)
+                execution_time = time.time() - start_time
+
+                # Format results
+                value = data.get("value", [])
+                result = {
+                    "query": sql_query,
+                    "space": space_id,
+                    "table": table_name,
+                    "execution_time": f"{execution_time:.3f} seconds",
+                    "rows_returned": len(value),
+                    "odata_endpoint": endpoint,
+                    "odata_params": params,
+                    "data": value
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Query Execution Results:\n\n" +
+                         json.dumps(result, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Error executing query: {str(e)}")
+
+                # Provide helpful error messages
+                error_msg = f"Error executing query: {str(e)}\n\n"
+                error_msg += "Possible causes:\n"
+                error_msg += "1. Table/view doesn't exist in the space\n"
+                error_msg += "2. Table name is case-sensitive (try uppercase)\n"
+                error_msg += "3. Complex SQL syntax not supported (use simple SELECT ... FROM ... WHERE ...)\n"
+                error_msg += "4. Use search_tables() to find available tables\n"
+                error_msg += "5. Use get_table_schema() to verify table structure\n\n"
+                error_msg += f"Query attempted: {sql_query}\n"
+                error_msg += f"Extracted table: {table_name if 'table_name' in locals() else 'unknown'}"
+
+                return [types.TextContent(
+                    type="text",
+                    text=error_msg
+                )]
 
     elif name == "list_database_users":
         space_id = arguments["space_id"]
