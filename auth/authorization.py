@@ -370,6 +370,16 @@ class AuthorizationManager:
             risk_level="low"
         ),
 
+        # Diagnostic Tool: Test Phase 8 endpoint availability
+        "test_phase8_endpoints": ToolPermission(
+            tool_name="test_phase8_endpoints",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=False,
+            description="Test availability of Phase 8 API endpoints (Data Sharing, AI Features, Legacy APIs)",
+            risk_level="low"
+        ),
+
         # Phase 6 & 7 tools removed (endpoints not available as REST APIs)
     }
 

@@ -904,6 +904,26 @@ async def handle_list_tools() -> list[Tool]:
                     }
                 }
             }
+        ),
+        # DIAGNOSTIC TOOL: Test Phase 8 endpoint availability
+        Tool(
+            name="test_phase8_endpoints",
+            description="Diagnostic tool to test availability of Phase 8 API endpoints (Data Sharing, AI Features, Security Config, Legacy DWC APIs). Tests 10 confirmed endpoints to determine which are available in your tenant. Returns detailed status for each endpoint including HTTP response codes, error messages, and recommendations. Use this before implementing Phase 8 tools to ensure real API availability.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "detailed": {
+                        "type": "boolean",
+                        "description": "Include detailed response data for successful endpoints (default: false)",
+                        "default": False
+                    },
+                    "test_product_id": {
+                        "type": "string",
+                        "description": "Optional data product ID to test get_data_product_details endpoint (default: f55b20ae-152d-40d4-b2eb-70b651f85d37)",
+                        "default": "f55b20ae-152d-40d4-b2eb-70b651f85d37"
+                    }
+                }
+            }
         )
         # Phase 6 & 7 tools removed - endpoints not available as REST APIs (return HTML instead of JSON)
     ]
@@ -5334,6 +5354,222 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         return [types.TextContent(
             type="text",
             text=f"Phase 6 & 7 Endpoint Availability Test:\n\n{json.dumps(results, indent=2)}"
+        )]
+
+    elif name == "test_phase8_endpoints":
+        detailed = arguments.get("detailed", False)
+        test_product_id = arguments.get("test_product_id", "f55b20ae-152d-40d4-b2eb-70b651f85d37")
+
+        if not datasphere_connector:
+            return [types.TextContent(
+                type="text",
+                text="Error: OAuth connector not initialized. Cannot test endpoints."
+            )]
+
+        # Define all Phase 8 endpoints to test (10 confirmed endpoints)
+        endpoints_to_test = {
+            "Data Sharing & Collaboration": {
+                "list_partner_systems": {
+                    "endpoint": "/deepsea/catalog/v1/dataProducts/partners/systems",
+                    "params": {"$top": 1},
+                    "description": "List partner systems"
+                },
+                "get_marketplace_assets": {
+                    "endpoint": "/api/v1/datasphere/marketplace/dsc/request",
+                    "params": {"$top": 1},
+                    "description": "Get marketplace assets"
+                },
+                "get_data_product_details": {
+                    "endpoint": f"/dwaas-core/odc/dataProduct/{test_product_id}/details",
+                    "params": {},
+                    "description": f"Get data product details (testing with ID: {test_product_id})"
+                }
+            },
+            "AI Features & Configuration": {
+                "get_ai_feature_status": {
+                    "endpoint": "/dwaas-core/api/v1/aifeatures/test-feature/executable/status",
+                    "params": {},
+                    "description": "Get AI feature status (testing with placeholder ID)"
+                },
+                "get_guided_experience_config": {
+                    "endpoint": "/dwaas-core/configurations/DWC_GUIDED_EXPERIENCE_TENANT",
+                    "params": {},
+                    "description": "Get guided experience configuration"
+                },
+                "get_security_config_status": {
+                    "endpoint": "/dwaas-core/security/customerhana/flexible-configuration/configuration-status",
+                    "params": {},
+                    "description": "Get security configuration status"
+                }
+            },
+            "Legacy DWC API Support": {
+                "dwc_list_catalog_assets": {
+                    "endpoint": "/v1/dwc/catalog/assets",
+                    "params": {"$top": 1},
+                    "description": "Legacy: List catalog assets"
+                },
+                "dwc_get_space_assets": {
+                    "endpoint": "/v1/dwc/catalog/spaces('SAP_CONTENT')/assets",
+                    "params": {"$top": 1},
+                    "description": "Legacy: Get space assets"
+                },
+                "dwc_query_analytical_data": {
+                    "endpoint": "/v1/dwc/consumption/analytical/SAP_CONTENT/test/odata",
+                    "params": {"$top": 1},
+                    "description": "Legacy: Query analytical data (testing with placeholder)"
+                },
+                "dwc_query_relational_data": {
+                    "endpoint": "/v1/dwc/consumption/relational/SAP_CONTENT/test/odata",
+                    "params": {"$top": 1},
+                    "description": "Legacy: Query relational data (testing with placeholder)"
+                }
+            }
+        }
+
+        results = {
+            "test_timestamp": datetime.now().isoformat(),
+            "phase": "Phase 8: Advanced Features",
+            "categories": {},
+            "summary": {
+                "total_endpoints": 0,
+                "available": 0,
+                "unavailable": 0,
+                "errors": 0
+            }
+        }
+
+        # Test each endpoint
+        for category, endpoints in endpoints_to_test.items():
+            results["categories"][category] = {}
+
+            for tool_name, config in endpoints.items():
+                results["summary"]["total_endpoints"] += 1
+
+                try:
+                    logger.info(f"Testing Phase 8 endpoint: {config['endpoint']}")
+                    response_data = await datasphere_connector.get(
+                        config["endpoint"],
+                        params=config["params"]
+                    )
+
+                    # Endpoint is available
+                    results["categories"][category][tool_name] = {
+                        "status": "available",
+                        "http_code": 200,
+                        "description": config["description"],
+                        "endpoint": config["endpoint"],
+                        "message": "✅ Endpoint is available and returns JSON"
+                    }
+
+                    if detailed and response_data:
+                        results["categories"][category][tool_name]["sample_data"] = response_data
+
+                    results["summary"]["available"] += 1
+                    logger.info(f"✅ {config['endpoint']} - Available")
+
+                except Exception as e:
+                    error_str = str(e)
+
+                    # Determine status based on error
+                    if "404" in error_str or "Not Found" in error_str:
+                        status = "not_found"
+                        http_code = 404
+                        message = "❌ Endpoint does not exist in this tenant"
+                        recommendation = "Endpoint may require specific feature activation or tenant configuration"
+                    elif "403" in error_str or "Forbidden" in error_str:
+                        status = "forbidden"
+                        http_code = 403
+                        message = "⚠️ Endpoint exists but requires admin permissions"
+                        recommendation = "Check user roles and OAuth scopes"
+                    elif "401" in error_str or "Unauthorized" in error_str:
+                        status = "unauthorized"
+                        http_code = 401
+                        message = "⚠️ Endpoint exists but authentication failed"
+                        recommendation = "Verify OAuth token and scopes"
+                    elif "400" in error_str or "Bad Request" in error_str:
+                        status = "bad_request"
+                        http_code = 400
+                        message = "⚠️ Endpoint exists but parameters may need adjustment"
+                        recommendation = "Test with different parameters or IDs"
+                    else:
+                        status = "error"
+                        http_code = None
+                        message = f"❌ Error: {error_str}"
+                        recommendation = "Check endpoint path and authentication"
+
+                    results["categories"][category][tool_name] = {
+                        "status": status,
+                        "http_code": http_code,
+                        "description": config["description"],
+                        "endpoint": config["endpoint"],
+                        "message": message,
+                        "recommendation": recommendation,
+                        "error": error_str
+                    }
+
+                    if status == "not_found":
+                        results["summary"]["unavailable"] += 1
+                    else:
+                        results["summary"]["errors"] += 1
+
+                    logger.warning(f"⚠️ {config['endpoint']} - {status}")
+
+        # Add overall recommendations
+        results["recommendations"] = []
+
+        if results["summary"]["available"] == 0:
+            results["recommendations"].append(
+                "⚠️ CRITICAL: No Phase 8 endpoints are available in your tenant."
+            )
+            results["recommendations"].append(
+                "Do NOT implement Phase 8 tools - all would fail like Phase 6 & 7."
+            )
+            results["recommendations"].append(
+                "These features may require specific tenant configuration, feature flags, or admin permissions."
+            )
+        elif results["summary"]["available"] < results["summary"]["total_endpoints"]:
+            available_tools = []
+            unavailable_tools = []
+
+            for category, endpoints in results["categories"].items():
+                for tool_name, result in endpoints.items():
+                    if result["status"] == "available":
+                        available_tools.append(tool_name)
+                    else:
+                        unavailable_tools.append(tool_name)
+
+            results["recommendations"].append(
+                f"✅ Partial Success: {results['summary']['available']}/{results['summary']['total_endpoints']} endpoints available."
+            )
+            results["recommendations"].append(
+                f"Implement ONLY these {len(available_tools)} tools: {', '.join(available_tools)}"
+            )
+            results["recommendations"].append(
+                f"Skip these {len(unavailable_tools)} tools: {', '.join(unavailable_tools)}"
+            )
+        else:
+            results["recommendations"].append(
+                f"🎉 Excellent! All {results['summary']['total_endpoints']} Phase 8 endpoints are available!"
+            )
+            results["recommendations"].append(
+                "You can implement all 10 Phase 8 tools with real data."
+            )
+
+        if results["summary"]["errors"] > 0:
+            results["recommendations"].append(
+                f"⚠️ {results['summary']['errors']} endpoints returned permission/auth errors - check user roles and OAuth scopes."
+            )
+
+        results["next_steps"] = [
+            "1. Review the detailed status for each endpoint above",
+            "2. Implement ONLY the tools where status = 'available'",
+            "3. Follow the 'no mock data' strategy - skip unavailable endpoints",
+            "4. Test implemented tools with real tenant data"
+        ]
+
+        return [types.TextContent(
+            type="text",
+            text=f"Phase 8 Endpoint Availability Test:\n\n{json.dumps(results, indent=2)}"
         )]
 
     # Phase 6 & 7 tool handlers removed (tools not available as REST APIs)
