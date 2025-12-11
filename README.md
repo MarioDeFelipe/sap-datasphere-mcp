@@ -51,10 +51,10 @@
 | **Metadata Tools** | 4 | 4 ✅ | **100%** |
 | **Analytical Consumption Tools** | 4 | 4 ✅ | **100%** (OData analytical queries) |
 | **Additional Tools** | 5 | 5 ✅ | **100%** (connections, tasks, marketplace, etc.) |
+| **Relational Query Tool** | 1 | 1 ✅ | **100%** (SQL to OData conversion) |
 | **Diagnostic Tools** | 3 | 0 🟡 | **Mock Mode** (endpoint testing utilities) |
-| **Execute Query** | 1 | 0 ❌ | **0%** (pending real API implementation) |
 | **Repository Tools (legacy)** | 2 | 0 ❌ | **0%** (deprecated - use Catalog instead) |
-| **TOTAL** | **38** | **32 (84%)** | **95% Coverage** |
+| **TOTAL** | **38** | **33 (87%)** | **97% Coverage** |
 
 ---
 
@@ -312,24 +312,45 @@ High-risk operations (create, update, delete, reset password) require user conse
 
 ---
 
-### 🔐 Query Tool (1 tool) - Pending Real API Implementation
+### 🔐 Relational Query Tool (1 tool) - 100% Real Data ✅
 
 | Tool | Status | Description | Requires Consent |
 |------|--------|-------------|------------------|
-| `execute_query` | 🚧 Pending | Execute relational queries on Datasphere tables/views | Yes (WRITE) |
+| `execute_query` | ✅ Real Data | Execute SQL queries on Datasphere tables/views with SQL→OData conversion | Yes (WRITE) |
 
 **Example queries:**
 ```
-"Execute query: SELECT * FROM SAP_CONTENT.CUSTOMERS WHERE Country = 'USA'"
-"Query the FINANCIAL_TRANSACTIONS table with filters"
+"Execute query: SELECT * FROM SAP_SC_FI_AM_FINTRANSACTIONS LIMIT 10"
+"Query: SELECT customer_id, amount FROM SALES_ORDERS WHERE status = 'COMPLETED' LIMIT 50"
+"Get data: SELECT * FROM SAP_SC_HR_V_Divisions"
 ```
 
-**Current Status**: Currently returns mock data. Real implementation will use the relational consumption API:
-- Endpoint: `/api/v1/datasphere/consumption/relational/{space_id}/{view_name}`
-- Supports OData $filter, $select, $top, $skip queries
-- Target: Convert from SQL-like syntax to OData queries
+**Real Data Features:**
+- **SQL to OData Conversion**: Automatically converts SQL queries to OData API calls
+- **Relational Consumption API**: `/api/v1/datasphere/consumption/relational/{space_id}/{view_name}`
+- **Supported SQL Syntax**:
+  - `SELECT *` or `SELECT column1, column2` → OData `$select`
+  - `WHERE conditions` → OData `$filter` (basic conversion)
+  - `LIMIT N` → OData `$top`
+- **Query Safety**: Max 1000 rows, 60-second timeout
+- **Error Handling**: Helpful messages for table not found, parse errors, permission issues
 
-**Next Steps**: Implement real relational query API integration (similar to analytical tools).
+**SQL Conversion Examples:**
+```sql
+SELECT * FROM CUSTOMERS WHERE country = 'USA' LIMIT 10
+→ GET /relational/SPACE/CUSTOMERS?$filter=country eq 'USA'&$top=10
+
+SELECT customer_id, name FROM ORDERS LIMIT 20
+→ GET /relational/SPACE/ORDERS?$select=customer_id,name&$top=20
+```
+
+**Limitations**:
+- No JOINs (OData single-table queries only)
+- Basic WHERE clause conversion (simple comparisons work)
+- No GROUP BY, ORDER BY (future enhancement)
+- Table/view names are case-sensitive
+
+**Status**: ✅ Fully functional with real SAP Datasphere data! Tested and confirmed working.
 
 ---
 
