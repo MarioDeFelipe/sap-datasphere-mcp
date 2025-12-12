@@ -695,7 +695,7 @@ async def handle_list_tools() -> list[Tool]:
         ),
         Tool(
             name="query_relational_entity",
-            description="Execute OData queries on relational entities for ETL data extraction. Supports large batch processing (up to 50,000 records), advanced filtering, column selection, and pagination. Optimized for data warehouse loading and analytics pipelines.",
+            description="Execute OData queries on relational entities for ETL data extraction. Supports large batch processing (up to 50,000 records), advanced filtering, column selection, and pagination. Optimized for data warehouse loading and analytics pipelines. Use list_relational_entities to discover available entity names first.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -703,9 +703,13 @@ async def handle_list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "Space identifier (e.g., 'SAP_CONTENT')"
                     },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier - same as used in list_relational_entities (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS')"
+                    },
                     "entity_name": {
                         "type": "string",
-                        "description": "Entity/table name (e.g., 'SAP_SC_FI_AM_FINTRANSACTIONS')"
+                        "description": "Entity name from the OData service (e.g., 'Results', 'Data'). Use list_relational_entities to get available entity names. If unsure, try using the asset_id as entity_name."
                     },
                     "filter": {
                         "type": "string",
@@ -730,7 +734,7 @@ async def handle_list_tools() -> list[Tool]:
                         "description": "OData $orderby expression (e.g., \"amount desc, date asc\")"
                     }
                 },
-                "required": ["space_id", "entity_name"]
+                "required": ["space_id", "asset_id", "entity_name"]
             }
         ),
         Tool(
@@ -4414,24 +4418,32 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             )]
 
         try:
-            # Use relational consumption API to get entity sets
+            # Get OData service document (no params for service root)
             endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}"
-            params = {"$top": min(top, 1000)}
 
             logger.info(f"Listing relational entities for {space_id}/{asset_id}")
-            data = await datasphere_connector.get(endpoint, params=params)
+            data = await datasphere_connector.get(endpoint)
+
+            # Extract entity sets from service document
+            entities = data.get("value", [])
+
+            # Apply top limit to entity list (not to API - service document returns all)
+            limited_entities = entities[:top] if top else entities
 
             # Format response with ETL-optimized metadata
             result = {
                 "space_id": space_id,
                 "asset_id": asset_id,
-                "entities": data.get("value", []),
-                "entity_count": len(data.get("value", [])),
+                "entities": limited_entities,
+                "entity_count": len(limited_entities),
+                "total_entities": len(entities),
+                "showing_limited": len(limited_entities) < len(entities),
                 "odata_context": data.get("@odata.context", ""),
                 "metadata_url": f"{endpoint}/$metadata",
                 "extraction_type": "row_level_etl",
                 "max_batch_size": 50000,
-                "query_timestamp": datetime.now().isoformat()
+                "query_timestamp": datetime.now().isoformat(),
+                "usage_note": "Use entity names from this list with query_relational_entity to extract data"
             }
 
             return [types.TextContent(
@@ -4579,6 +4591,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
     elif name == "query_relational_entity":
         space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
         entity_name = arguments["entity_name"]
         filter_expr = arguments.get("filter")
         select = arguments.get("select")
@@ -4593,8 +4606,8 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             )]
 
         try:
-            # Build OData query for ETL extraction
-            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{entity_name}"
+            # Build OData query for ETL extraction with 3-level path
+            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
 
             params = {
                 "$top": min(top, 50000)  # ETL mode: allow up to 50K records
@@ -4609,7 +4622,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             if orderby:
                 params["$orderby"] = orderby
 
-            logger.info(f"Querying relational entity {space_id}/{entity_name} (ETL mode, top={params['$top']})")
+            logger.info(f"Querying relational entity {space_id}/{asset_id}/{entity_name} (ETL mode, top={params['$top']})")
 
             start_time = time.time()
             data = await datasphere_connector.get(endpoint, params=params)
@@ -4618,6 +4631,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             # Format response with ETL metadata
             result = {
                 "space_id": space_id,
+                "asset_id": asset_id,
                 "entity_name": entity_name,
                 "execution_time_seconds": round(execution_time, 3),
                 "rows_returned": len(data.get("value", [])),
@@ -4645,10 +4659,10 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 type="text",
                 text=f"Error querying relational entity: {str(e)}\n\n"
                      f"Possible causes:\n"
-                     f"1. Entity doesn't exist in the space\n"
+                     f"1. Entity doesn't exist - use list_relational_entities first to get valid entity names\n"
                      f"2. Invalid $filter expression\n"
-                     f"3. Selected columns don't exist\n"
-                     f"4. Use get_relational_entity_metadata to verify schema"
+                     f"3. Selected columns don't exist - use get_relational_entity_metadata to verify schema\n"
+                     f"4. Try using asset_id as entity_name if entity list is not available"
             )]
 
     elif name == "get_relational_odata_service":
