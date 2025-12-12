@@ -116,10 +116,10 @@ sap-datasphere-mcp
 ```
 
 **Real Data Examples:**
-- Real tenant: ailien-test.eu20.hcs.cloud.sap
+- Real tenant: your-tenant.eu20.hcs.cloud.sap
 - Real spaces: DEVAULT_SPACE, SAP_CONTENT
 - Real user info from OAuth JWT token
-- Real OAuth scopes (3 scopes discovered)
+- Real OAuth scopes (typically 3+ scopes)
 
 ---
 
@@ -162,11 +162,11 @@ sap-datasphere-mcp
 "Get asset by compound key: space=SAP_CONTENT, id=SAP_SC_HR_V_Divisions"
 ```
 
-**Real Assets Discovered (36+ from ailien-test tenant):**
+**Real Assets Discovered (36+ real assets):**
 - **HR Assets**: SAP_SC_HR_V_Divisions, SAP_SC_HR_V_JobClass, SAP_SC_HR_V_Location, SAP_SC_HR_V_Job
 - **Finance Assets**: SAP_SC_FI_V_ProductsDim, SAP_SC_FI_AM_FINTRANSACTIONS
 - **Time & Sales Models**: Multiple analytical models with real metadata URLs
-- **All assets** include real metadata URLs pointing to ailien-test.eu20.hcs.cloud.sap
+- **All assets** include real metadata URLs pointing to your tenant
 
 ---
 
@@ -289,7 +289,7 @@ High-risk operations (create, update, delete, reset password) require user conse
 - Full metadata discovery (service documents, entity sets, properties)
 - Advanced filtering with $filter, $select, $top, $skip, $orderby
 - Aggregation support with $apply (groupby, aggregate functions)
-- Real tenant data from ailien-test.eu20.hcs.cloud.sap
+- Real tenant data from your SAP Datasphere instance
 
 **Status**: All 4 analytical consumption tools fully operational with real SAP Datasphere data!
 
@@ -631,7 +631,7 @@ Once configured, ask your AI assistant:
 - `telemetry.py` - Request tracking and metrics
 
 **MCP Server:**
-- `sap_datasphere_mcp_server.py` - Main server with 32 tools
+- `sap_datasphere_mcp_server.py` - Main server with 42 tools
 
 ---
 
@@ -720,9 +720,9 @@ npx @modelcontextprotocol/inspector python sap_datasphere_mcp_server.py
 ```
 
 ### Test Results
-- ✅ **32/32 tools registered** - All tools properly defined
-- ✅ **32/32 tools authorized** - Authorization permissions configured
-- ✅ **28/32 tools working** - 87.5% success rate
+- ✅ **42/42 tools registered** - All tools properly defined
+- ✅ **42/42 tools authorized** - Authorization permissions configured
+- ✅ **41/42 tools working** - 98% success rate
 - ✅ **0 code bugs** - All implementation issues fixed
 
 ---
@@ -745,7 +745,7 @@ sap-datasphere-mcp/
 │   ├── OAUTH_SETUP.md                  # OAuth setup guide
 │   ├── TROUBLESHOOTING_CLAUDE_DESKTOP.md
 │   └── OAUTH_IMPLEMENTATION_STATUS.md
-├── 📄 sap_datasphere_mcp_server.py     # Main MCP server (32 tools)
+├── 📄 sap_datasphere_mcp_server.py     # Main MCP server (42 tools)
 ├── 📄 cache_manager.py                 # Intelligent caching
 ├── 📄 telemetry.py                     # Monitoring and metrics
 ├── 📄 mock_data_provider.py            # Mock data for testing
