@@ -1,0 +1,63 @@
+# MANIFEST.in - Package Data Files for PyPI Distribution
+
+# Include documentation
+include README.md
+include LICENSE
+include GETTING_STARTED_GUIDE.md
+include TOOLS_CATALOG.md
+include TROUBLESHOOTING.md
+include API_REFERENCE.md
+include DEPLOYMENT.md
+include POLISH_COMPLETION_SUMMARY.md
+
+# Include configuration examples
+include .env.example
+include requirements.txt
+
+# Include Docker files (for reference)
+include Dockerfile
+include docker-compose.yml
+include .dockerignore
+
+# Include all markdown files in root
+include *.md
+
+# Recursive includes
+recursive-include auth *.py
+recursive-include tests *.py
+recursive-include tests *.md
+
+# Exclude development files
+exclude .pre-commit-config.yaml
+exclude .ruff.toml
+exclude .python-version
+exclude .secrets.baseline
+
+# Exclude directories
+prune .git
+prune .github
+prune .vscode
+prune .claude
+prune .kiro
+prune .devcontainer
+prune __pycache__
+prune .venv
+prune .env
+prune build
+prune dist
+prune *.egg-info
+
+# Exclude test/demo files
+exclude test_*.py
+exclude *_test.py
+exclude quick_demo.py
+exclude decode_jwt.py
+exclude EXACT_WORKING_CODE.py
+exclude enhanced_*.py
+exclude mock_data.py
+
+# Exclude local environment
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude .DS_Store
+global-exclude __pycache__
