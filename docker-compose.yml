@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  sap-datasphere-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sap-datasphere-mcp:latest
+    container_name: sap-mcp-server
+    restart: unless-stopped
+
+    # Environment variables from .env file
+    env_file:
+      - .env
+
+    # Override specific environment variables if needed
+    environment:
+      - LOG_LEVEL=INFO
+      - USE_MOCK_DATA=false
+
+    # Volume for logs (optional)
+    volumes:
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro  # Read-only mount of .env file
+
+    # If running HTTP server mode (uncomment if needed)
+    # ports:
+    #   - "8080:8080"
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Optional: Networks for multi-container setups
+# networks:
+#   mcp-network:
+#     driver: bridge
+
+# Optional: Volumes for persistent data
+# volumes:
+#   mcp-logs:
+#     driver: local
