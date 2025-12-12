@@ -1,13 +1,28 @@
 # 🚀 SAP Datasphere MCP Server
 
-[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://badge.fury.io/py/sap-datasphere-mcp.svg)](https://pypi.org/project/sap-datasphere-mcp/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Compatible-purple.svg)](https://modelcontextprotocol.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
+[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](https://pypi.org/project/sap-datasphere-mcp/)
 [![Real Data](https://img.shields.io/badge/Real%20Data-41%2F42%20(98%25)-success.svg)]()
 [![API Integration](https://img.shields.io/badge/API%20Integration-41%2F42%20(98%25)-blue.svg)]()
 
 > **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, and database user management.**
+
+## 🚀 Quick Start
+
+```bash
+# Install from PyPI
+pip install sap-datasphere-mcp
+
+# Run the server
+sap-datasphere-mcp
+```
+
+**See [Getting Started Guide](GETTING_STARTED_GUIDE.md) for complete setup instructions.**
+
+---
 
 ## 📊 Current Status
 
