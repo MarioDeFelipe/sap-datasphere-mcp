@@ -16,7 +16,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="sap-datasphere-mcp",
-    version="1.0.0",
+    version="1.0.1",
     author="Mario DeFelipe",
     author_email="mariodefe@example.com",
     description="Model Context Protocol server for SAP Datasphere integration with 41 tools and 98% real data coverage",
