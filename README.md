@@ -24,6 +24,26 @@
 
 ---
 
+## 📚 Complete Documentation
+
+**New! Comprehensive production-ready documentation:**
+
+| Guide | Description | Time to Read |
+|-------|-------------|--------------|
+| 📖 [**Getting Started Guide**](GETTING_STARTED_GUIDE.md) | 10-minute quick start with examples | 10 min |
+| 📋 [**Tools Catalog**](TOOLS_CATALOG.md) | Complete reference for all 41 tools | 30 min |
+| 🔧 [**API Reference**](API_REFERENCE.md) | Technical API docs with Python/cURL examples | 45 min |
+| 🚀 [**Deployment Guide**](DEPLOYMENT.md) | Production deployment (Docker, K8s, PyPI) | 20 min |
+| 🐛 [**Troubleshooting**](TROUBLESHOOTING.md) | Common issues and solutions | 15 min |
+
+**Quick Links:**
+- 🆕 [What's New](#-current-status) - Latest features and improvements
+- ⚡ [Quick Start](#-getting-started) - Get running in 5 minutes
+- 🛠️ [All Tools](#️-complete-tool-catalog-42-tools) - Complete tool list
+- 🔒 [Security](#-security-features) - OAuth 2.0 and authorization
+
+---
+
 ## 🌟 Key Highlights
 
 - 🎯 **42 MCP Tools**: Comprehensive SAP Datasphere operations via Model Context Protocol
@@ -35,6 +55,7 @@
 - 👥 **User Management**: Create, update, and manage database users with real API
 - 🧠 **AI Integration**: Claude Desktop, Cursor IDE, and other MCP-compatible assistants
 - 🏆 **100% Foundation & Catalog Tools**: All core discovery tools fully functional
+- 📦 **Production Ready**: Docker, Kubernetes, PyPI packaging available
 
 ---
 
@@ -596,6 +617,51 @@ Once configured, ask your AI assistant:
 
 **MCP Server:**
 - `sap_datasphere_mcp_server.py` - Main server with 32 tools
+
+---
+
+## 🚀 Production Deployment
+
+### Quick Deployment Options
+
+**Docker (Recommended)**:
+```bash
+# Build and run
+docker build -t sap-datasphere-mcp:latest .
+docker run -d --name sap-mcp --env-file .env sap-datasphere-mcp:latest
+
+# Using Docker Compose
+docker-compose up -d
+```
+
+**PyPI Package** (Coming Soon):
+```bash
+pip install sap-datasphere-mcp
+sap-datasphere-mcp
+```
+
+**Kubernetes**:
+```bash
+# Create secrets
+kubectl create secret generic sap-mcp-secrets \
+  --from-literal=DATASPHERE_CLIENT_ID='...' \
+  --from-literal=DATASPHERE_CLIENT_SECRET='...'
+
+# Deploy
+kubectl apply -f k8s/deployment.yaml
+kubectl scale deployment sap-mcp-server --replicas=5
+```
+
+**Manual**:
+```bash
+git clone https://github.com/MarioDeFelipe/sap-datasphere-mcp.git
+cd sap-datasphere-mcp
+pip install -r requirements.txt
+cp .env.example .env  # Edit with your credentials
+python sap_datasphere_mcp_server.py
+```
+
+📖 **See [DEPLOYMENT.md](DEPLOYMENT.md) for complete production deployment guide**
 
 ---
 
