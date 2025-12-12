@@ -4419,7 +4419,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             params = {"$top": min(top, 1000)}
 
             logger.info(f"Listing relational entities for {space_id}/{asset_id}")
-            data = await datasphere_connector.get(endpoint, params=params, timeout=30)
+            data = await datasphere_connector.get(endpoint, params=params)
 
             # Format response with ETL-optimized metadata
             result = {
@@ -4473,7 +4473,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             headers = await datasphere_connector._get_headers()
             headers['Accept'] = 'application/xml'
 
-            async with datasphere_connector._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+            async with datasphere_connector._session.get(url, headers=headers) as response:
                 response.raise_for_status()
                 xml_content = await response.text()
 
@@ -4612,7 +4612,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             logger.info(f"Querying relational entity {space_id}/{entity_name} (ETL mode, top={params['$top']})")
 
             start_time = time.time()
-            data = await datasphere_connector.get(endpoint, params=params, timeout=60)
+            data = await datasphere_connector.get(endpoint, params=params)
             execution_time = time.time() - start_time
 
             # Format response with ETL metadata
@@ -4667,7 +4667,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}"
 
             logger.info(f"Getting OData service document for {space_id}/{asset_id}")
-            data = await datasphere_connector.get(endpoint, timeout=30)
+            data = await datasphere_connector.get(endpoint)
 
             # Build service document with ETL planning info
             result = {
