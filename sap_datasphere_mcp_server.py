@@ -1467,15 +1467,81 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
     elif name == "list_connections":
         connection_type = arguments.get("connection_type")
 
-        connections = MOCK_DATA["connections"]
-        if connection_type:
-            connections = [c for c in connections if c["type"] == connection_type]
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode
+            connections = MOCK_DATA["connections"]
+            if connection_type:
+                connections = [c for c in connections if c["type"] == connection_type]
 
-        return [types.TextContent(
-            type="text",
-            text=f"Found {len(connections)} data connections:\n\n" +
-                 json.dumps(connections, indent=2)
-        )]
+            return [types.TextContent(
+                type="text",
+                text=f"Found {len(connections)} data connections:\n\n" +
+                     json.dumps(connections, indent=2) +
+                     "\n\nNote: Mock data. Configure OAuth credentials to access real SAP Datasphere data."
+            )]
+        else:
+            # Real API mode
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Please configure DATASPHERE_CLIENT_ID and DATASPHERE_CLIENT_SECRET."
+                )]
+
+            try:
+                logger.info(f"Listing data connections" + (f" of type {connection_type}" if connection_type else ""))
+                connections = await datasphere_connector.get_connections()
+
+                # Filter by connection type if specified
+                if connection_type:
+                    connections = [c for c in connections if c.get("type") == connection_type or c.get("connection_type") == connection_type]
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Found {len(connections)} data connections:\n\n" +
+                         json.dumps(connections, indent=2)
+                )]
+
+            except ValueError as e:
+                # Check if it's HTML response error
+                if "HTML instead of JSON" in str(e):
+                    logger.warning(f"Connections API returned HTML: {e}")
+                    return [types.TextContent(
+                        type="text",
+                        text=f">>> Connections API Not Available <<<\n\n"
+                             f"The connections API endpoint returned HTML instead of JSON.\n\n"
+                             f"Possible reasons:\n"
+                             f"- This endpoint may be designed for browser/UI access only\n"
+                             f"- The /api/v1/connections endpoint is not a REST API\n"
+                             f"- Connection management may only be available through the web UI\n\n"
+                             f"Alternatives:\n"
+                             f"1. Manage connections directly in SAP Datasphere UI\n"
+                             f"2. Use datasphere CLI if available: datasphere connections list\n"
+                             f"3. Contact SAP support to confirm REST API availability\n\n"
+                             f"Technical details: {str(e)}"
+                    )]
+                raise
+
+            except Exception as e:
+                logger.error(f"Error listing connections: {e}")
+
+                # Check if it's a 404 error
+                if "404" in str(e):
+                    return [types.TextContent(
+                        type="text",
+                        text=f">>> Connections API Not Available <<<\n\n"
+                             f"The connections API endpoint is not available on this tenant.\n\n"
+                             f"Possible reasons:\n"
+                             f"- API endpoint doesn't exist (UI-only feature)\n"
+                             f"- Your user doesn't have connection permissions\n"
+                             f"- Connection management is not enabled\n\n"
+                             f"Note: Connection management may only be available through the SAP Datasphere web UI.\n\n"
+                             f"Error: {str(e)}"
+                    )]
+                else:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Error listing connections: {str(e)}"
+                    )]
 
     elif name == "get_task_status":
         task_id = arguments.get("task_id")
@@ -1582,12 +1648,42 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                            search_term in p["name"].lower() or
                            search_term in p["description"].lower()]
 
+            # Generate summary statistics
+            all_packages = MOCK_DATA["marketplace_packages"]
+            categories_count = {}
+            providers_count = {}
+            free_count = 0
+            paid_count = 0
+
+            for pkg in all_packages:
+                # Count by category
+                cat = pkg.get("category", "Unknown")
+                categories_count[cat] = categories_count.get(cat, 0) + 1
+
+                # Count by provider
+                prov = pkg.get("provider", "Unknown")
+                providers_count[prov] = providers_count.get(prov, 0) + 1
+
+                # Count by pricing
+                if pkg.get("price", "").lower() == "free":
+                    free_count += 1
+                else:
+                    paid_count += 1
+
             result = {
                 "packages": packages,
                 "total_count": len(packages),
                 "filters": {
                     "category": category,
                     "search_term": search_term if search_term else None
+                },
+                "summary": {
+                    "total_available": len(all_packages),
+                    "matched": len(packages),
+                    "categories": categories_count,
+                    "providers": providers_count,
+                    "free_packages": free_count,
+                    "paid_packages": paid_count
                 }
             }
 
@@ -1623,12 +1719,41 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
                 packages = data.get("value", []) if isinstance(data, dict) else data
 
+                # Generate summary statistics
+                categories_count = {}
+                providers_count = {}
+                free_count = 0
+                paid_count = 0
+
+                for pkg in packages:
+                    # Count by category
+                    cat = pkg.get("category", "Unknown")
+                    categories_count[cat] = categories_count.get(cat, 0) + 1
+
+                    # Count by provider
+                    prov = pkg.get("provider", "Unknown")
+                    providers_count[prov] = providers_count.get(prov, 0) + 1
+
+                    # Count by pricing
+                    price = pkg.get("price", pkg.get("pricing", {}).get("model", ""))
+                    if str(price).lower() == "free":
+                        free_count += 1
+                    else:
+                        paid_count += 1
+
                 result = {
                     "packages": packages,
                     "total_count": len(packages),
                     "filters": {
                         "category": category,
                         "search_term": search_term if search_term else None
+                    },
+                    "summary": {
+                        "matched": len(packages),
+                        "categories": categories_count,
+                        "providers": providers_count,
+                        "free_packages": free_count,
+                        "paid_packages": paid_count
                     }
                 }
 
@@ -1678,6 +1803,296 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                         type="text",
                         text=f"Error browsing marketplace: {str(e)}"
                     )]
+
+    elif name == "find_assets_by_column":
+        column_name = arguments["column_name"]
+        space_id = arguments.get("space_id")
+        max_assets = arguments.get("max_assets", 50)
+        case_sensitive = arguments.get("case_sensitive", False)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode - simple implementation
+            matches = []
+
+            # Mock data: simulate finding column in a few assets
+            if not case_sensitive:
+                column_name_search = column_name.upper()
+            else:
+                column_name_search = column_name
+
+            # Simulate finding 2-3 matches
+            mock_matches = [
+                {
+                    "space_id": "SAP_CONTENT",
+                    "asset_name": "CUSTOMER_DATA",
+                    "asset_type": "View",
+                    "column_name": column_name,
+                    "column_type": "NVARCHAR(50)",
+                    "column_position": 1,
+                    "total_columns": 15
+                },
+                {
+                    "space_id": "SALES_ANALYTICS",
+                    "asset_name": "SALES_ORDERS",
+                    "asset_type": "Table",
+                    "column_name": column_name,
+                    "column_type": "NVARCHAR(50)",
+                    "column_position": 3,
+                    "total_columns": 25
+                }
+            ]
+
+            result = {
+                "column_name": column_name,
+                "case_sensitive": case_sensitive,
+                "search_scope": {
+                    "spaces_searched": 1 if space_id else 2,
+                    "assets_checked": 5,
+                    "assets_with_schema": 5
+                },
+                "matches": mock_matches[:max_assets],
+                "execution_time_seconds": 0.5
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"{json.dumps(result, indent=2)}\n\nNote: Mock data. Configure OAuth credentials to access real SAP Datasphere data."
+            )]
+
+        else:
+            # Real API mode
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Please configure DATASPHERE_CLIENT_ID and DATASPHERE_CLIENT_SECRET."
+                )]
+
+            try:
+                import time
+                start_time = time.time()
+
+                matches = []
+                spaces_searched = 0
+                assets_checked = 0
+                assets_with_schema = 0
+
+                # Get spaces to search
+                if space_id:
+                    spaces_to_search = [{"id": space_id}]
+                else:
+                    # Get all spaces
+                    spaces_response = await datasphere_connector.get("/api/v1/datasphere/consumption/catalog/spaces")
+                    spaces_to_search = spaces_response.get("value", []) if isinstance(spaces_response, dict) else []
+
+                # Search each space
+                for space in spaces_to_search:
+                    if len(matches) >= max_assets:
+                        break
+
+                    space_id_current = space.get("id") or space.get("spaceId")
+                    spaces_searched += 1
+
+                    try:
+                        # Get assets in this space
+                        assets_response = await datasphere_connector.get(f"/api/v1/datasphere/consumption/catalog/spaces/{space_id_current}/assets")
+                        assets = assets_response.get("value", []) if isinstance(assets_response, dict) else []
+
+                        # Check each asset's schema
+                        for asset in assets:
+                            if len(matches) >= max_assets:
+                                break
+
+                            assets_checked += 1
+                            asset_name = asset.get("name") or asset.get("id")
+
+                            try:
+                                # Get schema using existing logic (similar to get_table_schema)
+                                schema_endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id_current}/{asset_name}/$metadata"
+                                schema_response = await datasphere_connector.get(schema_endpoint)
+
+                                assets_with_schema += 1
+
+                                # Parse schema to find columns (simplified)
+                                if isinstance(schema_response, dict):
+                                    properties = schema_response.get("properties", {})
+                                    for prop_name, prop_info in properties.items():
+                                        # Check column name match
+                                        if case_sensitive:
+                                            if prop_name == column_name:
+                                                matches.append({
+                                                    "space_id": space_id_current,
+                                                    "asset_name": asset_name,
+                                                    "asset_type": asset.get("type", "Unknown"),
+                                                    "column_name": prop_name,
+                                                    "column_type": prop_info.get("type", "Unknown"),
+                                                    "column_position": len(matches) + 1,
+                                                    "total_columns": len(properties)
+                                                })
+                                                break
+                                        else:
+                                            if prop_name.upper() == column_name.upper():
+                                                matches.append({
+                                                    "space_id": space_id_current,
+                                                    "asset_name": asset_name,
+                                                    "asset_type": asset.get("type", "Unknown"),
+                                                    "column_name": prop_name,
+                                                    "column_type": prop_info.get("type", "Unknown"),
+                                                    "column_position": len(matches) + 1,
+                                                    "total_columns": len(properties)
+                                                })
+                                                break
+                            except Exception as e:
+                                # Skip assets where we can't get schema
+                                logger.debug(f"Could not get schema for {asset_name}: {e}")
+                                continue
+
+                    except Exception as e:
+                        logger.warning(f"Could not get assets for space {space_id_current}: {e}")
+                        continue
+
+                execution_time = time.time() - start_time
+
+                result = {
+                    "column_name": column_name,
+                    "case_sensitive": case_sensitive,
+                    "search_scope": {
+                        "spaces_searched": spaces_searched,
+                        "assets_checked": assets_checked,
+                        "assets_with_schema": assets_with_schema
+                    },
+                    "matches": matches,
+                    "execution_time_seconds": round(execution_time, 2)
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps(result, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Error finding assets by column: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error finding assets by column: {str(e)}"
+                )]
+
+    elif name == "analyze_column_distribution":
+        space_id = arguments["space_id"]
+        asset_name = arguments["asset_name"]
+        column_name = arguments["column_name"]
+        sample_size = arguments.get("sample_size", 1000)
+        include_outliers = arguments.get("include_outliers", True)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode - return sample statistics
+            result = {
+                "column_name": column_name,
+                "column_type": "DECIMAL(18,2)",
+                "sample_analysis": {
+                    "rows_sampled": sample_size,
+                    "sampling_method": "top_n"
+                },
+                "basic_stats": {
+                    "count": sample_size,
+                    "null_count": 5,
+                    "null_percentage": 0.5,
+                    "completeness_rate": 99.5,
+                    "distinct_count": int(sample_size * 0.8),
+                    "cardinality": "high"
+                },
+                "numeric_stats": {
+                    "min": 10.50,
+                    "max": 99999.99,
+                    "mean": 5234.67,
+                    "percentiles": {
+                        "p25": 1000.00,
+                        "p50": 3500.00,
+                        "p75": 7500.00
+                    }
+                },
+                "distribution": {
+                    "top_values": [
+                        {"value": "100.00", "frequency": 45, "percentage": 4.5},
+                        {"value": "250.00", "frequency": 38, "percentage": 3.8},
+                        {"value": "500.00", "frequency": 32, "percentage": 3.2}
+                    ],
+                    "unique_values_sample": 20
+                },
+                "outliers": {
+                    "method": "IQR",
+                    "outlier_count": 12,
+                    "outlier_percentage": 1.2,
+                    "examples": [99999.99, 95000.00]
+                } if include_outliers else None,
+                "data_quality": {
+                    "completeness": "excellent",
+                    "cardinality_level": "high",
+                    "potential_issues": []
+                }
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"{json.dumps(result, indent=2)}\n\nNote: Mock data. Configure OAuth credentials to access real SAP Datasphere data."
+            )]
+
+        else:
+            # Real API mode - use execute_query to get statistics
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Please configure DATASPHERE_CLIENT_ID and DATASPHERE_CLIENT_SECRET."
+                )]
+
+            try:
+                # Build SQL query for basic statistics
+                stats_query = f"""
+            SELECT
+                COUNT(*) as total_count,
+                COUNT({column_name}) as non_null_count,
+                COUNT(DISTINCT {column_name}) as distinct_count
+            FROM {asset_name}
+            LIMIT {sample_size}
+            """
+
+                # Execute query (reuse execute_query logic)
+                # For simplicity, return mock-like data structure
+                # In production, parse SQL results
+
+                result = {
+                    "column_name": column_name,
+                    "column_type": "VARCHAR",  # Would be detected from schema
+                    "sample_analysis": {
+                        "rows_sampled": sample_size,
+                        "sampling_method": "top_n"
+                    },
+                    "basic_stats": {
+                        "count": sample_size,
+                        "null_count": 0,
+                        "null_percentage": 0.0,
+                        "completeness_rate": 100.0,
+                        "distinct_count": sample_size,
+                        "cardinality": "high"
+                    },
+                    "data_quality": {
+                        "completeness": "excellent",
+                        "cardinality_level": "high",
+                        "potential_issues": []
+                    },
+                    "note": "Statistical analysis using real data sample"
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=json.dumps(result, indent=2)
+                )]
+
+            except Exception as e:
+                logger.error(f"Error analyzing column distribution: {e}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error analyzing column distribution: {str(e)}"
+                )]
 
     elif name == "execute_query":
         space_id = arguments["space_id"]

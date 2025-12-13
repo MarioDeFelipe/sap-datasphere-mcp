@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sap-datasphere-mcp"
-version = "1.0.1"
-description = "Model Context Protocol server for SAP Datasphere integration with 41 tools and 98% real data coverage"
+version = "1.0.3"
+description = "Model Context Protocol server for SAP Datasphere integration with 44 tools and 98% real data coverage"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

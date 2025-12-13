@@ -16,10 +16,10 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="sap-datasphere-mcp",
-    version="1.0.1",
+    version="1.0.3",
     author="Mario DeFelipe",
     author_email="mariodefe@example.com",
-    description="Model Context Protocol server for SAP Datasphere integration with 41 tools and 98% real data coverage",
+    description="Model Context Protocol server for SAP Datasphere integration with 44 tools and 98% real data coverage",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/MarioDeFelipe/sap-datasphere-mcp",
