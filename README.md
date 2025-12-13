@@ -5,10 +5,10 @@
 [![MCP Protocol](https://img.shields.io/badge/MCP-Compatible-purple.svg)](https://modelcontextprotocol.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](https://pypi.org/project/sap-datasphere-mcp/)
-[![Real Data](https://img.shields.io/badge/Real%20Data-41%2F42%20(98%25)-success.svg)]()
-[![API Integration](https://img.shields.io/badge/API%20Integration-41%2F42%20(98%25)-blue.svg)]()
+[![Real Data](https://img.shields.io/badge/Real%20Data-43%2F44%20(98%25)-success.svg)]()
+[![API Integration](https://img.shields.io/badge/API%20Integration-43%2F44%20(98%25)-blue.svg)]()
 
-> **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, and database user management.**
+> **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling.**
 
 ## 🚀 Quick Start
 
@@ -24,17 +24,45 @@ sap-datasphere-mcp
 
 ---
 
+## ✨ What's New in v1.0.3
+
+**Competitive Advantage Release** - New high-value data discovery and quality tools:
+
+**v1.0.3 - New Tools:**
+- ✅ **`find_assets_by_column`** - Find all assets containing a specific column name
+  - Cross-space column search for data lineage analysis
+  - Case-sensitive/insensitive matching
+  - Impact analysis before schema changes
+  - Discover related datasets by common columns
+
+- ✅ **`analyze_column_distribution`** - Statistical analysis of column data distribution
+  - Null rates, distinct values, and completeness metrics
+  - Percentile analysis for numeric columns
+  - Outlier detection using IQR method
+  - Data quality profiling and assessment
+
+**v1.0.2 - Smart Enhancements:**
+- ✅ **`list_connections`** - Real API integration with connection type filtering
+- ✅ **`browse_marketplace`** - Enhanced with summary statistics and breakdowns
+
+**Result:** **44 tools** vs. competitor's 11 = **300% competitive advantage**
+
+**See [CHANGELOG_v1.0.3.md](CHANGELOG_v1.0.3.md) for complete details.**
+
+---
+
 ## 📊 Current Status
 
-**🎉 42 TOOLS AVAILABLE - 41 with real data (98%)** | **Phases 1-5.1 Complete + Diagnostic Tool**
+**🎉 44 TOOLS AVAILABLE - 43 with real data (98%)** | **Phases 1-5.1 Complete + Data Discovery & Quality**
 
-- ✅ **98% Real Data Integration** - 41/42 tools accessing actual tenant data
+- ✅ **98% Real Data Integration** - 43/44 tools accessing actual tenant data
 - ✅ **OAuth 2.0 Authentication** - Enterprise-grade security with automatic token refresh
 - ✅ **100% Foundation Tools** - All authentication, connection, and user tools working perfectly
 - ✅ **100% Catalog Tools** - Complete asset discovery and metadata exploration
 - ✅ **100% Search Tools** - Client-side search workarounds for catalog and repository
 - ✅ **100% Database User Management** - All 5 tools using real SAP Datasphere CLI
 - ✅ **100% ETL Tools** - All 4 Phase 5.1 tools with enterprise-grade data extraction (up to 50K records)
+- ✅ **NEW: Data Lineage & Quality** - Column search and distribution analysis tools
 - 🟡 **1 diagnostic tool** - Endpoint testing utility (intentionally mock mode)
 
 ---
@@ -46,7 +74,7 @@ sap-datasphere-mcp
 | Guide | Description | Time to Read |
 |-------|-------------|--------------|
 | 📖 [**Getting Started Guide**](GETTING_STARTED_GUIDE.md) | 10-minute quick start with examples | 10 min |
-| 📋 [**Tools Catalog**](TOOLS_CATALOG.md) | Complete reference for all 41 tools | 30 min |
+| 📋 [**Tools Catalog**](TOOLS_CATALOG.md) | Complete reference for all 44 tools | 30 min |
 | 🔧 [**API Reference**](API_REFERENCE.md) | Technical API docs with Python/cURL examples | 45 min |
 | 🚀 [**Deployment Guide**](DEPLOYMENT.md) | Production deployment (Docker, K8s, PyPI) | 20 min |
 | 🐛 [**Troubleshooting**](TROUBLESHOOTING.md) | Common issues and solutions | 15 min |
@@ -54,19 +82,21 @@ sap-datasphere-mcp
 **Quick Links:**
 - 🆕 [What's New](#-current-status) - Latest features and improvements
 - ⚡ [Quick Start](#-getting-started) - Get running in 5 minutes
-- 🛠️ [All Tools](#️-complete-tool-catalog-42-tools) - Complete tool list
+- 🛠️ [All Tools](#️-complete-tool-catalog-44-tools) - Complete tool list
 - 🔒 [Security](#-security-features) - OAuth 2.0 and authorization
 
 ---
 
 ## 🌟 Key Highlights
 
-- 🎯 **42 MCP Tools**: Comprehensive SAP Datasphere operations via Model Context Protocol
+- 🎯 **44 MCP Tools**: Comprehensive SAP Datasphere operations via Model Context Protocol
 - 🔐 **OAuth 2.0**: Production-ready authentication with automatic token refresh
-- ✅ **Real Data Access**: 41 tools (98%) accessing actual tenant data - spaces, assets, users, metadata
-- 🚀 **API Integration**: 41 tools (98%) with real data integration via API and CLI
+- ✅ **Real Data Access**: 43 tools (98%) accessing actual tenant data - spaces, assets, users, metadata
+- 🚀 **API Integration**: 43 tools (98%) with real data integration via API and CLI
 - 🔍 **Asset Discovery**: 36+ real assets discovered (HR, Finance, Sales, Time dimensions)
 - 📊 **Data Querying**: Execute OData queries and ETL extraction through natural language on real data
+- 🧬 **Data Lineage**: Find assets by column name for impact analysis and lineage tracking
+- 📈 **Data Quality**: Statistical column analysis with null rates, percentiles, and outlier detection
 - 👥 **User Management**: Create, update, and manage database users with real API
 - 🧠 **AI Integration**: Claude Desktop, Cursor IDE, and other MCP-compatible assistants
 - 🏆 **100% Foundation & Catalog Tools**: All core discovery tools fully functional
@@ -74,7 +104,7 @@ sap-datasphere-mcp
 
 ---
 
-## 🛠️ Complete Tool Catalog (42 Tools)
+## 🛠️ Complete Tool Catalog (44 Tools)
 
 ### 🏆 Real Data Success Summary
 

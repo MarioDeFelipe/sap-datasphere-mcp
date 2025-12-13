@@ -30,6 +30,8 @@ class ToolValidators:
             "list_connections": ToolValidators._list_connections_rules(),
             "get_task_status": ToolValidators._get_task_status_rules(),
             "browse_marketplace": ToolValidators._browse_marketplace_rules(),
+            "find_assets_by_column": ToolValidators._find_assets_by_column_rules(),
+            "analyze_column_distribution": ToolValidators._analyze_column_distribution_rules(),
             "execute_query": ToolValidators._execute_query_rules(),
             "list_database_users": ToolValidators._list_database_users_rules(),
             "create_database_user": ToolValidators._create_database_user_rules(),
@@ -171,6 +173,73 @@ class ToolValidators:
                 required=False,
                 min_length=1,
                 max_length=256
+            )
+        ]
+
+    @staticmethod
+    def _find_assets_by_column_rules() -> List[ValidationRule]:
+        """Validation rules for find_assets_by_column tool"""
+        return [
+            ValidationRule(
+                param_name="column_name",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=100
+            ),
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=False,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="max_assets",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="case_sensitive",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
+            )
+        ]
+
+    @staticmethod
+    def _analyze_column_distribution_rules() -> List[ValidationRule]:
+        """Validation rules for analyze_column_distribution tool"""
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64
+            ),
+            ValidationRule(
+                param_name="asset_name",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=100
+            ),
+            ValidationRule(
+                param_name="column_name",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=100
+            ),
+            ValidationRule(
+                param_name="sample_size",
+                validation_type=ValidationType.INTEGER,
+                required=False
+            ),
+            ValidationRule(
+                param_name="include_outliers",
+                validation_type=ValidationType.BOOLEAN,
+                required=False
             )
         ]
 

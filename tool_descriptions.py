@@ -339,6 +339,154 @@ class ToolDescriptions:
         }
 
     @staticmethod
+    def find_assets_by_column() -> Dict:
+        """Find assets containing a specific column name - for data lineage and impact analysis"""
+        return {
+            "description": """Find all assets (tables/views) containing a specific column name across SAP Datasphere spaces.
+
+**Use this tool when:**
+- User asks "Which tables contain CUSTOMER_ID?"
+- Performing data lineage analysis
+- Impact analysis before schema changes
+- Finding datasets for specific use cases
+- Locating related data across spaces
+
+**What you'll get:**
+- Asset names and types (View, Table, etc.)
+- Space IDs where assets are located
+- Column information (name, type, position)
+- Total column count per asset
+- Consumption URLs for data access
+
+**Use cases:**
+- Data lineage discovery (find all uses of a column)
+- Impact analysis (before renaming/removing columns)
+- Dataset discovery (find tables with specific fields)
+- Cross-space data exploration
+- Schema relationship mapping
+
+**Example queries:**
+- "Find all tables with CUSTOMER_ID column"
+- "Which views contain SALES_AMOUNT?"
+- "Show me assets with COUNTRY_CODE in SAP_CONTENT space"
+- "List tables that have ORDER_DATE column"
+
+**Performance notes:**
+- Searches across multiple spaces by default
+- Uses intelligent caching for better performance
+- Results limited to 50 assets by default (configurable)
+- Case-insensitive search by default
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "column_name": {
+                        "type": "string",
+                        "description": "Column name to search for (case-insensitive by default). Examples: 'CUSTOMER_ID', 'SALES_AMOUNT', 'ORDER_DATE'"
+                    },
+                    "space_id": {
+                        "type": "string",
+                        "description": "Optional: Limit search to specific space (e.g., 'SAP_CONTENT'). Leave empty to search all spaces."
+                    },
+                    "max_assets": {
+                        "type": "integer",
+                        "description": "Optional: Maximum number of matching assets to return (1-200). Default: 50",
+                        "minimum": 1,
+                        "maximum": 200,
+                        "default": 50
+                    },
+                    "case_sensitive": {
+                        "type": "boolean",
+                        "description": "Optional: Perform case-sensitive column name matching. Default: false",
+                        "default": False
+                    }
+                },
+                "required": ["column_name"]
+            }
+        }
+
+    @staticmethod
+    def analyze_column_distribution() -> Dict:
+        """Analyze statistical distribution of column data - for data quality and profiling"""
+        return {
+            "description": """Perform advanced statistical analysis of a column's data distribution including nulls, distinct values, percentiles, and outlier detection.
+
+**Use this tool when:**
+- User asks "What's the data quality of AMOUNT column?"
+- Performing data profiling before analytics
+- Assessing column completeness and distribution
+- Detecting outliers and data anomalies
+- Understanding data patterns for ML/AI
+
+**What you'll get:**
+- Basic statistics (count, nulls, distinct values, completeness)
+- Numeric statistics (min, max, mean, percentiles)
+- Distribution analysis (top values, frequency)
+- Outlier detection (IQR method)
+- Data quality assessment
+
+**Use cases:**
+- Data quality assessment
+- Pre-analytics data profiling
+- Outlier and anomaly detection
+- Understanding value distributions
+- ML feature engineering preparation
+- Data cleansing planning
+
+**Example queries:**
+- "Analyze the distribution of SALES_AMOUNT column"
+- "What's the data quality of CUSTOMER_AGE?"
+- "Profile the ORDER_STATUS column"
+- "Detect outliers in PRICE column"
+- "Show me statistics for QUANTITY field"
+
+**Analysis includes:**
+- Null percentage and completeness rate
+- Distinct value count and cardinality
+- For numeric columns: min, max, mean, percentiles (p25, p50, p75)
+- Top value frequencies
+- Outlier detection using IQR method
+- Data quality recommendations
+
+**Performance notes:**
+- Analyzes up to 10,000 records (configurable)
+- Default sample size: 1,000 records
+- Works with numeric, string, and date columns
+- Automatic type detection and appropriate statistics
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space ID containing the asset (e.g., 'SAP_CONTENT', 'SALES_ANALYTICS')"
+                    },
+                    "asset_name": {
+                        "type": "string",
+                        "description": "Asset (table/view) name containing the column"
+                    },
+                    "column_name": {
+                        "type": "string",
+                        "description": "Column name to analyze (e.g., 'SALES_AMOUNT', 'CUSTOMER_AGE', 'ORDER_STATUS')"
+                    },
+                    "sample_size": {
+                        "type": "integer",
+                        "description": "Optional: Number of records to analyze (10-10000). Default: 1000. Larger samples = more accurate but slower.",
+                        "minimum": 10,
+                        "maximum": 10000,
+                        "default": 1000
+                    },
+                    "include_outliers": {
+                        "type": "boolean",
+                        "description": "Optional: Detect and report outliers using IQR method. Default: true",
+                        "default": True
+                    }
+                },
+                "required": ["space_id", "asset_name", "column_name"]
+            }
+        }
+
+    @staticmethod
     def execute_query() -> Dict:
         """Enhanced description for execute_query tool"""
         return {
@@ -1079,6 +1227,8 @@ This tool combines space_id and asset_id into an OData compound key format:
             "list_connections": ToolDescriptions.list_connections(),
             "get_task_status": ToolDescriptions.get_task_status(),
             "browse_marketplace": ToolDescriptions.browse_marketplace(),
+            "find_assets_by_column": ToolDescriptions.find_assets_by_column(),
+            "analyze_column_distribution": ToolDescriptions.analyze_column_distribution(),
             "execute_query": ToolDescriptions.execute_query(),
             "list_database_users": ToolDescriptions.list_database_users(),
             "create_database_user": ToolDescriptions.create_database_user(),

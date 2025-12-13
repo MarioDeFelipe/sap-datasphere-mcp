@@ -123,6 +123,22 @@ class AuthorizationManager:
             description="Browse Datasphere marketplace packages",
             risk_level="low"
         ),
+        "find_assets_by_column": ToolPermission(
+            tool_name="find_assets_by_column",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Find assets containing specific column names for data lineage",
+            risk_level="low"
+        ),
+        "analyze_column_distribution": ToolPermission(
+            tool_name="analyze_column_distribution",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.DATA_ACCESS,
+            requires_consent=False,
+            description="Perform statistical analysis of column data distribution",
+            risk_level="low"
+        ),
 
         # Database user management operations (high risk - require consent)
         "list_database_users": ToolPermission(
