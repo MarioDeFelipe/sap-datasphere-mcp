@@ -1878,7 +1878,6 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                import time
                 start_time = time.time()
 
                 matches = []
