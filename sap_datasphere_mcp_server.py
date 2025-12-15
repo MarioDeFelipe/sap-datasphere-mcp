@@ -2615,23 +2615,60 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                                 asset_id = table_name
                                 entity_name = table_name
                                 endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
-                                params = {"$top": min(limit, 50000)}
+
+                                # For aggregation queries in fallback, fetch more data for client-side processing
+                                fetch_limit = min(effective_limit * 10 if has_agg else effective_limit, 50000)
+                                params = {"$top": fetch_limit}
 
                                 start_time = time.time()
                                 data = await datasphere_connector.get(endpoint, params=params)
                                 execution_time = time.time() - start_time
 
-                                result = {
-                                    "method": f"{fallback_method} (fallback)",
-                                    "query": query,
-                                    "space_id": space_id,
-                                    "asset_id": asset_id,
-                                    "entity_name": entity_name,
-                                    "execution_time_seconds": round(execution_time, 3),
-                                    "rows_returned": len(data.get("value", [])),
-                                    "data": data.get("value", [])
-                                }
-                                execution_log.append(f"✓ Fallback success with {fallback_method} ({len(result['data'])} rows)")
+                                raw_data = data.get("value", [])
+
+                                # Apply client-side aggregation if this is an aggregation query (v1.0.7 Fallback Fix)
+                                if has_agg:
+                                    execution_log.append(f"Fallback: Fetched {len(raw_data)} raw rows for client-side aggregation")
+                                    aggregated_data = perform_client_side_aggregation(raw_data, query)
+                                    if aggregated_data:
+                                        execution_log.append(f"✓ Fallback + client-side aggregation successful: {len(raw_data)} rows → {len(aggregated_data)} aggregated rows")
+                                        result = {
+                                            "method": "relational (fallback) + client-side aggregation",
+                                            "query": query,
+                                            "space_id": space_id,
+                                            "asset_id": asset_id,
+                                            "entity_name": entity_name,
+                                            "execution_time_seconds": round(execution_time, 3),
+                                            "raw_rows_fetched": len(raw_data),
+                                            "rows_returned": len(aggregated_data),
+                                            "data": aggregated_data
+                                        }
+                                    else:
+                                        execution_log.append(f"⚠️  Fallback: Client-side aggregation failed - returning raw data")
+                                        result = {
+                                            "method": "relational (fallback, aggregation failed)",
+                                            "query": query,
+                                            "space_id": space_id,
+                                            "asset_id": asset_id,
+                                            "entity_name": entity_name,
+                                            "execution_time_seconds": round(execution_time, 3),
+                                            "rows_returned": len(raw_data),
+                                            "data": raw_data,
+                                            "warning": "Aggregation could not be performed client-side. Returning raw data."
+                                        }
+                                else:
+                                    result = {
+                                        "method": f"{fallback_method} (fallback)",
+                                        "query": query,
+                                        "space_id": space_id,
+                                        "asset_id": asset_id,
+                                        "entity_name": entity_name,
+                                        "execution_time_seconds": round(execution_time, 3),
+                                        "rows_returned": len(raw_data),
+                                        "data": raw_data
+                                    }
+                                    execution_log.append(f"✓ Fallback success with {fallback_method} ({len(raw_data)} rows)")
+
                                 break
 
                         except Exception as fallback_error:
