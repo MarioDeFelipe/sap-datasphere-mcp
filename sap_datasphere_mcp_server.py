@@ -2191,7 +2191,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 # Execute query
                 logger.info(f"GET {endpoint} with params: {params}")
                 start_time = time.time()
-                data = await datasphere_connector.get(endpoint, params=params, timeout=60)
+                data = await datasphere_connector.get(endpoint, params=params)
                 execution_time = time.time() - start_time
 
                 # Format results
