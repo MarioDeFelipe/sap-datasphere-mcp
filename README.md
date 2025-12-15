@@ -82,8 +82,63 @@ sap-datasphere-mcp
 **Quick Links:**
 - 🆕 [What's New](#-current-status) - Latest features and improvements
 - ⚡ [Quick Start](#-getting-started) - Get running in 5 minutes
+- 📊 [Query Examples](#-query-examples--available-data) - What data you can query and how
 - 🛠️ [All Tools](#️-complete-tool-catalog-44-tools) - Complete tool list
 - 🔒 [Security](#-security-features) - OAuth 2.0 and authorization
+
+---
+
+## 📊 Query Examples & Available Data
+
+The server provides access to **37+ data assets** including sales, products, HR, financial, and time dimension data. See **[QUERY_EXAMPLES.md](QUERY_EXAMPLES.md)** for complete examples and documentation.
+
+### Available Data Assets
+
+- **Sales Data:** Detailed orders and analytics (All For Bikes, eBike 100, etc.)
+- **Product Catalog:** Forklifts ($7,900), Bikes ($288-$699), specifications
+- **HR Analytics:** Headcount, job classifications, locations
+- **Financial Data:** Transaction details and GL accounts
+- **Time Dimensions:** Calendar data from 1900-present
+
+### Quick Examples
+
+**Sales orders (Relational):**
+```python
+query_relational_entity(
+    space_id="SAP_CONTENT",
+    asset_id="SAP_SC_SALES_V_SalesOrders",
+    entity_name="SAP_SC_SALES_V_SalesOrders",
+    select="SALESORDERID,COMPANYNAME,GROSSAMOUNT,CURRENCY",
+    top=5
+)
+```
+
+**Product information (Relational):**
+```python
+query_relational_entity(
+    space_id="SAP_CONTENT",
+    asset_id="SAP_SC_FI_V_ProductsDim",
+    entity_name="SAP_SC_FI_V_ProductsDim",
+    select="PRODUCTID,MEDIUM_DESCR,PRICE,CURRENCY",
+    top=5
+)
+```
+
+**Sales analytics (Analytical):**
+```python
+query_analytical_data(
+    space_id="SAP_CONTENT",
+    asset_id="SAP_SC_SALES_AM_SalesOrders",
+    entity_set="SAP_SC_SALES_AM_SalesOrders",
+    select="COMPANYNAME,GROSSAMOUNT",
+    orderby="GROSSAMOUNT desc",
+    top=8
+)
+```
+
+**Performance:** 1-5 second response times, up to 50K records per batch.
+
+**See [QUERY_EXAMPLES.md](QUERY_EXAMPLES.md) for 37+ data assets, 5 detailed examples, and best practices.**
 
 ---
 
