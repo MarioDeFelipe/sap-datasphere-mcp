@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sap-datasphere-mcp"
-version = "1.0.8"
-description = "Model Context Protocol server for SAP Datasphere integration with 45 tools including Smart Query with complete client-side aggregation in both primary and fallback paths"
+version = "1.0.9"
+description = "Model Context Protocol server for SAP Datasphere integration with 45 tools including Smart Query with enhanced aggregation support for simple and GROUP BY queries"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

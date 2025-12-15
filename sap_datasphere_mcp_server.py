@@ -2283,10 +2283,12 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 return int(limit_match.group(1)) if limit_match else None
 
             async def check_asset_capabilities(space, table):
-                """Check if asset supports analytical queries"""
+                """Check if asset supports analytical queries (v1.0.9: Enhanced)"""
                 try:
-                    # Use search_tables to get asset metadata
+                    # Try multiple search strategies to find the asset
                     search_endpoint = f"/api/v1/datasphere/catalog/assets"
+
+                    # Strategy 1: Exact name match
                     search_params = {
                         "spaceId": space,
                         "$filter": f"name eq '{table}'",
@@ -2294,6 +2296,19 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     }
                     search_result = await datasphere_connector.get(search_endpoint, params=search_params)
                     assets = search_result.get("value", [])
+
+                    # Strategy 2: If no exact match, try contains (for views with schema prefix)
+                    if not assets:
+                        search_params["$filter"] = f"contains(name, '{table}')"
+                        search_result = await datasphere_connector.get(search_endpoint, params=search_params)
+                        assets = search_result.get("value", [])
+                        # Filter to find closest match
+                        if assets:
+                            for asset in assets:
+                                if asset.get("name", "").upper() == table.upper():
+                                    assets = [asset]
+                                    break
+
                     if assets:
                         asset = assets[0]
                         # Check if asset supports analytical queries
@@ -2301,12 +2316,24 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                         return {
                             "supports_analytical": supports_analytical,
                             "asset_type": asset.get("type", "unknown"),
+                            "asset_name": asset.get("name"),
                             "found": True
                         }
-                    return {"supports_analytical": False, "found": False}
-                except:
-                    # If capability check fails, assume it might support both
-                    return {"supports_analytical": True, "found": False}
+
+                    # If still not found, the asset might exist but search API has limitations
+                    # Return neutral response (assume might support both)
+                    return {
+                        "supports_analytical": True,  # Assume possible to avoid false negatives
+                        "found": False,
+                        "note": "Asset not found in catalog search - may still exist"
+                    }
+                except Exception as e:
+                    # If capability check fails entirely, assume it might support both
+                    return {
+                        "supports_analytical": True,
+                        "found": False,
+                        "error": str(e)
+                    }
 
             async def find_similar_tables(space, table):
                 """Find similar table names for suggestions (fuzzy matching)"""
@@ -2325,16 +2352,10 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             def perform_client_side_aggregation(data, query_str):
                 """
-                Perform aggregation on raw data for simple GROUP BY queries.
+                Perform aggregation on raw data for both GROUP BY and simple aggregation queries.
                 Supports: COUNT, SUM, AVG, MIN, MAX
+                v1.0.9: Enhanced to support simple aggregations without GROUP BY
                 """
-                # Extract aggregation details from SQL
-                group_by_match = re.search(r'GROUP\s+BY\s+([\w,\s]+)', query_str, re.IGNORECASE)
-                if not group_by_match:
-                    return None  # Can't do client-side without GROUP BY
-
-                group_columns = [col.strip() for col in group_by_match.group(1).split(',')]
-
                 # Parse SELECT clause for aggregations
                 select_match = re.search(r'SELECT\s+(.+?)\s+FROM', query_str, re.IGNORECASE | re.DOTALL)
                 if not select_match:
@@ -2351,6 +2372,42 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
                 if not agg_functions:
                     return None
+
+                # Check for GROUP BY
+                group_by_match = re.search(r'GROUP\s+BY\s+([\w,\s]+?)(?:\s+ORDER\s+BY|\s+HAVING|\s+LIMIT|$)', query_str, re.IGNORECASE)
+
+                # Case 1: Simple aggregation without GROUP BY (e.g., SELECT COUNT(*) FROM table)
+                if not group_by_match:
+                    result = {}
+                    rows = data
+
+                    # Calculate aggregations over all data
+                    for func, column, alias in agg_functions:
+                        func_upper = func.upper()
+                        output_name = alias if alias else f"{func_upper}_{column}".replace("*", "ALL")
+
+                        if func_upper == "COUNT":
+                            if column == "*":
+                                result[output_name] = len(rows)
+                            else:
+                                result[output_name] = sum(1 for row in rows if row.get(column) is not None)
+                        elif func_upper == "SUM":
+                            values = [row.get(column, 0) for row in rows if row.get(column) is not None]
+                            result[output_name] = sum(float(v) for v in values) if values else 0
+                        elif func_upper == "AVG":
+                            values = [row.get(column, 0) for row in rows if row.get(column) is not None]
+                            result[output_name] = (sum(float(v) for v in values) / len(values)) if values else 0
+                        elif func_upper == "MIN":
+                            values = [row.get(column) for row in rows if row.get(column) is not None]
+                            result[output_name] = min(values) if values else None
+                        elif func_upper == "MAX":
+                            values = [row.get(column) for row in rows if row.get(column) is not None]
+                            result[output_name] = max(values) if values else None
+
+                    return [result]  # Return single row for simple aggregation
+
+                # Case 2: GROUP BY aggregation
+                group_columns = [col.strip() for col in group_by_match.group(1).split(',')]
 
                 # Group data by the GROUP BY columns
                 groups = defaultdict(list)
@@ -2376,7 +2433,10 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                         output_name = alias if alias else f"{func_upper}_{column}"
 
                         if func_upper == "COUNT":
-                            result[output_name] = len(rows)
+                            if column == "*":
+                                result[output_name] = len(rows)
+                            else:
+                                result[output_name] = sum(1 for row in rows if row.get(column) is not None)
                         elif func_upper == "SUM":
                             values = [row.get(column, 0) for row in rows if row.get(column) is not None]
                             result[output_name] = sum(float(v) for v in values) if values else 0
@@ -2413,22 +2473,26 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             execution_log.append(f"Query Analysis: SQL={is_sql}, Aggregations={has_agg}, Table={table_name}")
 
-            # Step 1.5: Check asset capabilities (v1.0.7 Enhancement)
+            # Step 1.5: Check asset capabilities (v1.0.9: Enhanced logging)
             asset_capabilities = None
             if table_name:
                 execution_log.append(f"Checking asset capabilities for {table_name}...")
                 asset_capabilities = await check_asset_capabilities(space_id, table_name)
                 if not asset_capabilities["found"]:
-                    execution_log.append(f"⚠️  Asset '{table_name}' not found - will attempt query anyway")
-                    # Try fuzzy matching for suggestions
-                    similar_tables = await find_similar_tables(space_id, table_name)
-                    if similar_tables:
-                        execution_log.append(f"💡 Similar tables found: {', '.join(similar_tables[:3])}")
-                elif not asset_capabilities["supports_analytical"] and has_agg:
-                    execution_log.append(f"⚠️  Asset '{table_name}' does not support analytical queries")
-                    execution_log.append("   Will attempt aggregation with fallback to client-side processing")
+                    # Asset not in catalog, but might still exist (catalog search limitations)
+                    if "note" in asset_capabilities:
+                        execution_log.append(f"ℹ️  {asset_capabilities['note']}")
+                    else:
+                        execution_log.append(f"ℹ️  Asset '{table_name}' not in catalog search - proceeding with query")
+                    # Try fuzzy matching for suggestions only if query might fail
+                    # (Don't show suggestions if query will likely succeed)
+                elif not asset_capabilities.get("supports_analytical", False) and has_agg:
+                    execution_log.append(f"ℹ️  Asset '{table_name}' type: {asset_capabilities.get('asset_type', 'unknown')}")
+                    execution_log.append("   Doesn't support analytical queries - will use client-side aggregation")
                 else:
-                    execution_log.append(f"✓ Asset capabilities: analytical={asset_capabilities['supports_analytical']}, type={asset_capabilities['asset_type']}")
+                    asset_type = asset_capabilities.get("asset_type", "unknown")
+                    supports_analytical = asset_capabilities.get("supports_analytical", False)
+                    execution_log.append(f"✓ Asset found: type={asset_type}, analytical={supports_analytical}")
 
             # Step 2: Route based on mode or auto-detection
             if mode == "auto":
