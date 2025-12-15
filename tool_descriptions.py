@@ -1360,6 +1360,7 @@ This tool combines space_id and asset_id into an OData compound key format:
             "find_assets_by_column": ToolDescriptions.find_assets_by_column(),
             "analyze_column_distribution": ToolDescriptions.analyze_column_distribution(),
             "execute_query": ToolDescriptions.execute_query(),
+            "smart_query": ToolDescriptions.smart_query(),
             "list_database_users": ToolDescriptions.list_database_users(),
             "create_database_user": ToolDescriptions.create_database_user(),
             "reset_database_user_password": ToolDescriptions.reset_database_user_password(),
