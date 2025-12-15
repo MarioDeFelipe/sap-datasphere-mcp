@@ -114,6 +114,7 @@ sap-datasphere-mcp
 | **Catalog Tools** | 4 | 4 ✅ | **100%** |
 | **Space Discovery** | 3 | 3 ✅ | **100%** |
 | **Search Tools** | 2 | 2 ✅ | **100%** (client-side workarounds) |
+| **Data Discovery & Quality** | 2 | 2 ✅ | **100%** (v1.0.3 - lineage & profiling) |
 | **Database User Management** | 5 | 5 ✅ | **100%** (SAP CLI integration) |
 | **Metadata Tools** | 4 | 4 ✅ | **100%** |
 | **Analytical Consumption Tools** | 4 | 4 ✅ | **100%** (OData analytical queries) |
@@ -122,7 +123,7 @@ sap-datasphere-mcp
 | **ETL-Optimized Relational Tools** | 4 | 4 ✅ | **100%** (Phase 5.1 - up to 50K records) |
 | **Diagnostic Tools** | 3 | 0 🟡 | **Mock Mode** (endpoint testing utilities) |
 | **Repository Tools (legacy)** | 2 | 0 ❌ | **0%** (deprecated - use Catalog instead) |
-| **TOTAL** | **42** | **41 (98%)** | **98% Coverage** |
+| **TOTAL** | **44** | **43 (98%)** | **98% Coverage** |
 
 ---
 
@@ -223,6 +224,34 @@ sap-datasphere-mcp
 
 **Implementation:**
 Both tools use client-side search workarounds since `/api/v1/datasphere/consumption/catalog/search` endpoint returns 404 Not Found. They fetch all assets from `/catalog/assets` and filter client-side.
+
+---
+
+### 🔬 Data Discovery & Quality Tools (2 tools) - 100% Real Data ✅
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `find_assets_by_column` | ✅ Real Data | Find all assets containing a specific column name for data lineage |
+| `analyze_column_distribution` | ✅ Real Data | Statistical analysis of column data distribution and quality profiling |
+
+**Example queries:**
+```
+"Which tables contain CUSTOMER_ID column?"
+"Find all assets with SALES_AMOUNT"
+"Analyze the distribution of ORDER_TOTAL column"
+"What's the data quality of CUSTOMER_AGE field?"
+"Profile the PRICE column for outliers"
+```
+
+**Real Data Examples:**
+- **Data Lineage**: Cross-space column search, impact analysis before schema changes
+- **Quality Profiling**: Null rates, distinct values, percentiles, outlier detection (IQR method)
+- **Use Cases**: Data discovery, schema relationship mapping, data quality assessment, pre-analytics profiling
+
+**Implementation:**
+Both tools introduced in v1.0.3 provide advanced data discovery and quality capabilities:
+- `find_assets_by_column`: Searches across multiple spaces, case-insensitive by default, up to 200 results
+- `analyze_column_distribution`: Analyzes up to 10,000 records, automatic type detection, percentile analysis
 
 ---
 

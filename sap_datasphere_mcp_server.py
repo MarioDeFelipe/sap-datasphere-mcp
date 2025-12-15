@@ -389,6 +389,16 @@ async def handle_list_tools() -> list[Tool]:
             inputSchema=enhanced["browse_marketplace"]["inputSchema"]
         ),
         Tool(
+            name="find_assets_by_column",
+            description=enhanced["find_assets_by_column"]["description"],
+            inputSchema=enhanced["find_assets_by_column"]["inputSchema"]
+        ),
+        Tool(
+            name="analyze_column_distribution",
+            description=enhanced["analyze_column_distribution"]["description"],
+            inputSchema=enhanced["analyze_column_distribution"]["inputSchema"]
+        ),
+        Tool(
             name="execute_query",
             description=enhanced["execute_query"]["description"],
             inputSchema=enhanced["execute_query"]["inputSchema"]

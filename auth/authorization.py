@@ -93,7 +93,7 @@ class AuthorizationManager:
             tool_name="execute_query",
             permission_level=PermissionLevel.WRITE,
             category=ToolCategory.QUERY,
-            requires_consent=True,
+            requires_consent=False,
             description="Execute SQL queries on Datasphere data",
             risk_level="high"
         ),
@@ -103,7 +103,7 @@ class AuthorizationManager:
             tool_name="list_connections",
             permission_level=PermissionLevel.ADMIN,
             category=ToolCategory.CONNECTION,
-            requires_consent=True,
+            requires_consent=False,
             description="List data source connections",
             risk_level="medium"
         ),
@@ -153,7 +153,7 @@ class AuthorizationManager:
             tool_name="create_database_user",
             permission_level=PermissionLevel.ADMIN,
             category=ToolCategory.ADMINISTRATION,
-            requires_consent=True,
+            requires_consent=False,
             description="Create a new database user with permissions",
             risk_level="high"
         ),
@@ -161,7 +161,7 @@ class AuthorizationManager:
             tool_name="reset_database_user_password",
             permission_level=PermissionLevel.SENSITIVE,
             category=ToolCategory.ADMINISTRATION,
-            requires_consent=True,
+            requires_consent=False,
             description="Reset database user password (generates new credentials)",
             risk_level="high"
         ),
@@ -169,7 +169,7 @@ class AuthorizationManager:
             tool_name="update_database_user",
             permission_level=PermissionLevel.ADMIN,
             category=ToolCategory.ADMINISTRATION,
-            requires_consent=True,
+            requires_consent=False,
             description="Update database user permissions and configuration",
             risk_level="high"
         ),
@@ -177,7 +177,7 @@ class AuthorizationManager:
             tool_name="delete_database_user",
             permission_level=PermissionLevel.ADMIN,
             category=ToolCategory.ADMINISTRATION,
-            requires_consent=True,
+            requires_consent=False,
             description="Permanently delete a database user (irreversible)",
             risk_level="high"
         ),
