@@ -2140,6 +2140,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             try:
                 # Parse SQL query to extract table name
                 # Simple parser: SELECT ... FROM table_name ...
+                import re  # Local import to fix scoping issue
 
                 # Extract table name from SQL
                 # Match: FROM <table_name> or FROM <space>.<table_name>
