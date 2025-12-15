@@ -2160,9 +2160,12 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
                 logger.info(f"Executing query on table {table_name} in space {space_id}")
 
-                # Use relational consumption API
-                # Endpoint: /api/v1/datasphere/consumption/relational/{spaceId}/{viewName}
-                endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{table_name}"
+                # Use relational consumption API with correct 3-part path
+                # Endpoint: /api/v1/datasphere/consumption/relational/{spaceId}/{assetId}/{entityName}
+                # For most SAP views, the asset_id and entity_name are the same as the table name
+                asset_id = table_name
+                entity_name = table_name
+                endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
 
                 # Build OData parameters
                 params = {
@@ -2200,6 +2203,8 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 result = {
                     "query": sql_query,
                     "space": space_id,
+                    "asset_id": asset_id,
+                    "entity_name": entity_name,
                     "table": table_name,
                     "execution_time": f"{execution_time:.3f} seconds",
                     "rows_returned": len(value),
