@@ -554,6 +554,136 @@ class ToolDescriptions:
         }
 
     @staticmethod
+    def smart_query() -> Dict:
+        """Enhanced description for smart_query tool - Intelligent query routing"""
+        return {
+            "description": """🚀 **SMART QUERY** - Intelligent query router that automatically selects the best execution method for your query.
+
+**NEW in v1.0.5** - This is a composite tool combining execute_query, query_relational_entity, and query_analytical_data with intelligent routing and fallback logic.
+
+**Why use smart_query instead of individual query tools?**
+- ✅ Automatic routing to the most reliable method
+- ✅ Fallback handling if primary method fails
+- ✅ No need to understand different query methods
+- ✅ Better error recovery and diagnostics
+- ✅ Performance optimization based on query type
+
+**How it works:**
+1. **Analyzes your query** - Detects SQL syntax, aggregations, complexity
+2. **Routes intelligently** - Chooses the best execution method:
+   - Aggregations (SUM, COUNT, GROUP BY) → Analytical endpoint
+   - Simple SELECT → Relational endpoint (most reliable)
+   - Complex SQL → SQL parsing with OData conversion
+3. **Falls back gracefully** - If primary method fails, tries alternatives
+4. **Returns detailed logs** - Shows routing decisions and execution path
+
+**Query Modes:**
+- `auto` (default) - Intelligent routing based on query analysis
+- `relational` - Force use of relational endpoint (most reliable)
+- `analytical` - Force use of analytical endpoint (for aggregations)
+- `sql` - Force use of SQL parsing method
+
+**Use this tool when:**
+- You want reliable query execution without worrying about method selection
+- You're unsure which query method to use
+- You need fallback handling for production reliability
+- You want to see execution diagnostics
+
+**Supported query patterns:**
+- Simple SELECT: `SELECT * FROM SAP_SC_FI_V_ProductsDim LIMIT 10`
+- Filtering: `SELECT * FROM table WHERE PRICE > 1000`
+- Column selection: `SELECT PRODUCTID, PRICE FROM table`
+- Aggregations: `SELECT COMPANYNAME, SUM(GROSSAMOUNT) FROM table GROUP BY COMPANYNAME`
+- Sorting: `SELECT * FROM table ORDER BY PRICE DESC LIMIT 5`
+
+**Parameters:**
+- `space_id` - Space ID (e.g., "SAP_CONTENT")
+- `query` - SQL query or natural language request
+- `mode` - Routing mode: "auto", "relational", "analytical", "sql" (default: "auto")
+- `limit` - Max rows to return (default: 1000)
+- `include_metadata` - Include routing logs and decisions (default: true)
+- `fallback` - Enable fallback to alternative methods (default: true)
+
+**Example queries:**
+```
+# Auto-routing - simple SELECT
+smart_query(space_id="SAP_CONTENT", query="SELECT * FROM SAP_SC_FI_V_ProductsDim LIMIT 5")
+
+# Auto-routing - aggregation
+smart_query(space_id="SAP_CONTENT", query="SELECT COMPANYNAME, SUM(GROSSAMOUNT) FROM SAP_SC_SALES_V_SalesOrders GROUP BY COMPANYNAME")
+
+# Force relational mode
+smart_query(space_id="SAP_CONTENT", query="SELECT * FROM SAP_SC_FI_V_ProductsDim", mode="relational")
+
+# Disable fallback (fail fast)
+smart_query(space_id="SAP_CONTENT", query="SELECT * FROM table", fallback=False)
+```
+
+**Response includes:**
+- Query results (data)
+- Method used (relational, analytical, sql, or fallback)
+- Execution time
+- Rows returned
+- Routing decision log (if include_metadata=true)
+- Detected query characteristics
+
+**Error handling:**
+- If primary method fails, automatically tries fallbacks
+- Returns detailed error log showing all attempted methods
+- Provides suggestions for fixing query issues
+- Shows routing decisions for debugging
+
+**Performance:**
+- Relational: 1-5 seconds, up to 50K records
+- Analytical: Fast for aggregations
+- SQL: 1-5 seconds, up to 1K records
+
+**When to use individual tools instead:**
+- Use `query_relational_entity` when you need specific entity_name control
+- Use `query_analytical_data` when you know you need analytical consumption
+- Use `execute_query` when you need exact SQL syntax control
+- Use `smart_query` for everything else (recommended for most use cases)
+
+**Note:** This tool provides the same functionality as the individual query tools but with better reliability through intelligent routing and fallback handling.
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The Datasphere space ID (e.g., 'SAP_CONTENT', 'SALES'). Must match existing space."
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "SQL query to execute. Examples: 'SELECT * FROM table LIMIT 10', 'SELECT col1, SUM(col2) FROM table GROUP BY col1'"
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["auto", "relational", "analytical", "sql"],
+                        "description": "Query execution mode. Use 'auto' for intelligent routing (recommended). Default: 'auto'",
+                        "default": "auto"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of rows to return. Default: 1000. Range: 1-50000",
+                        "default": 1000
+                    },
+                    "include_metadata": {
+                        "type": "boolean",
+                        "description": "Include execution logs and routing decisions in response. Useful for debugging. Default: true",
+                        "default": True
+                    },
+                    "fallback": {
+                        "type": "boolean",
+                        "description": "Enable fallback to alternative query methods if primary fails. Default: true",
+                        "default": True
+                    }
+                },
+                "required": ["space_id", "query"]
+            }
+        }
+
+    @staticmethod
     def list_database_users() -> Dict:
         """Enhanced description for list_database_users tool"""
         return {
