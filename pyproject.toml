@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sap-datasphere-mcp"
-version = "1.0.5"
+version = "1.0.6"
 description = "Model Context Protocol server for SAP Datasphere integration with 45 tools including Smart Query with intelligent routing and fallback"
 readme = "README.md"
 requires-python = ">=3.10"
