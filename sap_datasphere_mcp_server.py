@@ -405,6 +405,11 @@ async def handle_list_tools() -> list[Tool]:
             inputSchema=enhanced["execute_query"]["inputSchema"]
         ),
         Tool(
+            name="smart_query",
+            description=enhanced["smart_query"]["description"],
+            inputSchema=enhanced["smart_query"]["inputSchema"]
+        ),
+        Tool(
             name="list_database_users",
             description=enhanced["list_database_users"]["description"],
             inputSchema=enhanced["list_database_users"]["inputSchema"]
@@ -2237,6 +2242,265 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     type="text",
                     text=error_msg
                 )]
+
+    elif name == "smart_query":
+        # Smart Query Tool - Intelligent query routing with fallback
+        space_id = arguments["space_id"]
+        query = arguments["query"]
+        mode = arguments.get("mode", "auto")
+        limit = arguments.get("limit", 1000)
+        include_metadata = arguments.get("include_metadata", True)
+        fallback_enabled = arguments.get("fallback", True)
+
+        if not datasphere_connector:
+            return [types.TextContent(
+                type="text",
+                text="Error: OAuth connector not initialized. Cannot execute queries."
+            )]
+
+        try:
+            import re  # Local import for async context
+
+            # Query analysis helper functions
+            def detect_aggregations(q):
+                """Detect if query has aggregation functions"""
+                agg_patterns = r'\b(SUM|COUNT|AVG|MIN|MAX|GROUP\s+BY|HAVING)\b'
+                return bool(re.search(agg_patterns, q, re.IGNORECASE))
+
+            def detect_sql_syntax(q):
+                """Detect if query uses SQL syntax"""
+                return bool(re.search(r'\bSELECT\b.*\bFROM\b', q, re.IGNORECASE))
+
+            def extract_table_name(q):
+                """Extract table name from SQL query"""
+                from_match = re.search(r'FROM\s+(?:(\w+)\.)?(\w+)', q, re.IGNORECASE)
+                return from_match.group(2) if from_match else None
+
+            # Determine query routing
+            execution_log = []
+            result = None
+            method_used = None
+
+            # Step 1: Analyze query
+            has_agg = detect_aggregations(query)
+            is_sql = detect_sql_syntax(query)
+            table_name = extract_table_name(query) if is_sql else None
+
+            execution_log.append(f"Query Analysis: SQL={is_sql}, Aggregations={has_agg}, Table={table_name}")
+
+            # Step 2: Route based on mode or auto-detection
+            if mode == "auto":
+                # Intelligent routing
+                if has_agg and is_sql:
+                    method_used = "analytical"
+                    execution_log.append("Auto-routing: Detected aggregations → query_analytical_data")
+                elif is_sql and table_name:
+                    method_used = "relational"
+                    execution_log.append("Auto-routing: Detected SQL → query_relational_entity")
+                else:
+                    method_used = "sql"
+                    execution_log.append("Auto-routing: Default → execute_query")
+            else:
+                method_used = mode
+                execution_log.append(f"Manual routing: User selected mode={mode}")
+
+            # Step 3: Execute with primary method
+            errors = []
+
+            try:
+                if method_used == "analytical" and table_name:
+                    execution_log.append(f"Attempting query_analytical_data on {table_name}")
+                    endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{table_name}"
+                    params = {"$top": min(limit, 10000)}
+
+                    # Extract WHERE for $filter
+                    where_match = re.search(r'WHERE\s+(.+?)(?:ORDER BY|GROUP BY|LIMIT|$)', query, re.IGNORECASE)
+                    if where_match:
+                        where_clause = where_match.group(1).strip()
+                        odata_filter = where_clause.replace(" = ", " eq ").replace(" AND ", " and ").replace(" OR ", " or ")
+                        params["$filter"] = odata_filter
+
+                    start_time = time.time()
+                    data = await datasphere_connector.get(endpoint, params=params)
+                    execution_time = time.time() - start_time
+
+                    result = {
+                        "method": "analytical",
+                        "query": query,
+                        "space_id": space_id,
+                        "table": table_name,
+                        "execution_time_seconds": round(execution_time, 3),
+                        "rows_returned": len(data.get("value", [])),
+                        "data": data.get("value", [])
+                    }
+                    execution_log.append(f"✓ Success with analytical method ({len(result['data'])} rows)")
+
+                elif method_used == "relational" and table_name:
+                    execution_log.append(f"Attempting query_relational_entity on {table_name}")
+                    asset_id = table_name
+                    entity_name = table_name
+                    endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
+                    params = {"$top": min(limit, 50000)}
+
+                    # Extract WHERE for $filter
+                    where_match = re.search(r'WHERE\s+(.+?)(?:ORDER BY|GROUP BY|LIMIT|$)', query, re.IGNORECASE)
+                    if where_match:
+                        where_clause = where_match.group(1).strip()
+                        odata_filter = where_clause.replace(" = ", " eq ").replace(" AND ", " and ").replace(" OR ", " or ")
+                        params["$filter"] = odata_filter
+
+                    # Extract SELECT for $select
+                    select_match = re.search(r'SELECT\s+(.+?)\s+FROM', query, re.IGNORECASE)
+                    if select_match:
+                        select_clause = select_match.group(1).strip()
+                        if select_clause != "*":
+                            columns = [col.strip() for col in select_clause.split(',')]
+                            params["$select"] = ",".join(columns)
+
+                    start_time = time.time()
+                    data = await datasphere_connector.get(endpoint, params=params)
+                    execution_time = time.time() - start_time
+
+                    result = {
+                        "method": "relational",
+                        "query": query,
+                        "space_id": space_id,
+                        "asset_id": asset_id,
+                        "entity_name": entity_name,
+                        "execution_time_seconds": round(execution_time, 3),
+                        "rows_returned": len(data.get("value", [])),
+                        "data": data.get("value", [])
+                    }
+                    execution_log.append(f"✓ Success with relational method ({len(result['data'])} rows)")
+
+                else:  # SQL/execute_query method
+                    if not table_name:
+                        raise ValueError("Could not extract table name from query")
+
+                    execution_log.append(f"Attempting execute_query (SQL) on {table_name}")
+                    asset_id = table_name
+                    entity_name = table_name
+                    endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
+                    params = {"$top": min(limit, 1000)}
+
+                    # Extract WHERE for $filter
+                    where_match = re.search(r'WHERE\s+(.+?)(?:ORDER BY|GROUP BY|LIMIT|$)', query, re.IGNORECASE)
+                    if where_match:
+                        where_clause = where_match.group(1).strip()
+                        odata_filter = where_clause.replace(" = ", " eq ").replace(" AND ", " and ").replace(" OR ", " or ")
+                        params["$filter"] = odata_filter
+
+                    # Extract SELECT for $select
+                    select_match = re.search(r'SELECT\s+(.+?)\s+FROM', query, re.IGNORECASE)
+                    if select_match:
+                        select_clause = select_match.group(1).strip()
+                        if select_clause != "*":
+                            columns = [col.strip() for col in select_clause.split(',')]
+                            params["$select"] = ",".join(columns)
+
+                    start_time = time.time()
+                    data = await datasphere_connector.get(endpoint, params=params)
+                    execution_time = time.time() - start_time
+
+                    result = {
+                        "method": "sql",
+                        "query": query,
+                        "space_id": space_id,
+                        "asset_id": asset_id,
+                        "entity_name": entity_name,
+                        "execution_time_seconds": round(execution_time, 3),
+                        "rows_returned": len(data.get("value", [])),
+                        "data": data.get("value", [])
+                    }
+                    execution_log.append(f"✓ Success with SQL method ({len(result['data'])} rows)")
+
+            except Exception as primary_error:
+                errors.append(f"{method_used}: {str(primary_error)}")
+                execution_log.append(f"✗ {method_used} method failed: {str(primary_error)}")
+
+                # Step 4: Fallback logic
+                if fallback_enabled and not result:
+                    fallback_methods = ["relational", "analytical", "sql"]
+                    fallback_methods.remove(method_used)
+
+                    for fallback_method in fallback_methods:
+                        try:
+                            execution_log.append(f"Attempting fallback: {fallback_method}")
+
+                            if fallback_method == "relational" and table_name:
+                                asset_id = table_name
+                                entity_name = table_name
+                                endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
+                                params = {"$top": min(limit, 50000)}
+
+                                start_time = time.time()
+                                data = await datasphere_connector.get(endpoint, params=params)
+                                execution_time = time.time() - start_time
+
+                                result = {
+                                    "method": f"{fallback_method} (fallback)",
+                                    "query": query,
+                                    "space_id": space_id,
+                                    "asset_id": asset_id,
+                                    "entity_name": entity_name,
+                                    "execution_time_seconds": round(execution_time, 3),
+                                    "rows_returned": len(data.get("value", [])),
+                                    "data": data.get("value", [])
+                                }
+                                execution_log.append(f"✓ Fallback success with {fallback_method} ({len(result['data'])} rows)")
+                                break
+
+                        except Exception as fallback_error:
+                            errors.append(f"{fallback_method} (fallback): {str(fallback_error)}")
+                            execution_log.append(f"✗ {fallback_method} fallback failed: {str(fallback_error)}")
+                            continue
+
+                if not result:
+                    # All methods failed
+                    error_response = {
+                        "error": "All query methods failed",
+                        "query": query,
+                        "space_id": space_id,
+                        "attempted_methods": method_used + (" + fallbacks" if fallback_enabled else ""),
+                        "errors": errors,
+                        "execution_log": execution_log,
+                        "suggestions": [
+                            "Verify table/view exists: Use search_tables() or list_catalog_assets()",
+                            "Check table name case-sensitivity (SAP views are usually UPPERCASE)",
+                            "Try query_relational_entity() directly with correct asset_id and entity_name",
+                            "Use get_relational_entity_metadata() to verify table structure"
+                        ]
+                    }
+                    return [types.TextContent(
+                        type="text",
+                        text="Smart Query - All Methods Failed:\n\n" + json.dumps(error_response, indent=2)
+                    )]
+
+            # Step 5: Format success response
+            if include_metadata:
+                result["execution_log"] = execution_log
+                result["routing_decision"] = {
+                    "mode": mode,
+                    "detected_aggregations": has_agg,
+                    "detected_sql": is_sql,
+                    "extracted_table": table_name,
+                    "fallback_enabled": fallback_enabled
+                }
+
+            return [types.TextContent(
+                type="text",
+                text="Smart Query Results:\n\n" + json.dumps(result, indent=2)
+            )]
+
+        except Exception as e:
+            logger.error(f"Error in smart_query: {str(e)}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error in smart_query: {str(e)}\n\n"
+                     f"Query: {query}\n"
+                     f"Space: {space_id}\n"
+                     f"Mode: {mode}"
+            )]
 
     elif name == "list_database_users":
         space_id = arguments["space_id"]

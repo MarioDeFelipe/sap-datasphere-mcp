@@ -97,6 +97,14 @@ class AuthorizationManager:
             description="Execute SQL queries on Datasphere data",
             risk_level="high"
         ),
+        "smart_query": ToolPermission(
+            tool_name="smart_query",
+            permission_level=PermissionLevel.WRITE,
+            category=ToolCategory.QUERY,
+            requires_consent=False,
+            description="Intelligent query router with automatic method selection and fallback",
+            risk_level="medium"
+        ),
 
         # Administrative operations (high risk)
         "list_connections": ToolPermission(
