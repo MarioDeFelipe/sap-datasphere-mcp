@@ -2244,7 +2244,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
     elif name == "smart_query":
-        # Smart Query Tool - Intelligent query routing with fallback
+        # Smart Query Tool - Intelligent query routing with fallback (v1.0.7 Enhanced)
         space_id = arguments["space_id"]
         query = arguments["query"]
         mode = arguments.get("mode", "auto")
@@ -2260,6 +2260,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
         try:
             import re  # Local import for async context
+            from collections import defaultdict
 
             # Query analysis helper functions
             def detect_aggregations(q):
@@ -2276,6 +2277,123 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 from_match = re.search(r'FROM\s+(?:(\w+)\.)?(\w+)', q, re.IGNORECASE)
                 return from_match.group(2) if from_match else None
 
+            def extract_limit_from_sql(q):
+                """Extract LIMIT clause from SQL query for pushdown optimization"""
+                limit_match = re.search(r'LIMIT\s+(\d+)', q, re.IGNORECASE)
+                return int(limit_match.group(1)) if limit_match else None
+
+            async def check_asset_capabilities(space, table):
+                """Check if asset supports analytical queries"""
+                try:
+                    # Use search_tables to get asset metadata
+                    search_endpoint = f"/api/v1/datasphere/catalog/assets"
+                    search_params = {
+                        "spaceId": space,
+                        "$filter": f"name eq '{table}'",
+                        "$top": 1
+                    }
+                    search_result = await datasphere_connector.get(search_endpoint, params=search_params)
+                    assets = search_result.get("value", [])
+                    if assets:
+                        asset = assets[0]
+                        # Check if asset supports analytical queries
+                        supports_analytical = asset.get("supportsAnalyticalQueries", False)
+                        return {
+                            "supports_analytical": supports_analytical,
+                            "asset_type": asset.get("type", "unknown"),
+                            "found": True
+                        }
+                    return {"supports_analytical": False, "found": False}
+                except:
+                    # If capability check fails, assume it might support both
+                    return {"supports_analytical": True, "found": False}
+
+            async def find_similar_tables(space, table):
+                """Find similar table names for suggestions (fuzzy matching)"""
+                try:
+                    search_endpoint = f"/api/v1/datasphere/catalog/assets"
+                    # Search for partial matches
+                    search_params = {
+                        "spaceId": space,
+                        "$filter": f"contains(name, '{table[:5]}')" if len(table) >= 5 else f"startswith(name, '{table[:3]}')",
+                        "$top": 5
+                    }
+                    search_result = await datasphere_connector.get(search_endpoint, params=search_params)
+                    return [asset["name"] for asset in search_result.get("value", [])]
+                except:
+                    return []
+
+            def perform_client_side_aggregation(data, query_str):
+                """
+                Perform aggregation on raw data for simple GROUP BY queries.
+                Supports: COUNT, SUM, AVG, MIN, MAX
+                """
+                # Extract aggregation details from SQL
+                group_by_match = re.search(r'GROUP\s+BY\s+([\w,\s]+)', query_str, re.IGNORECASE)
+                if not group_by_match:
+                    return None  # Can't do client-side without GROUP BY
+
+                group_columns = [col.strip() for col in group_by_match.group(1).split(',')]
+
+                # Parse SELECT clause for aggregations
+                select_match = re.search(r'SELECT\s+(.+?)\s+FROM', query_str, re.IGNORECASE | re.DOTALL)
+                if not select_match:
+                    return None
+
+                select_clause = select_match.group(1)
+
+                # Find aggregation functions
+                agg_functions = re.findall(
+                    r'(COUNT|SUM|AVG|MIN|MAX)\s*\(\s*([*\w]+)\s*\)\s*(?:as\s+(\w+))?',
+                    select_clause,
+                    re.IGNORECASE
+                )
+
+                if not agg_functions:
+                    return None
+
+                # Group data by the GROUP BY columns
+                groups = defaultdict(list)
+                for row in data:
+                    # Create composite key from group columns
+                    key_parts = []
+                    for col in group_columns:
+                        key_parts.append(str(row.get(col, '')))
+                    key = tuple(key_parts)
+                    groups[key].append(row)
+
+                # Perform aggregations
+                results = []
+                for key, rows in groups.items():
+                    result = {}
+                    # Add group by columns to result
+                    for i, col in enumerate(group_columns):
+                        result[col] = rows[0].get(col) if rows else None
+
+                    # Calculate aggregations
+                    for func, column, alias in agg_functions:
+                        func_upper = func.upper()
+                        output_name = alias if alias else f"{func_upper}_{column}"
+
+                        if func_upper == "COUNT":
+                            result[output_name] = len(rows)
+                        elif func_upper == "SUM":
+                            values = [row.get(column, 0) for row in rows if row.get(column) is not None]
+                            result[output_name] = sum(float(v) for v in values) if values else 0
+                        elif func_upper == "AVG":
+                            values = [row.get(column, 0) for row in rows if row.get(column) is not None]
+                            result[output_name] = (sum(float(v) for v in values) / len(values)) if values else 0
+                        elif func_upper == "MIN":
+                            values = [row.get(column) for row in rows if row.get(column) is not None]
+                            result[output_name] = min(values) if values else None
+                        elif func_upper == "MAX":
+                            values = [row.get(column) for row in rows if row.get(column) is not None]
+                            result[output_name] = max(values) if values else None
+
+                    results.append(result)
+
+                return results
+
             # Determine query routing
             execution_log = []
             result = None
@@ -2285,15 +2403,44 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             has_agg = detect_aggregations(query)
             is_sql = detect_sql_syntax(query)
             table_name = extract_table_name(query) if is_sql else None
+            sql_limit = extract_limit_from_sql(query)
+
+            # Apply LIMIT pushdown optimization
+            effective_limit = limit
+            if sql_limit is not None:
+                effective_limit = min(sql_limit, limit)
+                execution_log.append(f"LIMIT Optimization: SQL LIMIT {sql_limit} detected, using $top={effective_limit}")
 
             execution_log.append(f"Query Analysis: SQL={is_sql}, Aggregations={has_agg}, Table={table_name}")
 
+            # Step 1.5: Check asset capabilities (v1.0.7 Enhancement)
+            asset_capabilities = None
+            if table_name:
+                execution_log.append(f"Checking asset capabilities for {table_name}...")
+                asset_capabilities = await check_asset_capabilities(space_id, table_name)
+                if not asset_capabilities["found"]:
+                    execution_log.append(f"⚠️  Asset '{table_name}' not found - will attempt query anyway")
+                    # Try fuzzy matching for suggestions
+                    similar_tables = await find_similar_tables(space_id, table_name)
+                    if similar_tables:
+                        execution_log.append(f"💡 Similar tables found: {', '.join(similar_tables[:3])}")
+                elif not asset_capabilities["supports_analytical"] and has_agg:
+                    execution_log.append(f"⚠️  Asset '{table_name}' does not support analytical queries")
+                    execution_log.append("   Will attempt aggregation with fallback to client-side processing")
+                else:
+                    execution_log.append(f"✓ Asset capabilities: analytical={asset_capabilities['supports_analytical']}, type={asset_capabilities['asset_type']}")
+
             # Step 2: Route based on mode or auto-detection
             if mode == "auto":
-                # Intelligent routing
+                # Intelligent routing with capability awareness
                 if has_agg and is_sql:
-                    method_used = "analytical"
-                    execution_log.append("Auto-routing: Detected aggregations → query_analytical_data")
+                    # Check if asset supports analytical before routing
+                    if asset_capabilities and not asset_capabilities.get("supports_analytical", True):
+                        method_used = "relational"  # Will need client-side aggregation
+                        execution_log.append("Auto-routing: Aggregations detected but asset doesn't support analytical → query_relational_entity + client-side aggregation")
+                    else:
+                        method_used = "analytical"
+                        execution_log.append("Auto-routing: Detected aggregations → query_analytical_data")
                 elif is_sql and table_name:
                     method_used = "relational"
                     execution_log.append("Auto-routing: Detected SQL → query_relational_entity")
@@ -2311,7 +2458,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 if method_used == "analytical" and table_name:
                     execution_log.append(f"Attempting query_analytical_data on {table_name}")
                     endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{table_name}"
-                    params = {"$top": min(limit, 10000)}
+                    params = {"$top": min(effective_limit, 10000)}
 
                     # Extract WHERE for $filter
                     where_match = re.search(r'WHERE\s+(.+?)(?:ORDER BY|GROUP BY|LIMIT|$)', query, re.IGNORECASE)
@@ -2340,7 +2487,10 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     asset_id = table_name
                     entity_name = table_name
                     endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
-                    params = {"$top": min(limit, 50000)}
+
+                    # For aggregation queries, fetch more data for client-side processing
+                    fetch_limit = min(effective_limit * 10 if has_agg else effective_limit, 50000)
+                    params = {"$top": fetch_limit}
 
                     # Extract WHERE for $filter
                     where_match = re.search(r'WHERE\s+(.+?)(?:ORDER BY|GROUP BY|LIMIT|$)', query, re.IGNORECASE)
@@ -2349,29 +2499,63 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                         odata_filter = where_clause.replace(" = ", " eq ").replace(" AND ", " and ").replace(" OR ", " or ")
                         params["$filter"] = odata_filter
 
-                    # Extract SELECT for $select
-                    select_match = re.search(r'SELECT\s+(.+?)\s+FROM', query, re.IGNORECASE)
-                    if select_match:
-                        select_clause = select_match.group(1).strip()
-                        if select_clause != "*":
-                            columns = [col.strip() for col in select_clause.split(',')]
-                            params["$select"] = ",".join(columns)
+                    # Extract SELECT for $select (but skip for aggregation queries with functions)
+                    if not has_agg:
+                        select_match = re.search(r'SELECT\s+(.+?)\s+FROM', query, re.IGNORECASE)
+                        if select_match:
+                            select_clause = select_match.group(1).strip()
+                            if select_clause != "*" and not re.search(r'(COUNT|SUM|AVG|MIN|MAX)\s*\(', select_clause, re.IGNORECASE):
+                                columns = [col.strip() for col in select_clause.split(',')]
+                                params["$select"] = ",".join(columns)
 
                     start_time = time.time()
                     data = await datasphere_connector.get(endpoint, params=params)
                     execution_time = time.time() - start_time
 
-                    result = {
-                        "method": "relational",
-                        "query": query,
-                        "space_id": space_id,
-                        "asset_id": asset_id,
-                        "entity_name": entity_name,
-                        "execution_time_seconds": round(execution_time, 3),
-                        "rows_returned": len(data.get("value", [])),
-                        "data": data.get("value", [])
-                    }
-                    execution_log.append(f"✓ Success with relational method ({len(result['data'])} rows)")
+                    raw_data = data.get("value", [])
+
+                    # Apply client-side aggregation if this is an aggregation query (v1.0.7 Enhancement)
+                    if has_agg:
+                        execution_log.append(f"Fetched {len(raw_data)} raw rows for client-side aggregation")
+                        aggregated_data = perform_client_side_aggregation(raw_data, query)
+                        if aggregated_data:
+                            execution_log.append(f"✓ Client-side aggregation successful: {len(raw_data)} rows → {len(aggregated_data)} aggregated rows")
+                            result = {
+                                "method": "relational + client-side aggregation",
+                                "query": query,
+                                "space_id": space_id,
+                                "asset_id": asset_id,
+                                "entity_name": entity_name,
+                                "execution_time_seconds": round(execution_time, 3),
+                                "raw_rows_fetched": len(raw_data),
+                                "rows_returned": len(aggregated_data),
+                                "data": aggregated_data
+                            }
+                        else:
+                            execution_log.append(f"⚠️  Client-side aggregation failed - returning raw data")
+                            result = {
+                                "method": "relational (aggregation failed)",
+                                "query": query,
+                                "space_id": space_id,
+                                "asset_id": asset_id,
+                                "entity_name": entity_name,
+                                "execution_time_seconds": round(execution_time, 3),
+                                "rows_returned": len(raw_data),
+                                "data": raw_data,
+                                "warning": "Aggregation could not be performed client-side. Returning raw data."
+                            }
+                    else:
+                        result = {
+                            "method": "relational",
+                            "query": query,
+                            "space_id": space_id,
+                            "asset_id": asset_id,
+                            "entity_name": entity_name,
+                            "execution_time_seconds": round(execution_time, 3),
+                            "rows_returned": len(raw_data),
+                            "data": raw_data
+                        }
+                        execution_log.append(f"✓ Success with relational method ({len(raw_data)} rows)")
 
                 else:  # SQL/execute_query method
                     if not table_name:
@@ -2381,7 +2565,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     asset_id = table_name
                     entity_name = table_name
                     endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
-                    params = {"$top": min(limit, 1000)}
+                    params = {"$top": min(effective_limit, 1000)}
 
                     # Extract WHERE for $filter
                     where_match = re.search(r'WHERE\s+(.+?)(?:ORDER BY|GROUP BY|LIMIT|$)', query, re.IGNORECASE)
@@ -2456,24 +2640,76 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                             continue
 
                 if not result:
-                    # All methods failed
+                    # All methods failed - provide enhanced error messages (v1.0.7)
+                    similar_tables = []
+                    if table_name:
+                        similar_tables = await find_similar_tables(space_id, table_name)
+
+                    # Build context-aware error message
+                    error_title = "Query Failed"
+                    if "not found" in str(errors).lower() or "404" in str(errors):
+                        error_title = "Table Not Found"
+                    elif "403" in str(errors) or "unauthorized" in str(errors).lower():
+                        error_title = "Permission Denied"
+                    elif "500" in str(errors) or "internal" in str(errors).lower():
+                        error_title = "Server Error"
+
                     error_response = {
-                        "error": "All query methods failed",
+                        "error": error_title,
                         "query": query,
                         "space_id": space_id,
+                        "table": table_name,
                         "attempted_methods": method_used + (" + fallbacks" if fallback_enabled else ""),
                         "errors": errors,
-                        "execution_log": execution_log,
-                        "suggestions": [
-                            "Verify table/view exists: Use search_tables() or list_catalog_assets()",
-                            "Check table name case-sensitivity (SAP views are usually UPPERCASE)",
-                            "Try query_relational_entity() directly with correct asset_id and entity_name",
-                            "Use get_relational_entity_metadata() to verify table structure"
-                        ]
+                        "execution_log": execution_log
                     }
+
+                    # Add asset capability info if available
+                    if asset_capabilities and asset_capabilities["found"]:
+                        error_response["asset_info"] = {
+                            "supports_analytical": asset_capabilities["supports_analytical"],
+                            "type": asset_capabilities["asset_type"]
+                        }
+
+                    # Add similar tables if found
+                    if similar_tables:
+                        error_response["similar_tables"] = similar_tables
+                        error_response["hint"] = f"Table '{table_name}' not found. Did you mean one of these?"
+
+                    # Context-aware suggestions
+                    suggestions = []
+                    if error_title == "Table Not Found":
+                        suggestions = [
+                            f"✓ Use search_tables(\"{table_name[:5] if table_name else ''}\") to find exact table names",
+                            f"✓ Use list_catalog_assets(space_id=\"{space_id}\") to see all available tables",
+                            "✓ Table names are case-sensitive (SAP views usually use UPPERCASE)",
+                            "✓ Check if you have permissions to access this table"
+                        ]
+                        if similar_tables:
+                            suggestions.insert(0, f"✓ Try one of these similar tables: {', '.join(similar_tables[:3])}")
+                    elif error_title == "Permission Denied":
+                        suggestions = [
+                            "✓ Check your OAuth credentials and permissions",
+                            f"✓ Use get_asset_details(space_id=\"{space_id}\", asset_id=\"{table_name}\") to check permissions",
+                            "✓ Contact your SAP Datasphere administrator for access"
+                        ]
+                    else:
+                        suggestions = [
+                            f"✓ Verify table exists: search_tables(\"{table_name}\")",
+                            f"✓ List all tables: list_catalog_assets(space_id=\"{space_id}\")",
+                            f"✓ Check table metadata: get_relational_entity_metadata(space_id=\"{space_id}\", asset_id=\"{table_name}\")",
+                            "✓ Try query_relational_entity() directly for more control"
+                        ]
+
+                    error_response["next_steps"] = suggestions
+
+                    # Add example query if similar tables found
+                    if similar_tables and has_agg:
+                        error_response["try_this_query"] = f"SELECT * FROM {similar_tables[0]} LIMIT 5"
+
                     return [types.TextContent(
                         type="text",
-                        text="Smart Query - All Methods Failed:\n\n" + json.dumps(error_response, indent=2)
+                        text=f"Smart Query - {error_title}:\n\n" + json.dumps(error_response, indent=2)
                     )]
 
             # Step 5: Format success response
