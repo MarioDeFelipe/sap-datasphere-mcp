@@ -1,6 +1,6 @@
 {
   "name": "@mariodefe/sap-datasphere-mcp",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Model Context Protocol server for SAP Datasphere integration with 45 tools including Smart Query with enhanced aggregation support",
   "keywords": [
     "sap",
@@ -43,9 +43,6 @@
     "bin/",
     "README.md",
     "LICENSE",
-    "CHANGELOG_v1.0.9.md"
-  ],
-  "peerDependencies": {
-    "python": ">=3.10.0"
-  }
+    "CHANGELOG_v1.0.10.md"
+  ]
 }
