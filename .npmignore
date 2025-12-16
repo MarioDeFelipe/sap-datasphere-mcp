@@ -1,0 +1,64 @@
+# Python files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Development files
+.git/
+.github/
+.vscode/
+.claude/
+.kiro/
+.devcontainer/
+.env
+.env.*
+!.env.example
+
+# Test files
+test_*.py
+*_test.py
+tests/
+quick_demo.py
+decode_jwt.py
+EXACT_WORKING_CODE.py
+enhanced_*.py
+mock_data.py
+
+# Documentation (too large for npm)
+docs/
+PHASE_*.md
+V1.0.*.md
+MCP_*.md
+SAP_DATASPHERE_*_SPEC.md
+*_SUMMARY.md
+*_PLAN.md
+*_STATUS.md
+*_RESULTS.md
+*_GUIDE.md
+*_INSTRUCTIONS.md
+SESSION_*.md
+
+# Build artifacts
+*.egg
+*.whl
+*.tar.gz
+
+# IDE
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Keep only essentials
+!bin/
+!README.md
+!LICENSE
+!CHANGELOG_v1.0.9.md
+!package.json

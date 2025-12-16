@@ -1,0 +1,51 @@
+{
+  "name": "@mariodef/sap-datasphere-mcp",
+  "version": "1.0.9",
+  "description": "Model Context Protocol server for SAP Datasphere integration with 45 tools including Smart Query with enhanced aggregation support",
+  "keywords": [
+    "sap",
+    "datasphere",
+    "mcp",
+    "model-context-protocol",
+    "data-warehouse",
+    "etl",
+    "odata",
+    "oauth",
+    "analytics",
+    "cloud",
+    "claude",
+    "ai"
+  ],
+  "author": "Mario DeFelipe <mario.defelipe@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MarioDeFelipe/sap-datasphere-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MarioDeFelipe/sap-datasphere-mcp/issues"
+  },
+  "homepage": "https://github.com/MarioDeFelipe/sap-datasphere-mcp#readme",
+  "bin": {
+    "sap-datasphere-mcp": "./bin/sap-datasphere-mcp.js"
+  },
+  "scripts": {
+    "postinstall": "python -m pip install --upgrade sap-datasphere-mcp || echo 'Warning: Python package installation failed. Please run: pip install sap-datasphere-mcp'"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.10.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG_v1.0.9.md"
+  ],
+  "peerDependencies": {
+    "python": ">=3.10.0"
+  }
+}
