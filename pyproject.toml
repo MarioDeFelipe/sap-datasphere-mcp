@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sap-datasphere-mcp"
-version = "1.0.9"
+version = "1.0.10"
 description = "Model Context Protocol server for SAP Datasphere integration with 45 tools including Smart Query with enhanced aggregation support for simple and GROUP BY queries"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -88,7 +88,7 @@ sap-datasphere-mcp = "sap_datasphere_mcp_server:main"
 
 [tool.setuptools]
 packages = ["auth"]
-py-modules = ["sap_datasphere_mcp_server"]
+py-modules = ["sap_datasphere_mcp_server", "tool_descriptions"]
 
 [tool.setuptools.package-data]
 "*" = ["*.md", "*.txt", "*.env.example"]
