@@ -12,6 +12,18 @@
 
 ## 🚀 Quick Start
 
+### Option 1: Install via npm (Recommended for Node.js/Claude Desktop)
+
+```bash
+# Install globally
+npm install -g @mariodefe/sap-datasphere-mcp
+
+# Run the server
+npx @mariodefe/sap-datasphere-mcp
+```
+
+### Option 2: Install via PyPI (Python)
+
 ```bash
 # Install from PyPI
 pip install sap-datasphere-mcp
@@ -683,20 +695,40 @@ USE_MOCK_DATA=false
 
 ### Claude Desktop
 
+**Option 1: Using npm (Recommended)**
+
 Add to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "sap-datasphere": {
-      "command": "python",
-      "args": ["C:\\path\\to\\sap_datasphere_mcp_server.py"],
+      "command": "npx",
+      "args": ["@mariodefe/sap-datasphere-mcp"],
       "env": {
         "DATASPHERE_BASE_URL": "https://your-tenant.eu20.hcs.cloud.sap",
         "DATASPHERE_CLIENT_ID": "your-client-id",
         "DATASPHERE_CLIENT_SECRET": "your-client-secret",
-        "DATASPHERE_TOKEN_URL": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token",
-        "USE_MOCK_DATA": "false"
+        "DATASPHERE_TOKEN_URL": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token"
+      }
+    }
+  }
+}
+```
+
+**Option 2: Using Python directly**
+
+```json
+{
+  "mcpServers": {
+    "sap-datasphere": {
+      "command": "python",
+      "args": ["-m", "sap_datasphere_mcp_server"],
+      "env": {
+        "DATASPHERE_BASE_URL": "https://your-tenant.eu20.hcs.cloud.sap",
+        "DATASPHERE_CLIENT_ID": "your-client-id",
+        "DATASPHERE_CLIENT_SECRET": "your-client-secret",
+        "DATASPHERE_TOKEN_URL": "https://your-tenant.authentication.eu20.hana.ondemand.com/oauth/token"
       }
     }
   }
