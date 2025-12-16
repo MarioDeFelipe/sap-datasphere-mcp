@@ -1,5 +1,5 @@
 {
-  "name": "@mariodef/sap-datasphere-mcp",
+  "name": "@mariodefe/sap-datasphere-mcp",
   "version": "1.0.9",
   "description": "Model Context Protocol server for SAP Datasphere integration with 45 tools including Smart Query with enhanced aggregation support",
   "keywords": [
