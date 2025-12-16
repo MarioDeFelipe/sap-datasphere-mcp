@@ -1,10 +1,10 @@
-# Changelog - v1.0.10 (npm Hotfix)
+# Changelog - v1.0.10 (Dual Package Hotfix)
 
-**Release Date:** 2025-01-XX
+**Release Date:** 2025-12-16
 
-## 🐛 Critical npm Package Fix
+## 🐛 Critical Package Fixes (npm + PyPI)
 
-### Issue Resolved
+### Issue 1: npm Package - Invalid Python Dependency
 Fixed a critical npm package configuration issue that prevented installation.
 
 **Problem:**
@@ -15,12 +15,36 @@ Fixed a critical npm package configuration issue that prevented installation.
 **Root Cause:**
 The `peerDependencies` field incorrectly listed Python as an npm dependency. Python is a system requirement, not an npm package.
 
-**Fix:**
-- Removed invalid `peerDependencies` field from package.json
+---
+
+### Issue 2: PyPI Package - Missing tool_descriptions.py Module
+
+Python package v1.0.9 was missing the `tool_descriptions.py` module, causing import errors.
+
+**Problem:**
+- Package installed successfully but failed at runtime
+- Error: `ModuleNotFoundError: No module named 'tool_descriptions'`
+- Only `sap_datasphere_mcp_server.py` was included, missing dependency
+
+**Root Cause:**
+[pyproject.toml](pyproject.toml:89-91) only specified `sap_datasphere_mcp_server` in `py-modules`, missing `tool_descriptions` which is imported by the server.
+
+**npm Fix:**
+- Removed invalid `peerDependencies` field from [package.json](package.json:42-47)
 - Python requirement now documented only in:
   - `engines` field (metadata only, not enforced by npm)
   - README.md (system requirements section)
   - Wrapper script error messages (runtime validation)
+
+**PyPI Fix:**
+- Added `tool_descriptions` to `py-modules` list in [pyproject.toml](pyproject.toml:91)
+```diff
+[tool.setuptools]
+packages = ["auth"]
+-py-modules = ["sap_datasphere_mcp_server"]
++py-modules = ["sap_datasphere_mcp_server", "tool_descriptions"]
+```
+- Rebuilt package with all required modules included
 
 ### Changes
 
