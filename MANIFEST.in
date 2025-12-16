@@ -22,6 +22,17 @@ include .dockerignore
 # Include all markdown files in root
 include *.md
 
+# Include all core Python modules explicitly
+include *.py
+include sap_datasphere_mcp_server.py
+include tool_descriptions.py
+include error_helpers.py
+include cache_manager.py
+include mock_data.py
+include telemetry.py
+include datasphere_connector.py
+include mcp_server_config.py
+
 # Recursive includes
 recursive-include auth *.py
 recursive-include tests *.py
@@ -53,8 +64,6 @@ exclude *_test.py
 exclude quick_demo.py
 exclude decode_jwt.py
 exclude EXACT_WORKING_CODE.py
-exclude enhanced_*.py
-exclude mock_data.py
 
 # Exclude local environment
 global-exclude *.pyc
