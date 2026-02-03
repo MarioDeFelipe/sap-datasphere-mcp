@@ -451,6 +451,32 @@ class AuthorizationManager:
             risk_level="low"
         ),
 
+        # Task Management Tools (v1.0.12)
+        "run_task_chain": ToolPermission(
+            tool_name="run_task_chain",
+            permission_level=PermissionLevel.ADMIN,
+            category=ToolCategory.ADMINISTRATION,
+            requires_consent=False,
+            description="Execute a task chain in SAP Datasphere",
+            risk_level="high"
+        ),
+        "get_task_log": ToolPermission(
+            tool_name="get_task_log",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get task execution log details",
+            risk_level="low"
+        ),
+        "get_task_history": ToolPermission(
+            tool_name="get_task_history",
+            permission_level=PermissionLevel.READ,
+            category=ToolCategory.METADATA,
+            requires_consent=False,
+            description="Get task chain execution history",
+            risk_level="low"
+        ),
+
         # Phase 6 & 7 tools removed (endpoints not available as REST APIs)
     }
 
