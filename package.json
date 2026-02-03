@@ -1,7 +1,7 @@
 {
   "name": "@mariodefe/sap-datasphere-mcp",
-  "version": "1.0.10",
-  "description": "Model Context Protocol server for SAP Datasphere integration with 45 tools including Smart Query with enhanced aggregation support",
+  "version": "1.0.12",
+  "description": "Model Context Protocol server for SAP Datasphere integration with 48 tools including Task Management (run_task_chain, get_task_log, get_task_history) and Smart Query",
   "keywords": [
     "sap",
     "datasphere",

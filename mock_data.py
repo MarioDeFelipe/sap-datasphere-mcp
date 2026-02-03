@@ -146,6 +146,372 @@ MOCK_TASKS = [
     }
 ]
 
+# Mock task chains for run_task_chain, get_task_log, get_task_history (v1.0.12)
+MOCK_TASK_CHAINS = {
+    "SALES_ANALYTICS": [
+        {
+            "object_id": "Daily_Sales_ETL",
+            "name": "Daily Sales ETL Pipeline",
+            "description": "Extracts, transforms, and loads daily sales data",
+            "application_id": "TASK_CHAINS",
+            "activity": "RUN_CHAIN",
+            "status": "ACTIVE",
+            "schedule": "Daily at 02:00 UTC",
+            "last_run_log_id": 2295172
+        },
+        {
+            "object_id": "Customer_Sync",
+            "name": "Customer Master Sync",
+            "description": "Synchronizes customer master data from SAP ERP",
+            "application_id": "TASK_CHAINS",
+            "activity": "RUN_CHAIN",
+            "status": "ACTIVE",
+            "schedule": "Every 4 hours",
+            "last_run_log_id": 2295180
+        }
+    ],
+    "FINANCE_DWH": [
+        {
+            "object_id": "Monthly_Reconciliation",
+            "name": "Monthly Finance Reconciliation",
+            "description": "Reconciles GL accounts with source systems",
+            "application_id": "TASK_CHAINS",
+            "activity": "RUN_CHAIN",
+            "status": "ACTIVE",
+            "schedule": "1st of month at 06:00 UTC",
+            "last_run_log_id": 2326060
+        },
+        {
+            "object_id": "Daily_GL_Load",
+            "name": "Daily GL Data Load",
+            "description": "Loads daily general ledger transactions",
+            "application_id": "TASK_CHAINS",
+            "activity": "RUN_CHAIN",
+            "status": "ACTIVE",
+            "schedule": "Daily at 03:00 UTC",
+            "last_run_log_id": 2329400
+        }
+    ]
+}
+
+# Mock task log details for get_task_log
+MOCK_TASK_LOGS = {
+    2295172: {
+        "logId": 2295172,
+        "status": "COMPLETED",
+        "startTime": "2025-01-15T02:30:33.142Z",
+        "endTime": "2025-01-15T02:31:36.059Z",
+        "runTime": 62917,
+        "objectId": "Daily_Sales_ETL",
+        "applicationId": "TASK_CHAINS",
+        "activity": "RUN_CHAIN",
+        "spaceId": "SALES_ANALYTICS",
+        "user": "etl_service_user",
+        "children": [
+            {
+                "nodeId": 1,
+                "logId": 2295190,
+                "status": "COMPLETED",
+                "objectId": "Sales_Orders_View",
+                "activity": "PERSIST",
+                "applicationId": "VIEWS",
+                "startTime": "2025-01-15T02:30:59.210Z",
+                "endTime": "2025-01-15T02:31:13.082Z",
+                "runTime": 13872
+            },
+            {
+                "nodeId": 2,
+                "logId": 2295191,
+                "status": "COMPLETED",
+                "objectId": "Customer_Dimension",
+                "activity": "PERSIST",
+                "applicationId": "VIEWS",
+                "startTime": "2025-01-15T02:31:14.000Z",
+                "endTime": "2025-01-15T02:31:35.000Z",
+                "runTime": 21000
+            }
+        ],
+        "messages": [
+            {
+                "messageNumber": 1,
+                "severity": "INFO",
+                "text": "Task 2295172 started.",
+                "timestamp": "2025-01-15T02:30:33.145Z"
+            },
+            {
+                "messageNumber": 2,
+                "severity": "INFO",
+                "text": "Loading task chain and prepared 2 tasks that are part of this chain.",
+                "timestamp": "2025-01-15T02:30:33.597Z"
+            },
+            {
+                "messageNumber": 3,
+                "severity": "INFO",
+                "text": "Node 1 with task VIEWS/PERSIST/SALES_ANALYTICS/Sales_Orders_View is going to be started.",
+                "timestamp": "2025-01-15T02:30:43.599Z"
+            },
+            {
+                "messageNumber": 4,
+                "severity": "INFO",
+                "text": "Node 2 with task VIEWS/PERSIST/SALES_ANALYTICS/Customer_Dimension is going to be started.",
+                "timestamp": "2025-01-15T02:31:14.000Z"
+            },
+            {
+                "messageNumber": 5,
+                "severity": "INFO",
+                "text": "Task 2295172 has finished at 2025-01-15T02:31:36.133Z with status COMPLETED",
+                "timestamp": "2025-01-15T02:31:36.140Z"
+            }
+        ]
+    },
+    2326060: {
+        "logId": 2326060,
+        "status": "FAILED",
+        "startTime": "2025-01-18T10:25:19.216Z",
+        "endTime": "2025-01-18T10:27:49.471Z",
+        "runTime": 150255,
+        "objectId": "Monthly_Reconciliation",
+        "applicationId": "TASK_CHAINS",
+        "activity": "RUN_CHAIN",
+        "spaceId": "FINANCE_DWH",
+        "user": "finance_admin",
+        "children": [
+            {
+                "nodeId": 1,
+                "logId": 2326061,
+                "status": "COMPLETED",
+                "objectId": "GL_Accounts_Load",
+                "activity": "PERSIST",
+                "applicationId": "VIEWS",
+                "startTime": "2025-01-18T10:25:30.000Z",
+                "endTime": "2025-01-18T10:26:15.000Z",
+                "runTime": 45000
+            },
+            {
+                "nodeId": 2,
+                "logId": 2326062,
+                "status": "FAILED",
+                "objectId": "Reconciliation_Check",
+                "activity": "PERSIST",
+                "applicationId": "VIEWS",
+                "startTime": "2025-01-18T10:26:16.000Z",
+                "endTime": "2025-01-18T10:27:49.000Z",
+                "runTime": 93000
+            }
+        ],
+        "messages": [
+            {
+                "messageNumber": 1,
+                "severity": "INFO",
+                "text": "Task 2326060 started.",
+                "timestamp": "2025-01-18T10:25:19.220Z"
+            },
+            {
+                "messageNumber": 2,
+                "severity": "INFO",
+                "text": "Loading task chain and prepared 2 tasks that are part of this chain.",
+                "timestamp": "2025-01-18T10:25:19.500Z"
+            },
+            {
+                "messageNumber": 3,
+                "severity": "INFO",
+                "text": "Node 1 with task VIEWS/PERSIST/FINANCE_DWH/GL_Accounts_Load completed successfully.",
+                "timestamp": "2025-01-18T10:26:15.100Z"
+            },
+            {
+                "messageNumber": 4,
+                "severity": "ERROR",
+                "text": "Node 2 failed: Data validation error - mismatched totals between source and target (delta: $1,234.56)",
+                "timestamp": "2025-01-18T10:27:49.000Z"
+            },
+            {
+                "messageNumber": 5,
+                "severity": "ERROR",
+                "text": "Task 2326060 has finished at 2025-01-18T10:27:49.471Z with status FAILED",
+                "timestamp": "2025-01-18T10:27:49.471Z"
+            }
+        ]
+    },
+    2329400: {
+        "logId": 2329400,
+        "status": "RUNNING",
+        "startTime": "2025-01-20T21:28:56.705Z",
+        "runTime": 59441,
+        "objectId": "Daily_GL_Load",
+        "applicationId": "TASK_CHAINS",
+        "activity": "RUN_CHAIN",
+        "spaceId": "FINANCE_DWH",
+        "user": "etl_service_user",
+        "children": [
+            {
+                "nodeId": 1,
+                "logId": 2329401,
+                "status": "RUNNING",
+                "objectId": "GL_Transactions_Extract",
+                "activity": "PERSIST",
+                "applicationId": "VIEWS",
+                "startTime": "2025-01-20T21:29:10.000Z",
+                "runTime": 45000
+            }
+        ],
+        "messages": [
+            {
+                "messageNumber": 1,
+                "severity": "INFO",
+                "text": "Task 2329400 started.",
+                "timestamp": "2025-01-20T21:28:56.710Z"
+            },
+            {
+                "messageNumber": 2,
+                "severity": "INFO",
+                "text": "Loading task chain and prepared 1 tasks that are part of this chain.",
+                "timestamp": "2025-01-20T21:28:57.000Z"
+            },
+            {
+                "messageNumber": 3,
+                "severity": "INFO",
+                "text": "Node 1 with task VIEWS/PERSIST/FINANCE_DWH/GL_Transactions_Extract is running...",
+                "timestamp": "2025-01-20T21:29:10.000Z"
+            }
+        ]
+    }
+}
+
+# Mock task history for get_task_history
+MOCK_TASK_HISTORY = {
+    "SALES_ANALYTICS": {
+        "Daily_Sales_ETL": [
+            {
+                "logId": 2295172,
+                "status": "COMPLETED",
+                "startTime": "2025-01-15T02:30:33.142Z",
+                "endTime": "2025-01-15T02:31:36.059Z",
+                "runTime": 62917,
+                "objectId": "Daily_Sales_ETL",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "SALES_ANALYTICS",
+                "user": "etl_service_user"
+            },
+            {
+                "logId": 2290150,
+                "status": "COMPLETED",
+                "startTime": "2025-01-14T02:30:00.000Z",
+                "endTime": "2025-01-14T02:31:45.000Z",
+                "runTime": 105000,
+                "objectId": "Daily_Sales_ETL",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "SALES_ANALYTICS",
+                "user": "etl_service_user"
+            },
+            {
+                "logId": 2285100,
+                "status": "COMPLETED",
+                "startTime": "2025-01-13T02:30:00.000Z",
+                "endTime": "2025-01-13T02:31:30.000Z",
+                "runTime": 90000,
+                "objectId": "Daily_Sales_ETL",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "SALES_ANALYTICS",
+                "user": "etl_service_user"
+            }
+        ],
+        "Customer_Sync": [
+            {
+                "logId": 2295180,
+                "status": "COMPLETED",
+                "startTime": "2025-01-15T08:00:00.000Z",
+                "endTime": "2025-01-15T08:05:30.000Z",
+                "runTime": 330000,
+                "objectId": "Customer_Sync",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "SALES_ANALYTICS",
+                "user": "sync_service"
+            },
+            {
+                "logId": 2294500,
+                "status": "COMPLETED",
+                "startTime": "2025-01-15T04:00:00.000Z",
+                "endTime": "2025-01-15T04:04:15.000Z",
+                "runTime": 255000,
+                "objectId": "Customer_Sync",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "SALES_ANALYTICS",
+                "user": "sync_service"
+            }
+        ]
+    },
+    "FINANCE_DWH": {
+        "Monthly_Reconciliation": [
+            {
+                "logId": 2326060,
+                "status": "FAILED",
+                "startTime": "2025-01-18T10:25:19.216Z",
+                "endTime": "2025-01-18T10:27:49.471Z",
+                "runTime": 150255,
+                "objectId": "Monthly_Reconciliation",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "FINANCE_DWH",
+                "user": "finance_admin"
+            },
+            {
+                "logId": 2225105,
+                "status": "FAILED",
+                "startTime": "2025-01-03T12:26:23.360Z",
+                "endTime": "2025-01-03T12:28:38.620Z",
+                "runTime": 135260,
+                "objectId": "Monthly_Reconciliation",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "FINANCE_DWH",
+                "user": "finance_admin"
+            },
+            {
+                "logId": 2014586,
+                "status": "COMPLETED",
+                "startTime": "2024-12-01T10:00:00.000Z",
+                "endTime": "2024-12-01T10:15:30.000Z",
+                "runTime": 930000,
+                "objectId": "Monthly_Reconciliation",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "FINANCE_DWH",
+                "user": "finance_admin"
+            }
+        ],
+        "Daily_GL_Load": [
+            {
+                "logId": 2329400,
+                "status": "RUNNING",
+                "startTime": "2025-01-20T21:28:56.705Z",
+                "runTime": 59441,
+                "objectId": "Daily_GL_Load",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "FINANCE_DWH",
+                "user": "etl_service_user"
+            },
+            {
+                "logId": 2325000,
+                "status": "COMPLETED",
+                "startTime": "2025-01-19T03:00:00.000Z",
+                "endTime": "2025-01-19T03:10:45.000Z",
+                "runTime": 645000,
+                "objectId": "Daily_GL_Load",
+                "applicationId": "TASK_CHAINS",
+                "activity": "RUN_CHAIN",
+                "spaceId": "FINANCE_DWH",
+                "user": "etl_service_user"
+            }
+        ]
+    }
+}
+
 MOCK_MARKETPLACE_PACKAGES = [
     {
         "id": "INDUSTRY_BENCHMARKS",
@@ -336,7 +702,11 @@ MOCK_DATA = {
     "connections": MOCK_CONNECTIONS,
     "tasks": MOCK_TASKS,
     "marketplace_packages": MOCK_MARKETPLACE_PACKAGES,
-    "database_users": MOCK_DATABASE_USERS
+    "database_users": MOCK_DATABASE_USERS,
+    # Task management (v1.0.12)
+    "task_chains": MOCK_TASK_CHAINS,
+    "task_logs": MOCK_TASK_LOGS,
+    "task_history": MOCK_TASK_HISTORY
 }
 
 
@@ -582,3 +952,60 @@ def get_mock_asset_details(space_id, asset_id):
             return detailed_asset
 
     return None
+
+
+# Task Management Helper Functions (v1.0.12)
+
+def get_mock_task_chains(space_id=None):
+    """
+    Get mock task chains data
+
+    Args:
+        space_id: Optional space ID to filter task chains
+
+    Returns:
+        List of task chains or dict of all task chains by space
+    """
+    if space_id:
+        return MOCK_TASK_CHAINS.get(space_id, [])
+    return MOCK_TASK_CHAINS
+
+
+def get_mock_task_log(log_id, detail_level="status"):
+    """
+    Get mock task log details
+
+    Args:
+        log_id: The log ID to retrieve
+        detail_level: Level of detail - 'status', 'status_only', 'detailed', 'extended'
+
+    Returns:
+        Task log details based on detail level
+    """
+    log_data = MOCK_TASK_LOGS.get(log_id)
+    if not log_data:
+        return None
+
+    if detail_level == "status_only":
+        return log_data.get("status", "UNKNOWN")
+    elif detail_level == "status":
+        return {"status": log_data.get("status", "UNKNOWN")}
+    elif detail_level in ["detailed", "extended"]:
+        return log_data
+    else:
+        return {"status": log_data.get("status", "UNKNOWN")}
+
+
+def get_mock_task_history(space_id, object_id):
+    """
+    Get mock task execution history for an object
+
+    Args:
+        space_id: The space ID
+        object_id: The task chain object ID
+
+    Returns:
+        List of historical task runs or empty list if not found
+    """
+    space_history = MOCK_TASK_HISTORY.get(space_id, {})
+    return space_history.get(object_id, [])

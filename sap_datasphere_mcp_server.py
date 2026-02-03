@@ -1073,6 +1073,22 @@ async def handle_list_tools() -> list[Tool]:
                     }
                 }
             }
+        ),
+        # Task Management Tools (v1.0.12) - Uses new SAP Datasphere Tasks REST APIs
+        Tool(
+            name="run_task_chain",
+            description=enhanced["run_task_chain"]["description"],
+            inputSchema=enhanced["run_task_chain"]["inputSchema"]
+        ),
+        Tool(
+            name="get_task_log",
+            description=enhanced["get_task_log"]["description"],
+            inputSchema=enhanced["get_task_log"]["inputSchema"]
+        ),
+        Tool(
+            name="get_task_history",
+            description=enhanced["get_task_history"]["description"],
+            inputSchema=enhanced["get_task_history"]["inputSchema"]
         )
         # Phase 6 & 7 tools removed - endpoints not available as REST APIs (return HTML instead of JSON)
     ]
@@ -7415,6 +7431,262 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             type="text",
             text=f"Analytical & Query Endpoints Test:\n\n{json.dumps(results, indent=2)}"
         )]
+
+    # ============================================================================
+    # Task Management Tools (v1.0.12) - Using new SAP Datasphere Tasks REST APIs
+    # ============================================================================
+
+    elif name == "run_task_chain":
+        space_id = arguments["space_id"]
+        object_id = arguments["object_id"]
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode - simulate task chain execution
+            import random
+            mock_log_id = random.randint(2400000, 2500000)
+
+            # Check if task chain exists in mock data
+            from mock_data import get_mock_task_chains
+            task_chains = get_mock_task_chains(space_id)
+            chain_found = any(tc["object_id"] == object_id for tc in task_chains)
+
+            if not chain_found:
+                available_chains = [tc["object_id"] for tc in task_chains]
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: Task chain '{object_id}' not found in space '{space_id}'.\n\n"
+                         f"Available task chains in {space_id}: {available_chains if available_chains else 'None'}\n\n"
+                         f"Note: This is mock data. Set USE_MOCK_DATA=false for real task chain execution."
+                )]
+
+            result = {
+                "logId": mock_log_id,
+                "message": f"Task chain '{object_id}' started successfully in space '{space_id}'",
+                "status": "INITIATED",
+                "spaceId": space_id,
+                "objectId": object_id,
+                "note": "This is mock data. Set USE_MOCK_DATA=false to run real task chains.",
+                "next_steps": [
+                    f"Check status: get_task_log(space_id='{space_id}', log_id={mock_log_id})",
+                    f"View history: get_task_history(space_id='{space_id}', object_id='{object_id}')"
+                ]
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Task Chain Execution Started:\n\n{json.dumps(result, indent=2)}"
+            )]
+        else:
+            # Real API mode - POST to run task chain
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot run task chains."
+                )]
+
+            try:
+                # POST /api/v1/datasphere/tasks/chains/{space_id}/run/{object_id}
+                endpoint = f"/api/v1/datasphere/tasks/chains/{space_id}/run/{object_id}"
+                logger.info(f"Running task chain: POST {endpoint}")
+
+                data = await datasphere_connector.post(endpoint)
+
+                result = {
+                    "logId": data.get("logId"),
+                    "message": f"Task chain '{object_id}' started successfully in space '{space_id}'",
+                    "status": "INITIATED",
+                    "spaceId": space_id,
+                    "objectId": object_id,
+                    "next_steps": [
+                        f"Check status: get_task_log(space_id='{space_id}', log_id={data.get('logId')})",
+                        f"View history: get_task_history(space_id='{space_id}', object_id='{object_id}')"
+                    ]
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Task Chain Execution Started:\n\n{json.dumps(result, indent=2)}"
+                )]
+
+            except Exception as e:
+                logger.error(f"Error running task chain: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error running task chain: {str(e)}\n\n"
+                         f"Possible causes:\n"
+                         f"1. Task chain '{object_id}' doesn't exist in space '{space_id}'\n"
+                         f"2. Insufficient permissions to run task chains\n"
+                         f"3. Task chain is currently disabled or in an invalid state\n"
+                         f"4. Network or authentication issues"
+                )]
+
+    elif name == "get_task_log":
+        space_id = arguments["space_id"]
+        log_id = arguments["log_id"]
+        detail_level = arguments.get("detail_level", "status")
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode - return mock task log
+            from mock_data import get_mock_task_log
+            log_data = get_mock_task_log(log_id, detail_level)
+
+            if log_data is None:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error: Task log with ID {log_id} not found in space '{space_id}'.\n\n"
+                         f"Available mock log IDs: 2295172 (COMPLETED), 2326060 (FAILED), 2329400 (RUNNING)\n\n"
+                         f"Note: This is mock data. Set USE_MOCK_DATA=false for real task logs."
+                )]
+
+            if detail_level == "status_only":
+                return [types.TextContent(
+                    type="text",
+                    text=f"Task Status: {log_data}"
+                )]
+            else:
+                return [types.TextContent(
+                    type="text",
+                    text=f"Task Log Details (level={detail_level}):\n\n{json.dumps(log_data, indent=2)}"
+                )]
+        else:
+            # Real API mode - GET task log with appropriate Accept header
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve task logs."
+                )]
+
+            try:
+                # GET /api/v1/datasphere/tasks/logs/{space_id}/{log_id}
+                endpoint = f"/api/v1/datasphere/tasks/logs/{space_id}/{log_id}"
+
+                # Set Accept header based on detail level
+                accept_headers = {
+                    "status": "application/vnd.sap.datasphere.task.log.status.object+json",
+                    "status_only": "application/vnd.sap.datasphere.task.log.status+json",
+                    "detailed": "application/vnd.sap.datasphere.task.log.details+json",
+                    "extended": "application/vnd.sap.datasphere.task.log.details.extended+json"
+                }
+                accept_header = accept_headers.get(detail_level, accept_headers["status"])
+
+                logger.info(f"Getting task log: GET {endpoint} (Accept: {accept_header})")
+
+                data = await datasphere_connector.get(
+                    endpoint,
+                    headers={"Accept": accept_header}
+                )
+
+                if detail_level == "status_only":
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Task Status: {data}"
+                    )]
+                else:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Task Log Details (level={detail_level}):\n\n{json.dumps(data, indent=2)}"
+                    )]
+
+            except Exception as e:
+                logger.error(f"Error getting task log: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error retrieving task log: {str(e)}\n\n"
+                         f"Possible causes:\n"
+                         f"1. Task log with ID {log_id} doesn't exist\n"
+                         f"2. Log ID is from a different space\n"
+                         f"3. Insufficient permissions to view task logs\n"
+                         f"4. Network or authentication issues"
+                )]
+
+    elif name == "get_task_history":
+        space_id = arguments["space_id"]
+        object_id = arguments["object_id"]
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            # Mock mode - return mock task history
+            from mock_data import get_mock_task_history
+            history = get_mock_task_history(space_id, object_id)
+
+            if not history:
+                # Check available task chains
+                from mock_data import get_mock_task_chains
+                task_chains = get_mock_task_chains(space_id)
+                available_chains = [tc["object_id"] for tc in task_chains]
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"No execution history found for '{object_id}' in space '{space_id}'.\n\n"
+                         f"Available task chains in {space_id}: {available_chains if available_chains else 'None'}\n\n"
+                         f"Note: This is mock data. Set USE_MOCK_DATA=false for real task history."
+                )]
+
+            result = {
+                "spaceId": space_id,
+                "objectId": object_id,
+                "totalRuns": len(history),
+                "history": history,
+                "summary": {
+                    "completed": sum(1 for h in history if h.get("status") == "COMPLETED"),
+                    "failed": sum(1 for h in history if h.get("status") == "FAILED"),
+                    "running": sum(1 for h in history if h.get("status") == "RUNNING"),
+                    "other": sum(1 for h in history if h.get("status") not in ["COMPLETED", "FAILED", "RUNNING"])
+                },
+                "note": "This is mock data. Set USE_MOCK_DATA=false for real task history."
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Task Execution History:\n\n{json.dumps(result, indent=2)}"
+            )]
+        else:
+            # Real API mode - GET task history
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot retrieve task history."
+                )]
+
+            try:
+                # GET /api/v1/datasphere/tasks/logs/{space_id}/objects/{object_id}
+                endpoint = f"/api/v1/datasphere/tasks/logs/{space_id}/objects/{object_id}"
+                logger.info(f"Getting task history: GET {endpoint}")
+
+                history = await datasphere_connector.get(endpoint)
+
+                # Ensure history is a list
+                if not isinstance(history, list):
+                    history = [history] if history else []
+
+                result = {
+                    "spaceId": space_id,
+                    "objectId": object_id,
+                    "totalRuns": len(history),
+                    "history": history,
+                    "summary": {
+                        "completed": sum(1 for h in history if h.get("status") == "COMPLETED"),
+                        "failed": sum(1 for h in history if h.get("status") == "FAILED"),
+                        "running": sum(1 for h in history if h.get("status") == "RUNNING"),
+                        "other": sum(1 for h in history if h.get("status") not in ["COMPLETED", "FAILED", "RUNNING"])
+                    }
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Task Execution History:\n\n{json.dumps(result, indent=2)}"
+                )]
+
+            except Exception as e:
+                logger.error(f"Error getting task history: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error retrieving task history: {str(e)}\n\n"
+                         f"Possible causes:\n"
+                         f"1. Task chain '{object_id}' doesn't exist in space '{space_id}'\n"
+                         f"2. No execution history available\n"
+                         f"3. Insufficient permissions to view task logs\n"
+                         f"4. Network or authentication issues"
+                )]
 
     # Phase 6 & 7 tool handlers removed (tools not available as REST APIs)
 

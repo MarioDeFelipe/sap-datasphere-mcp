@@ -1347,6 +1347,223 @@ This tool combines space_id and asset_id into an OData compound key format:
         }
 
     @staticmethod
+    def run_task_chain() -> Dict:
+        """Enhanced description for run_task_chain tool"""
+        return {
+            "description": """Execute a task chain in SAP Datasphere and get a log ID for tracking.
+
+**Use this tool when:**
+- User asks to "Run the ETL pipeline" or "Execute task chain X"
+- Triggering scheduled data loads or transformations
+- Starting data replication or synchronization jobs
+- Automating data refresh workflows
+- Executing orchestrated data pipelines
+
+**What happens:**
+- Task chain execution is initiated immediately
+- Returns a logId to track the execution status
+- Task runs asynchronously (use get_task_log to check status)
+- All child tasks in the chain are executed in order
+
+**Required parameters:**
+- space_id: The space containing the task chain (e.g., 'SALES_SPACE')
+- object_id: The task chain name/ID (e.g., 'Daily_ETL_Pipeline')
+
+**What you'll get:**
+- logId: Unique identifier to track this execution
+- Use get_task_log(space_id, logId) to monitor progress
+- Use get_task_history(space_id, object_id) to see all runs
+
+**Example queries:**
+- "Run the Daily_ETL_Pipeline in SALES_SPACE"
+- "Execute task chain Customer_Sync in FINANCE_SPACE"
+- "Trigger the data refresh pipeline in ANALYTICS"
+- "Start the nightly batch job in DWH_SPACE"
+
+**Important notes:**
+- Task chains run asynchronously - tool returns immediately
+- Check status with get_task_log using the returned logId
+- Requires appropriate permissions to run task chains
+- Failed runs can be investigated with detailed logs
+
+**Workflow example:**
+1. Run task chain: run_task_chain(space_id='SALES', object_id='Daily_ETL')
+2. Get logId from response (e.g., 2295172)
+3. Check status: get_task_log(space_id='SALES', log_id=2295172)
+4. View details: get_task_log(space_id='SALES', log_id=2295172, detail_level='detailed')
+
+**Note:** Uses API: POST /api/v1/datasphere/tasks/chains/{space_id}/run/{object_id}
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space ID containing the task chain (e.g., 'SALES_SPACE', 'FINANCE'). Must be uppercase."
+                    },
+                    "object_id": {
+                        "type": "string",
+                        "description": "The task chain name/identifier to execute (e.g., 'Daily_ETL_Pipeline', 'Customer_Sync')."
+                    }
+                },
+                "required": ["space_id", "object_id"]
+            }
+        }
+
+    @staticmethod
+    def get_task_log() -> Dict:
+        """Enhanced description for get_task_log tool"""
+        return {
+            "description": """Get detailed information about a specific task execution in SAP Datasphere.
+
+**Use this tool when:**
+- Checking status of a running task (after run_task_chain)
+- Investigating why a task failed
+- Viewing detailed execution logs and messages
+- Monitoring task chain progress
+- Debugging data pipeline issues
+
+**What you'll get (depends on detail_level):**
+- **status** (default): Simple status object {"status": "COMPLETED"}
+- **status_only**: Just the status string "COMPLETED"
+- **detailed**: Full details including messages and child nodes
+- **extended**: Extended logs with complete message details
+
+**Required parameters:**
+- space_id: The space where the task ran
+- log_id: The log ID from run_task_chain or get_task_history
+
+**Optional parameters:**
+- detail_level: Amount of detail to return
+  - 'status' (default): Status object only
+  - 'status_only': Status string only
+  - 'detailed': Full logs with messages and children
+  - 'extended': Extended logs with message details
+
+**Status values:**
+- RUNNING: Task is currently executing
+- COMPLETED: Task finished successfully
+- FAILED: Task encountered an error
+- CANCELLED: Task was manually stopped
+
+**Example queries:**
+- "Check status of task log 2295172 in SALES_SPACE"
+- "Get detailed logs for log ID 2295172"
+- "Show me why task 2326060 failed in FINANCE"
+- "Get extended execution details for log 2295172"
+
+**Detailed response includes:**
+- logId, status, startTime, endTime, runTime
+- objectId (task chain name)
+- user who ran the task
+- children: Array of child task executions
+- messages: Array of log messages with severity and timestamps
+
+**Use cases:**
+- Monitor long-running ETL jobs
+- Debug failed data pipelines
+- Audit task execution history
+- Track data refresh timing
+- Investigate error messages
+
+**Note:** Uses API: GET /api/v1/datasphere/tasks/logs/{space_id}/{log_id}
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space ID where the task ran (e.g., 'SALES_SPACE', 'FINANCE'). Must be uppercase."
+                    },
+                    "log_id": {
+                        "type": "integer",
+                        "description": "The log ID to retrieve details for (obtained from run_task_chain or get_task_history)."
+                    },
+                    "detail_level": {
+                        "type": "string",
+                        "enum": ["status", "status_only", "detailed", "extended"],
+                        "description": "Level of detail to return. Options: 'status' (default), 'status_only', 'detailed', 'extended'.",
+                        "default": "status"
+                    }
+                },
+                "required": ["space_id", "log_id"]
+            }
+        }
+
+    @staticmethod
+    def get_task_history() -> Dict:
+        """Enhanced description for get_task_history tool"""
+        return {
+            "description": """Get the execution history for a specific task chain or object in SAP Datasphere.
+
+**Use this tool when:**
+- Viewing all previous runs of a task chain
+- Analyzing task execution patterns
+- Finding failed runs to investigate
+- Checking historical performance
+- Auditing task chain executions
+- Understanding run frequency and duration
+
+**What you'll get:**
+- Array of all historical task runs for the specified object
+- Each entry includes: logId, status, startTime, endTime, runTime
+- Sorted by most recent first
+- Shows RUNNING, COMPLETED, FAILED, CANCELLED runs
+
+**Required parameters:**
+- space_id: The space containing the task chain
+- object_id: The task chain name to get history for
+
+**Response includes for each run:**
+- logId: Unique identifier for this execution
+- status: RUNNING, COMPLETED, FAILED, or CANCELLED
+- startTime: When the task started (ISO format)
+- endTime: When the task finished (if completed)
+- runTime: Duration in milliseconds
+- objectId: The task chain name
+- applicationId: Always 'TASK_CHAINS' for task chains
+- activity: The activity type (e.g., 'RUN_CHAIN')
+- user: Who initiated the run
+
+**Example queries:**
+- "Show me the run history for Daily_ETL_Pipeline in SALES_SPACE"
+- "List all executions of Customer_Sync in FINANCE"
+- "Get historical runs for Nested_Chain_1 in DWH_SPACE"
+- "How many times has Data_Refresh run this week?"
+
+**Use cases:**
+- Identify recurring failures
+- Analyze execution duration trends
+- Find specific failed runs to debug
+- Audit who ran tasks and when
+- Plan maintenance windows
+- Monitor SLA compliance
+
+**Workflow example:**
+1. Get history: get_task_history(space_id='SALES', object_id='Daily_ETL')
+2. Find failed run: Look for status='FAILED', note logId
+3. Get details: get_task_log(space_id='SALES', log_id=<failed_logId>, detail_level='detailed')
+4. View error messages in the response
+
+**Note:** Uses API: GET /api/v1/datasphere/tasks/logs/{space_id}/objects/{object_id}
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space ID containing the task chain (e.g., 'SALES_SPACE', 'FINANCE'). Must be uppercase."
+                    },
+                    "object_id": {
+                        "type": "string",
+                        "description": "The task chain name/identifier to get history for (e.g., 'Daily_ETL_Pipeline', 'Customer_Sync')."
+                    }
+                },
+                "required": ["space_id", "object_id"]
+            }
+        }
+
+    @staticmethod
     def get_all_enhanced_descriptions() -> Dict[str, Dict]:
         """Get all enhanced tool descriptions"""
         return {
@@ -1369,5 +1586,9 @@ This tool combines space_id and asset_id into an OData compound key format:
             "list_catalog_assets": ToolDescriptions.list_catalog_assets(),
             "get_asset_details": ToolDescriptions.get_asset_details(),
             "get_asset_by_compound_key": ToolDescriptions.get_asset_by_compound_key(),
-            "get_space_assets": ToolDescriptions.get_space_assets()
+            "get_space_assets": ToolDescriptions.get_space_assets(),
+            # Task Management Tools (v1.0.12)
+            "run_task_chain": ToolDescriptions.run_task_chain(),
+            "get_task_log": ToolDescriptions.get_task_log(),
+            "get_task_history": ToolDescriptions.get_task_history()
         }
