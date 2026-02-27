@@ -36,44 +36,29 @@ sap-datasphere-mcp
 
 ---
 
-## ✨ What's New in v1.0.9
+## ✨ What's New in v1.0.13
 
-**Enhanced Aggregation & Improved Logging** - Production-ready smart query enhancements:
+**Monitor & Data Access Tools** - 3 new tools for table monitoring and data exploration:
 
-**v1.0.9 - Smart Query Enhancements:**
-- ✅ **Simple Aggregation Support** - Queries like `SELECT COUNT(*) FROM table` now work correctly
-  - Support for aggregations without GROUP BY (returns single row)
-  - Enhanced regex to handle ORDER BY in GROUP BY queries
-  - Both simple and grouped aggregations fully supported
+**v1.0.13 - Monitor & Data Access (NEW):**
+- ✅ **`monitor_local_tables`** - Table sizes, row counts, disk/memory usage, last updated timestamps
+- ✅ **`monitor_remote_tables`** - Replication status, connection info, latency, error messages
+- ✅ **`query_table_data`** - Query local table data with OData params ($top, $filter, $select, $orderby, $skip)
 
-- ✅ **Enhanced Asset Detection** - Multi-strategy search reduces false warnings
-  - Exact name match + contains match for case-insensitive searches
-  - Graceful fallback for catalog API limitations
-  - Better handling of schema-prefixed views
+**v1.0.12 - Task Management:**
+- ✅ **`run_task_chain`** - Execute task chains and get logId for tracking
+- ✅ **`get_task_log`** - Get execution details with 4 detail levels
+- ✅ **`get_task_history`** - View historical runs with timing and status
 
-- ✅ **Improved Logging** - Better user experience with clearer messages
-  - Info emoji (ℹ️) instead of warning emoji (⚠️) for non-critical messages
-  - More accurate descriptions ("not in catalog search" vs "not found")
-  - Actionable suggestions only when queries likely to fail
+**Result:** **51 tools** with comprehensive monitoring, data access, and task management
 
-**v1.0.8 - Critical Hotfix:**
-- ✅ Fixed aggregation fallback bug - Client-side aggregation now works in both primary and fallback paths
-
-**v1.0.7 - Smart Query Production Enhancements:**
-- ✅ Client-side aggregation for GROUP BY queries
-- ✅ Asset capability detection
-- ✅ Fuzzy table name matching
-- ✅ LIMIT pushdown optimization
-
-**Result:** **45 tools** with production-ready smart query engine supporting all SQL patterns
-
-**See [CHANGELOG_v1.0.9.md](CHANGELOG_v1.0.9.md) for complete details.**
+**See [CHANGELOG_v1.0.12.md](CHANGELOG_v1.0.12.md) for task management details.**
 
 ---
 
 ## 📊 Current Status
 
-**🎉 45 TOOLS AVAILABLE - 44 with real data (98%)** | **Phases 1-5.1 Complete + Smart Query Engine**
+**🎉 51 TOOLS AVAILABLE** | **Phases 1-5.1 Complete + Smart Query + Task Management + Monitor & Data Access**
 
 - ✅ **98% Real Data Integration** - 44/45 tools accessing actual tenant data
 - ✅ **OAuth 2.0 Authentication** - Enterprise-grade security with automatic token refresh
@@ -164,7 +149,7 @@ query_analytical_data(
 
 ## 🌟 Key Highlights
 
-- 🎯 **45 MCP Tools**: Comprehensive SAP Datasphere operations via Model Context Protocol
+- 🎯 **51 MCP Tools**: Comprehensive SAP Datasphere operations via Model Context Protocol
 - 🔐 **OAuth 2.0**: Production-ready authentication with automatic token refresh
 - ✅ **Real Data Access**: 44 tools (98%) accessing actual tenant data - spaces, assets, users, metadata
 - 🚀 **API Integration**: 44 tools (98%) with real data integration via API and CLI
@@ -180,7 +165,7 @@ query_analytical_data(
 
 ---
 
-## 🛠️ Complete Tool Catalog (45 Tools)
+## 🛠️ Complete Tool Catalog (51 Tools)
 
 ### 🏆 Real Data Success Summary
 
@@ -200,7 +185,9 @@ query_analytical_data(
 | **ETL-Optimized Relational Tools** | 4 | 4 ✅ | **100%** (Phase 5.1 - up to 50K records) |
 | **Diagnostic Tools** | 3 | 0 🟡 | **Mock Mode** (endpoint testing utilities) |
 | **Repository Tools (legacy)** | 2 | 0 ❌ | **0%** (deprecated - use Catalog instead) |
-| **TOTAL** | **45** | **44 (98%)** | **98% Coverage** |
+| **Task Management** | 3 | 3 ✅ | **100%** (v1.0.12 - run, monitor, history) |
+| **Monitor & Data Access** | 3 | 3 ✅ | **100%** (v1.0.13 - table monitoring, data query) |
+| **TOTAL** | **51** | **50 (98%)** | **98% Coverage** |
 
 ---
 
@@ -451,6 +438,53 @@ High-risk operations (create, update, delete, reset password) require user conse
 ```
 
 **Status**: All additional tools provide essential system management capabilities with full real data support.
+
+---
+
+### 🔄 Task Management Tools (3 tools) - 100% Real Data ✅ **NEW v1.0.12!**
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `run_task_chain` | ✅ Real Data | Execute a task chain and get a logId for tracking |
+| `get_task_log` | ✅ Real Data | Get task execution details (status, messages, children) |
+| `get_task_history` | ✅ Real Data | View historical runs for a task chain |
+
+**Example queries:**
+```
+"Run the Daily_ETL_Pipeline in SALES_SPACE"
+"Check status of task log 2295172 in SALES_SPACE"
+"Show me the run history for Monthly_Reconciliation in FINANCE_DWH"
+"Get detailed logs for failed task 2326060"
+```
+
+**Features:**
+- 4 detail levels for task logs: status, status_only, detailed, extended
+- Asynchronous execution with logId tracking
+- Historical run analysis with timing and status
+
+---
+
+### 📊 Monitor & Data Access Tools (3 tools) - 100% Real Data ✅ **NEW v1.0.13!**
+
+| Tool | Status | Description |
+|------|--------|-------------|
+| `monitor_local_tables` | ✅ Real Data | Get monitoring data for local tables (row counts, sizes, timestamps) |
+| `monitor_remote_tables` | ✅ Real Data | Get replication status for remote tables (connections, latency) |
+| `query_table_data` | ✅ Real Data | Query local table data with OData params ($top, $filter, $select, $orderby) |
+
+**Example queries:**
+```
+"Show me local table sizes in SALES_ANALYTICS"
+"Which remote tables are failing replication in FINANCE_DWH?"
+"Show me the first 50 rows from SALES_ORDERS in SALES_ANALYTICS"
+"Query CUSTOMER_DIM where COUNTRY is 'US' and select NAME and CITY"
+```
+
+**Features:**
+- Local table monitoring: row counts, disk/memory usage, last loaded timestamps
+- Remote table monitoring: replication type, latency, error messages, connection info
+- Data query: full OData support with filtering, column selection, ordering, pagination
+- `query_table_data` works for local tables (returns clear error for remote tables)
 
 ---
 
@@ -812,7 +846,7 @@ Once configured, ask your AI assistant:
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   AI Assistant  │◄──►│   MCP Server     │◄──►│  SAP Datasphere │
-│ (Claude, Cursor)│    │  32 Tools        │    │   (OAuth 2.0)   │
+│ (Claude, Cursor)│    │  51 Tools        │    │   (OAuth 2.0)   │
 │                 │    │  Authorization   │    │                 │
 │                 │    │  Caching         │    │                 │
 │                 │    │  Telemetry       │    │                 │
@@ -926,9 +960,9 @@ npx @modelcontextprotocol/inspector python sap_datasphere_mcp_server.py
 ```
 
 ### Test Results
-- ✅ **42/42 tools registered** - All tools properly defined
-- ✅ **42/42 tools authorized** - Authorization permissions configured
-- ✅ **41/42 tools working** - 98% success rate
+- ✅ **51/51 tools registered** - All tools properly defined
+- ✅ **51/51 tools authorized** - Authorization permissions configured
+- ✅ **50/51 tools working** - 98% success rate
 - ✅ **0 code bugs** - All implementation issues fixed
 
 ---
@@ -951,7 +985,7 @@ sap-datasphere-mcp/
 │   ├── OAUTH_SETUP.md                  # OAuth setup guide
 │   ├── TROUBLESHOOTING_CLAUDE_DESKTOP.md
 │   └── OAUTH_IMPLEMENTATION_STATUS.md
-├── 📄 sap_datasphere_mcp_server.py     # Main MCP server (42 tools)
+├── 📄 sap_datasphere_mcp_server.py     # Main MCP server (51 tools)
 ├── 📄 cache_manager.py                 # Intelligent caching
 ├── 📄 telemetry.py                     # Monitoring and metrics
 ├── 📄 mock_data_provider.py            # Mock data for testing
