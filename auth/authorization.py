@@ -477,32 +477,6 @@ class AuthorizationManager:
             risk_level="low"
         ),
 
-        # Monitor & Data Access Tools (v1.0.13) - Internal /dwaas-core/ APIs
-        "monitor_local_tables": ToolPermission(
-            tool_name="monitor_local_tables",
-            permission_level=PermissionLevel.READ,
-            category=ToolCategory.METADATA,
-            requires_consent=False,
-            description="Get monitoring data for local tables in a space",
-            risk_level="low"
-        ),
-        "monitor_remote_tables": ToolPermission(
-            tool_name="monitor_remote_tables",
-            permission_level=PermissionLevel.READ,
-            category=ToolCategory.METADATA,
-            requires_consent=False,
-            description="Get monitoring data for remote tables in a space",
-            risk_level="low"
-        ),
-        "query_table_data": ToolPermission(
-            tool_name="query_table_data",
-            permission_level=PermissionLevel.READ,
-            category=ToolCategory.DATA_ACCESS,
-            requires_consent=False,
-            description="Query local table data directly via internal API",
-            risk_level="medium"
-        ),
-
         # Phase 6 & 7 tools removed (endpoints not available as REST APIs)
     }
 
