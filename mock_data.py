@@ -695,6 +695,208 @@ MOCK_DATABASE_USERS = {
     ]
 }
 
+# Monitor & Data Access mock data (v1.0.13)
+MOCK_LOCAL_TABLES_MONITOR = {
+    "SALES_ANALYTICS": [
+        {
+            "name": "SALES_ORDERS",
+            "technicalName": "SALES_ORDERS",
+            "tableType": "LOCAL",
+            "rowCount": 3724150,
+            "sizeInBytes": 524288000,
+            "lastUpdated": "2026-02-27T02:31:00Z",
+            "lastLoadedAt": "2026-02-27T02:30:33Z",
+            "status": "AVAILABLE",
+            "diskUsageMB": 500,
+            "memoryUsageMB": 128
+        },
+        {
+            "name": "CUSTOMER_DIM",
+            "technicalName": "CUSTOMER_DIM",
+            "tableType": "LOCAL",
+            "rowCount": 185420,
+            "sizeInBytes": 52428800,
+            "lastUpdated": "2026-02-26T14:22:00Z",
+            "lastLoadedAt": "2026-02-26T14:20:00Z",
+            "status": "AVAILABLE",
+            "diskUsageMB": 50,
+            "memoryUsageMB": 18
+        },
+        {
+            "name": "PRODUCT_CATALOG",
+            "technicalName": "PRODUCT_CATALOG",
+            "tableType": "LOCAL",
+            "rowCount": 42870,
+            "sizeInBytes": 15728640,
+            "lastUpdated": "2026-02-25T08:00:00Z",
+            "lastLoadedAt": "2026-02-25T07:55:00Z",
+            "status": "AVAILABLE",
+            "diskUsageMB": 15,
+            "memoryUsageMB": 6
+        }
+    ],
+    "FINANCE_DWH": [
+        {
+            "name": "GL_TRANSACTIONS",
+            "technicalName": "GL_TRANSACTIONS",
+            "tableType": "LOCAL",
+            "rowCount": 12450000,
+            "sizeInBytes": 2147483648,
+            "lastUpdated": "2026-02-27T03:15:00Z",
+            "lastLoadedAt": "2026-02-27T03:00:00Z",
+            "status": "AVAILABLE",
+            "diskUsageMB": 2048,
+            "memoryUsageMB": 512
+        },
+        {
+            "name": "COST_CENTERS",
+            "technicalName": "COST_CENTERS",
+            "tableType": "LOCAL",
+            "rowCount": 3250,
+            "sizeInBytes": 1048576,
+            "lastUpdated": "2026-02-20T10:00:00Z",
+            "lastLoadedAt": "2026-02-20T09:55:00Z",
+            "status": "AVAILABLE",
+            "diskUsageMB": 1,
+            "memoryUsageMB": 0.5
+        },
+        {
+            "name": "ACCOUNTS_PAYABLE",
+            "technicalName": "ACCOUNTS_PAYABLE",
+            "tableType": "LOCAL",
+            "rowCount": 890340,
+            "sizeInBytes": 209715200,
+            "lastUpdated": "2026-02-27T03:10:00Z",
+            "lastLoadedAt": "2026-02-27T03:05:00Z",
+            "status": "AVAILABLE",
+            "diskUsageMB": 200,
+            "memoryUsageMB": 64
+        }
+    ]
+}
+
+MOCK_REMOTE_TABLES_MONITOR = {
+    "SALES_ANALYTICS": [
+        {
+            "name": "SAP_VBAK",
+            "technicalName": "SAP_VBAK",
+            "connectionName": "S4HANA_PROD",
+            "remoteSchema": "SAPHANADB",
+            "replicationType": "REAL_TIME",
+            "lastReplicated": "2026-02-27T06:45:00Z",
+            "status": "ACTIVE",
+            "rowCount": 5200000,
+            "replicationLatencyMs": 1250
+        },
+        {
+            "name": "SAP_KNA1",
+            "technicalName": "SAP_KNA1",
+            "connectionName": "S4HANA_PROD",
+            "remoteSchema": "SAPHANADB",
+            "replicationType": "SCHEDULED",
+            "lastReplicated": "2026-02-27T02:00:00Z",
+            "status": "ACTIVE",
+            "rowCount": 185000,
+            "replicationLatencyMs": 0
+        }
+    ],
+    "FINANCE_DWH": [
+        {
+            "name": "SAP_BKPF",
+            "technicalName": "SAP_BKPF",
+            "connectionName": "S4HANA_PROD",
+            "remoteSchema": "SAPHANADB",
+            "replicationType": "REAL_TIME",
+            "lastReplicated": "2026-02-27T06:50:00Z",
+            "status": "ACTIVE",
+            "rowCount": 18700000,
+            "replicationLatencyMs": 2100
+        },
+        {
+            "name": "SAP_BSEG",
+            "technicalName": "SAP_BSEG",
+            "connectionName": "S4HANA_PROD",
+            "remoteSchema": "SAPHANADB",
+            "replicationType": "REAL_TIME",
+            "lastReplicated": "2026-02-27T06:48:00Z",
+            "status": "ERROR",
+            "rowCount": 45000000,
+            "replicationLatencyMs": -1,
+            "errorMessage": "Replication suspended: Memory limit exceeded. Last successful replication at 2026-02-26T22:00:00Z"
+        },
+        {
+            "name": "EXT_EXCHANGE_RATES",
+            "technicalName": "EXT_EXCHANGE_RATES",
+            "connectionName": "BLOOMBERG_API",
+            "remoteSchema": "PUBLIC",
+            "replicationType": "SCHEDULED",
+            "lastReplicated": "2026-02-27T00:00:00Z",
+            "status": "ACTIVE",
+            "rowCount": 12500,
+            "replicationLatencyMs": 0
+        }
+    ]
+}
+
+MOCK_TABLE_DATA = {
+    "SALES_ANALYTICS/SALES_ORDERS": {
+        "columns": ["ORDER_ID", "CUSTOMER_ID", "ORDER_DATE", "AMOUNT", "CURRENCY", "STATUS", "COUNTRY"],
+        "rows": [
+            {"ORDER_ID": "SO-2026-001", "CUSTOMER_ID": "CUST-1001", "ORDER_DATE": "2026-02-15", "AMOUNT": 4520.00, "CURRENCY": "USD", "STATUS": "COMPLETED", "COUNTRY": "US"},
+            {"ORDER_ID": "SO-2026-002", "CUSTOMER_ID": "CUST-1042", "ORDER_DATE": "2026-02-16", "AMOUNT": 1280.50, "CURRENCY": "EUR", "STATUS": "COMPLETED", "COUNTRY": "DE"},
+            {"ORDER_ID": "SO-2026-003", "CUSTOMER_ID": "CUST-1001", "ORDER_DATE": "2026-02-17", "AMOUNT": 890.00, "CURRENCY": "USD", "STATUS": "SHIPPED", "COUNTRY": "US"},
+            {"ORDER_ID": "SO-2026-004", "CUSTOMER_ID": "CUST-2015", "ORDER_DATE": "2026-02-18", "AMOUNT": 15750.00, "CURRENCY": "USD", "STATUS": "PROCESSING", "COUNTRY": "US"},
+            {"ORDER_ID": "SO-2026-005", "CUSTOMER_ID": "CUST-3200", "ORDER_DATE": "2026-02-19", "AMOUNT": 3200.00, "CURRENCY": "GBP", "STATUS": "COMPLETED", "COUNTRY": "GB"},
+            {"ORDER_ID": "SO-2026-006", "CUSTOMER_ID": "CUST-1042", "ORDER_DATE": "2026-02-20", "AMOUNT": 670.25, "CURRENCY": "EUR", "STATUS": "SHIPPED", "COUNTRY": "DE"},
+            {"ORDER_ID": "SO-2026-007", "CUSTOMER_ID": "CUST-4100", "ORDER_DATE": "2026-02-21", "AMOUNT": 9100.00, "CURRENCY": "JPY", "STATUS": "COMPLETED", "COUNTRY": "JP"},
+            {"ORDER_ID": "SO-2026-008", "CUSTOMER_ID": "CUST-1001", "ORDER_DATE": "2026-02-22", "AMOUNT": 2340.00, "CURRENCY": "USD", "STATUS": "PROCESSING", "COUNTRY": "US"},
+            {"ORDER_ID": "SO-2026-009", "CUSTOMER_ID": "CUST-5500", "ORDER_DATE": "2026-02-23", "AMOUNT": 18200.00, "CURRENCY": "USD", "STATUS": "COMPLETED", "COUNTRY": "US"},
+            {"ORDER_ID": "SO-2026-010", "CUSTOMER_ID": "CUST-3200", "ORDER_DATE": "2026-02-24", "AMOUNT": 5600.00, "CURRENCY": "GBP", "STATUS": "SHIPPED", "COUNTRY": "GB"}
+        ],
+        "totalRowCount": 3724150
+    },
+    "SALES_ANALYTICS/CUSTOMER_DIM": {
+        "columns": ["CUSTOMER_ID", "NAME", "CITY", "COUNTRY", "SEGMENT", "CREATED_DATE"],
+        "rows": [
+            {"CUSTOMER_ID": "CUST-1001", "NAME": "Acme Corporation", "CITY": "Chicago", "COUNTRY": "US", "SEGMENT": "Enterprise", "CREATED_DATE": "2020-03-15"},
+            {"CUSTOMER_ID": "CUST-1042", "NAME": "Deutsche Industrie GmbH", "CITY": "Munich", "COUNTRY": "DE", "SEGMENT": "Enterprise", "CREATED_DATE": "2019-07-22"},
+            {"CUSTOMER_ID": "CUST-2015", "NAME": "Pacific Trading Co", "CITY": "San Francisco", "COUNTRY": "US", "SEGMENT": "Mid-Market", "CREATED_DATE": "2021-01-10"},
+            {"CUSTOMER_ID": "CUST-3200", "NAME": "British Supplies Ltd", "CITY": "London", "COUNTRY": "GB", "SEGMENT": "Enterprise", "CREATED_DATE": "2018-11-05"},
+            {"CUSTOMER_ID": "CUST-4100", "NAME": "Tokyo Electronics Inc", "CITY": "Tokyo", "COUNTRY": "JP", "SEGMENT": "Mid-Market", "CREATED_DATE": "2022-06-18"},
+            {"CUSTOMER_ID": "CUST-5500", "NAME": "Global Logistics Corp", "CITY": "New York", "COUNTRY": "US", "SEGMENT": "Enterprise", "CREATED_DATE": "2017-09-01"}
+        ],
+        "totalRowCount": 185420
+    },
+    "FINANCE_DWH/GL_TRANSACTIONS": {
+        "columns": ["DOC_NUMBER", "FISCAL_YEAR", "POSTING_DATE", "ACCOUNT", "AMOUNT", "CURRENCY", "COST_CENTER"],
+        "rows": [
+            {"DOC_NUMBER": "1000001", "FISCAL_YEAR": "2026", "POSTING_DATE": "2026-02-01", "ACCOUNT": "400000", "AMOUNT": 125000.00, "CURRENCY": "USD", "COST_CENTER": "CC-1000"},
+            {"DOC_NUMBER": "1000002", "FISCAL_YEAR": "2026", "POSTING_DATE": "2026-02-01", "ACCOUNT": "600000", "AMOUNT": -45000.00, "CURRENCY": "USD", "COST_CENTER": "CC-2000"},
+            {"DOC_NUMBER": "1000003", "FISCAL_YEAR": "2026", "POSTING_DATE": "2026-02-02", "ACCOUNT": "400000", "AMOUNT": 89500.00, "CURRENCY": "USD", "COST_CENTER": "CC-1000"},
+            {"DOC_NUMBER": "1000004", "FISCAL_YEAR": "2026", "POSTING_DATE": "2026-02-03", "ACCOUNT": "500000", "AMOUNT": -12300.00, "CURRENCY": "EUR", "COST_CENTER": "CC-3000"},
+            {"DOC_NUMBER": "1000005", "FISCAL_YEAR": "2026", "POSTING_DATE": "2026-02-04", "ACCOUNT": "400000", "AMOUNT": 250000.00, "CURRENCY": "USD", "COST_CENTER": "CC-1000"}
+        ],
+        "totalRowCount": 12450000
+    }
+}
+
+
+def get_mock_local_tables_monitor(space_id):
+    """Get mock local table monitoring data for a space"""
+    return MOCK_LOCAL_TABLES_MONITOR.get(space_id, [])
+
+
+def get_mock_remote_tables_monitor(space_id):
+    """Get mock remote table monitoring data for a space"""
+    return MOCK_REMOTE_TABLES_MONITOR.get(space_id, [])
+
+
+def get_mock_table_data(space_id, table_name):
+    """Get mock table data for a specific table"""
+    key = f"{space_id}/{table_name}"
+    return MOCK_TABLE_DATA.get(key, None)
+
+
 # Consolidated mock data structure for easy access
 MOCK_DATA = {
     "spaces": MOCK_SPACES,
@@ -706,7 +908,11 @@ MOCK_DATA = {
     # Task management (v1.0.12)
     "task_chains": MOCK_TASK_CHAINS,
     "task_logs": MOCK_TASK_LOGS,
-    "task_history": MOCK_TASK_HISTORY
+    "task_history": MOCK_TASK_HISTORY,
+    # Monitor & Data Access (v1.0.13)
+    "local_tables_monitor": MOCK_LOCAL_TABLES_MONITOR,
+    "remote_tables_monitor": MOCK_REMOTE_TABLES_MONITOR,
+    "table_data": MOCK_TABLE_DATA
 }
 
 
