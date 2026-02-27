@@ -477,7 +477,7 @@ class AuthorizationManager:
             risk_level="low"
         ),
 
-        # Monitor & Data Access Tools (v1.0.13)
+        # Monitor & Data Access Tools (v1.0.13) - Internal /dwaas-core/ APIs
         "monitor_local_tables": ToolPermission(
             tool_name="monitor_local_tables",
             permission_level=PermissionLevel.READ,
@@ -499,7 +499,7 @@ class AuthorizationManager:
             permission_level=PermissionLevel.READ,
             category=ToolCategory.DATA_ACCESS,
             requires_consent=False,
-            description="Query local table data directly from a space",
+            description="Query local table data directly via internal API",
             risk_level="medium"
         ),
 

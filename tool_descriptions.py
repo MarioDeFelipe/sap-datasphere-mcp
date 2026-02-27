@@ -1594,6 +1594,8 @@ This tool combines space_id and asset_id into an OData compound key format:
 - Use monitor_remote_tables() to see remote table status
 - Compare sizes over time for capacity planning
 
+**Note:** Uses internal API: GET /dwaas-core/monitor/{space_id}/localTables
+This is an internal Datasphere API and may not work in all configurations.
 """,
             "inputSchema": {
                 "type": "object",
@@ -1637,6 +1639,9 @@ This tool combines space_id and asset_id into an OData compound key format:
 - Use monitor_local_tables() to compare with local table data
 - Investigate failed replications in the Datasphere UI
 - Check task chain status with get_task_history()
+
+**Note:** Uses internal API: GET /dwaas-core/monitor/{space_id}/remoteTables
+This is an internal Datasphere API and may not work in all configurations.
 """,
             "inputSchema": {
                 "type": "object",
@@ -1685,7 +1690,10 @@ This tool combines space_id and asset_id into an OData compound key format:
 
 **Important limitations:**
 - Only works for LOCAL tables (returns 406 for remote tables)
+- Uses internal Datasphere API - may not work in all configurations
 - For remote tables, use the standard execute_query tool instead
+
+**Note:** Uses internal API: GET /dwaas-core/data-access/instant/{space_id}/{table_name}/{entity_name}
 """,
             "inputSchema": {
                 "type": "object",
