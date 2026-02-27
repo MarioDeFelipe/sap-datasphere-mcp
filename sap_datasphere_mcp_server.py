@@ -1089,6 +1089,22 @@ async def handle_list_tools() -> list[Tool]:
             name="get_task_history",
             description=enhanced["get_task_history"]["description"],
             inputSchema=enhanced["get_task_history"]["inputSchema"]
+        ),
+        # Monitor & Data Access Tools (v1.0.13) - Internal /dwaas-core/ APIs
+        Tool(
+            name="monitor_local_tables",
+            description=enhanced["monitor_local_tables"]["description"],
+            inputSchema=enhanced["monitor_local_tables"]["inputSchema"]
+        ),
+        Tool(
+            name="monitor_remote_tables",
+            description=enhanced["monitor_remote_tables"]["description"],
+            inputSchema=enhanced["monitor_remote_tables"]["inputSchema"]
+        ),
+        Tool(
+            name="query_table_data",
+            description=enhanced["query_table_data"]["description"],
+            inputSchema=enhanced["query_table_data"]["inputSchema"]
         )
         # Phase 6 & 7 tools removed - endpoints not available as REST APIs (return HTML instead of JSON)
     ]
@@ -7686,6 +7702,289 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                          f"2. No execution history available\n"
                          f"3. Insufficient permissions to view task logs\n"
                          f"4. Network or authentication issues"
+                )]
+
+    # ============================================================================
+    # Monitor & Data Access Tools (v1.0.13) - Internal /dwaas-core/ APIs
+    # ============================================================================
+
+    elif name == "monitor_local_tables":
+        space_id = arguments["space_id"]
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            from mock_data import get_mock_local_tables_monitor
+            tables = get_mock_local_tables_monitor(space_id)
+
+            if not tables:
+                return [types.TextContent(
+                    type="text",
+                    text=f"No local tables found in space '{space_id}'.\n\n"
+                         f"Available mock spaces: SALES_ANALYTICS, FINANCE_DWH\n\n"
+                         f"Note: This is mock data. Set USE_MOCK_DATA=false for real monitoring."
+                )]
+
+            # Calculate summary stats
+            total_rows = sum(t["rowCount"] for t in tables)
+            total_size_mb = sum(t.get("diskUsageMB", 0) for t in tables)
+
+            result = {
+                "spaceId": space_id,
+                "tableCount": len(tables),
+                "totalRows": total_rows,
+                "totalDiskUsageMB": total_size_mb,
+                "tables": tables,
+                "note": "This is mock data. Set USE_MOCK_DATA=false for real monitoring data."
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Local Table Monitor for space '{space_id}':\n\n{json.dumps(result, indent=2)}"
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot monitor tables."
+                )]
+
+            try:
+                endpoint = f"/dwaas-core/monitor/{space_id}/localTables"
+                logger.info(f"Monitoring local tables: GET {endpoint}")
+                data = await datasphere_connector.get(endpoint)
+
+                tables = data if isinstance(data, list) else data.get("value", data.get("tables", [data]))
+
+                total_rows = sum(t.get("rowCount", 0) for t in tables) if isinstance(tables, list) else 0
+
+                result = {
+                    "spaceId": space_id,
+                    "tableCount": len(tables) if isinstance(tables, list) else 1,
+                    "totalRows": total_rows,
+                    "tables": tables
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Local Table Monitor for space '{space_id}':\n\n{json.dumps(result, indent=2)}"
+                )]
+
+            except Exception as e:
+                logger.error(f"Error monitoring local tables: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error monitoring local tables in '{space_id}': {str(e)}\n\n"
+                         f"Note: This tool uses an internal API (/dwaas-core/monitor/) that may require "
+                         f"session-based authentication. If you get 401/403 errors, this endpoint may not "
+                         f"be accessible via OAuth2 tokens."
+                )]
+
+    elif name == "monitor_remote_tables":
+        space_id = arguments["space_id"]
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            from mock_data import get_mock_remote_tables_monitor
+            tables = get_mock_remote_tables_monitor(space_id)
+
+            if not tables:
+                return [types.TextContent(
+                    type="text",
+                    text=f"No remote tables found in space '{space_id}'.\n\n"
+                         f"Available mock spaces: SALES_ANALYTICS, FINANCE_DWH\n\n"
+                         f"Note: This is mock data. Set USE_MOCK_DATA=false for real monitoring."
+                )]
+
+            # Summarize by status
+            active_count = sum(1 for t in tables if t.get("status") == "ACTIVE")
+            error_count = sum(1 for t in tables if t.get("status") == "ERROR")
+            connections = list(set(t.get("connectionName", "Unknown") for t in tables))
+
+            result = {
+                "spaceId": space_id,
+                "tableCount": len(tables),
+                "activeCount": active_count,
+                "errorCount": error_count,
+                "connections": connections,
+                "tables": tables,
+                "note": "This is mock data. Set USE_MOCK_DATA=false for real monitoring data."
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Remote Table Monitor for space '{space_id}':\n\n{json.dumps(result, indent=2)}"
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot monitor remote tables."
+                )]
+
+            try:
+                endpoint = f"/dwaas-core/monitor/{space_id}/remoteTables"
+                logger.info(f"Monitoring remote tables: GET {endpoint}")
+                data = await datasphere_connector.get(endpoint)
+
+                tables = data if isinstance(data, list) else data.get("value", data.get("tables", [data]))
+
+                result = {
+                    "spaceId": space_id,
+                    "tableCount": len(tables) if isinstance(tables, list) else 1,
+                    "tables": tables
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Remote Table Monitor for space '{space_id}':\n\n{json.dumps(result, indent=2)}"
+                )]
+
+            except Exception as e:
+                logger.error(f"Error monitoring remote tables: {str(e)}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error monitoring remote tables in '{space_id}': {str(e)}\n\n"
+                         f"Note: This tool uses an internal API (/dwaas-core/monitor/) that may require "
+                         f"session-based authentication. If you get 401/403 errors, this endpoint may not "
+                         f"be accessible via OAuth2 tokens."
+                )]
+
+    elif name == "query_table_data":
+        space_id = arguments["space_id"]
+        table_name = arguments["table_name"]
+        top = arguments.get("top", 100)
+        filter_expr = arguments.get("filter", None)
+        select_cols = arguments.get("select", None)
+        orderby = arguments.get("orderby", None)
+        skip = arguments.get("skip", 0)
+
+        # Cap top at 10000
+        top = min(top, 10000)
+
+        if DATASPHERE_CONFIG["use_mock_data"]:
+            from mock_data import get_mock_table_data
+            table_data = get_mock_table_data(space_id, table_name)
+
+            if not table_data:
+                available_tables = []
+                from mock_data import MOCK_TABLE_DATA
+                for key in MOCK_TABLE_DATA:
+                    s, t = key.split("/")
+                    if s == space_id:
+                        available_tables.append(t)
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Table '{table_name}' not found in space '{space_id}'.\n\n"
+                         f"Available mock tables in {space_id}: {available_tables if available_tables else 'None'}\n\n"
+                         f"Available mock spaces with tables: SALES_ANALYTICS, FINANCE_DWH\n\n"
+                         f"Note: This is mock data. Set USE_MOCK_DATA=false for real table data."
+                )]
+
+            rows = table_data["rows"]
+
+            # Apply select filter (mock)
+            if select_cols:
+                cols = [c.strip() for c in select_cols.split(",")]
+                rows = [{k: v for k, v in row.items() if k in cols} for row in rows]
+
+            # Apply top
+            rows = rows[:top]
+
+            # Apply skip
+            if skip > 0:
+                rows = rows[skip:]
+
+            result = {
+                "spaceId": space_id,
+                "tableName": table_name,
+                "columns": table_data["columns"] if not select_cols else [c.strip() for c in select_cols.split(",")],
+                "rowCount": len(rows),
+                "totalRowCount": table_data["totalRowCount"],
+                "data": rows,
+                "query": {
+                    "top": top,
+                    "skip": skip,
+                    "filter": filter_expr,
+                    "select": select_cols,
+                    "orderby": orderby
+                },
+                "note": "This is mock data. Set USE_MOCK_DATA=false for real table data. Only works for LOCAL tables."
+            }
+
+            return [types.TextContent(
+                type="text",
+                text=f"Table Data from '{table_name}' in space '{space_id}':\n\n{json.dumps(result, indent=2)}"
+            )]
+        else:
+            if not datasphere_connector:
+                return [types.TextContent(
+                    type="text",
+                    text="Error: OAuth connector not initialized. Cannot query table data."
+                )]
+
+            try:
+                # Build OData query parameters
+                # Pattern: /dwaas-core/data-access/instant/{space_id}/{table_name}/{entity_name}
+                # entity_name is typically the same as table_name
+                entity_name = table_name
+                endpoint = f"/dwaas-core/data-access/instant/{space_id}/{table_name}/{entity_name}"
+
+                params = {"$top": str(top)}
+                if filter_expr:
+                    params["$filter"] = filter_expr
+                if select_cols:
+                    params["$select"] = select_cols
+                if orderby:
+                    params["$orderby"] = orderby
+                if skip > 0:
+                    params["$skip"] = str(skip)
+
+                logger.info(f"Querying table data: GET {endpoint} with params {params}")
+                data = await datasphere_connector.get(endpoint, params=params)
+
+                # OData response typically has a "value" array
+                rows = data.get("value", data.get("d", {}).get("results", [data]))
+
+                result = {
+                    "spaceId": space_id,
+                    "tableName": table_name,
+                    "rowCount": len(rows) if isinstance(rows, list) else 1,
+                    "data": rows,
+                    "query": {
+                        "top": top,
+                        "skip": skip,
+                        "filter": filter_expr,
+                        "select": select_cols,
+                        "orderby": orderby
+                    }
+                }
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Table Data from '{table_name}' in space '{space_id}':\n\n{json.dumps(result, indent=2)}"
+                )]
+
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Error querying table data: {error_msg}")
+
+                # Provide specific guidance for common errors
+                hints = []
+                if "406" in error_msg:
+                    hints.append("406 Not Acceptable: This table may be a REMOTE table. "
+                                 "query_table_data only works for LOCAL tables.")
+                if "401" in error_msg or "403" in error_msg:
+                    hints.append("Authentication error: This internal API may require session-based "
+                                 "authentication rather than OAuth2 tokens.")
+                if "404" in error_msg:
+                    hints.append(f"Table '{table_name}' not found in space '{space_id}'. "
+                                 "Verify the table name and space ID.")
+
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error querying table '{table_name}' in '{space_id}': {error_msg}\n\n"
+                         + ("\n".join(f"Hint: {h}" for h in hints) + "\n\n" if hints else "")
+                         + f"Note: This tool uses an internal API (/dwaas-core/data-access/instant/) "
+                         + f"and only works for LOCAL tables."
                 )]
 
     # Phase 6 & 7 tool handlers removed (tools not available as REST APIs)
