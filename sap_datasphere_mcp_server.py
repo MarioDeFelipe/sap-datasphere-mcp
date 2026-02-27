@@ -1090,7 +1090,7 @@ async def handle_list_tools() -> list[Tool]:
             description=enhanced["get_task_history"]["description"],
             inputSchema=enhanced["get_task_history"]["inputSchema"]
         ),
-        # Monitor & Data Access Tools (v1.0.13)
+        # Monitor & Data Access Tools (v1.0.13) - Internal /dwaas-core/ APIs
         Tool(
             name="monitor_local_tables",
             description=enhanced["monitor_local_tables"]["description"],
@@ -7705,7 +7705,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
     # ============================================================================
-    # Monitor & Data Access Tools (v1.0.13)
+    # Monitor & Data Access Tools (v1.0.13) - Internal /dwaas-core/ APIs
     # ============================================================================
 
     elif name == "monitor_local_tables":
@@ -7773,10 +7773,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 return [types.TextContent(
                     type="text",
                     text=f"Error monitoring local tables in '{space_id}': {str(e)}\n\n"
-                         f"Possible causes:\n"
-                         f"1. Space '{space_id}' does not exist\n"
-                         f"2. Insufficient permissions to monitor tables\n"
-                         f"3. Network or authentication issues"
+                         f"Note: This tool uses an internal API (/dwaas-core/monitor/) that may require "
+                         f"session-based authentication. If you get 401/403 errors, this endpoint may not "
+                         f"be accessible via OAuth2 tokens."
                 )]
 
     elif name == "monitor_remote_tables":
@@ -7843,11 +7842,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 return [types.TextContent(
                     type="text",
                     text=f"Error monitoring remote tables in '{space_id}': {str(e)}\n\n"
-                         f"Possible causes:\n"
-                         f"1. Space '{space_id}' does not exist\n"
-                         f"2. No remote tables configured in this space\n"
-                         f"3. Insufficient permissions to monitor tables\n"
-                         f"4. Network or authentication issues"
+                         f"Note: This tool uses an internal API (/dwaas-core/monitor/) that may require "
+                         f"session-based authentication. If you get 401/403 errors, this endpoint may not "
+                         f"be accessible via OAuth2 tokens."
                 )]
 
     elif name == "query_table_data":
@@ -7926,6 +7923,8 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Build OData query parameters
+                # Pattern: /dwaas-core/data-access/instant/{space_id}/{table_name}/{entity_name}
+                # entity_name is typically the same as table_name
                 entity_name = table_name
                 endpoint = f"/dwaas-core/data-access/instant/{space_id}/{table_name}/{entity_name}"
 
@@ -7974,8 +7973,8 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     hints.append("406 Not Acceptable: This table may be a REMOTE table. "
                                  "query_table_data only works for LOCAL tables.")
                 if "401" in error_msg or "403" in error_msg:
-                    hints.append("Authentication or permission error. "
-                                 "Verify your credentials and permissions.")
+                    hints.append("Authentication error: This internal API may require session-based "
+                                 "authentication rather than OAuth2 tokens.")
                 if "404" in error_msg:
                     hints.append(f"Table '{table_name}' not found in space '{space_id}'. "
                                  "Verify the table name and space ID.")
@@ -7984,7 +7983,8 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     type="text",
                     text=f"Error querying table '{table_name}' in '{space_id}': {error_msg}\n\n"
                          + ("\n".join(f"Hint: {h}" for h in hints) + "\n\n" if hints else "")
-                         + f"Note: This tool only works for LOCAL tables."
+                         + f"Note: This tool uses an internal API (/dwaas-core/data-access/instant/) "
+                         + f"and only works for LOCAL tables."
                 )]
 
     # Phase 6 & 7 tool handlers removed (tools not available as REST APIs)
