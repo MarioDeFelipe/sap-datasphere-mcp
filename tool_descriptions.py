@@ -239,50 +239,41 @@ class ToolDescriptions:
     def get_task_status() -> Dict:
         """Enhanced description for get_task_status tool"""
         return {
-            "description": """Get status and execution details of data integration and ETL tasks.
+            "description": """Get the latest execution status of a specific task chain by providing BOTH space_id AND task_id.
+
+**IMPORTANT: Both space_id and task_id are required.** Do not call this tool with only space_id — that endpoint is not reliable and will return 404. To discover task chain names in a space, use list_task_chains instead.
 
 **Use this tool when:**
-- User asks "What tasks are running?"
-- Monitoring data pipeline execution
-- Checking when data was last refreshed
-- Troubleshooting failed tasks
+- You already know the exact space and task chain name
+- Checking the latest run status of a specific task chain
+- User asks "When did DAILY_SALES_ETL last run?"
 
 **What you'll get:**
-- Task IDs and names
-- Execution status (COMPLETED, RUNNING, FAILED, SCHEDULED)
-- Last run timestamp and next scheduled run
+- Current execution status (COMPLETED, RUNNING, FAILED, SCHEDULED)
+- Last run timestamp
 - Execution duration and records processed
-- Associated space information
+- Total number of runs
 
-**Filtering options:**
-- No parameters: Show all tasks
-- task_id: Get specific task details
-- space_id: Show all tasks for a space
+**Example usage:**
+- get_task_status(space_id='DW_SYNTAX', task_id='TC_FI_FINANCE_DATA')
 
-**Example queries:**
-- "What tasks are currently running?"
-- "Show me all tasks in SALES_ANALYTICS"
-- "When did DAILY_SALES_ETL last run?"
-- "Check status of task FINANCE_RECONCILIATION"
-
-**Task types:**
-- ETL/data loading tasks
-- Transformation workflows
-- Scheduled data refreshes
-- Data replication jobs
+**Do NOT use this tool to:**
+- List or discover task chains in a space (use list_task_chains instead)
+- Scan multiple spaces for running tasks (use list_task_chains + get_task_history instead)
 """,
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "task_id": {
                         "type": "string",
-                        "description": "Optional: Specific task ID to check (e.g., 'DAILY_SALES_ETL'). Leave empty to see all tasks."
+                        "description": "Required: The exact task chain name (e.g., 'TC_FI_FINANCE_DATA')."
                     },
                     "space_id": {
                         "type": "string",
-                        "description": "Optional: Filter tasks by space (e.g., 'SALES_ANALYTICS'). Shows only tasks associated with that space."
+                        "description": "Required: The space containing the task chain (e.g., 'DW_SYNTAX')."
                     }
-                }
+                },
+                "required": ["space_id", "task_id"]
             }
         }
 
@@ -1505,10 +1496,12 @@ This tool combines space_id and asset_id into an OData compound key format:
 - Understanding run frequency and duration
 
 **What you'll get:**
-- Array of all historical task runs for the specified object
+- Paginated list of task runs (default 10 per page, most recent first)
 - Each entry includes: logId, status, startTime, endTime, runTime
-- Sorted by most recent first
 - Shows RUNNING, COMPLETED, FAILED, CANCELLED runs
+- Summary counts across ALL runs (not just current page)
+
+**Pagination:** Response includes has_more, skip, top, totalRuns, and returned fields. If has_more is true, call again with skip set to the current skip + top to get the next page. Example: first call returns skip=0, top=10, has_more=true. Next call: skip=10, top=10.
 
 **Required parameters:**
 - space_id: The space containing the task chain
@@ -1557,9 +1550,313 @@ This tool combines space_id and asset_id into an OData compound key format:
                     "object_id": {
                         "type": "string",
                         "description": "The task chain name/identifier to get history for (e.g., 'Daily_ETL_Pipeline', 'Customer_Sync')."
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of runs to return per page (default 10). Most recent runs first.",
+                        "default": 10
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of runs to skip for pagination (default 0).",
+                        "default": 0
                     }
                 },
                 "required": ["space_id", "object_id"]
+            }
+        }
+
+    @staticmethod
+    def list_task_chains() -> Dict:
+        """Enhanced description for list_task_chains tool"""
+        return {
+            "description": """List all task chains defined in a SAP Datasphere space using the Datasphere CLI.
+
+**Use this tool when:**
+- get_task_status returns no results or 404 for a space
+- You need to discover task chains that have never been executed
+- User asks "What task chains are in this space?"
+- You need to find or discover task chain names
+- User mentions a task chain but you do not know the exact name
+- You want to check what task chains exist before calling get_task_history
+- User asks "what's running" — use this first to get chain names, then get_task_history for each
+
+**THIS IS THE PRIMARY TOOL FOR DISCOVERING TASK CHAINS.** Always use this before get_task_status or get_task_history when you do not already know the exact task chain name.
+
+**What you'll get:**
+- List of all task chain technical names defined in the space
+- Works even if task chains have never been executed
+- Shows ALL defined task chains regardless of execution history
+
+**Parameters:**
+- space_id (required): The space to list task chains from
+- top: Max number of results per page (default 25)
+- skip: Number of results to skip for pagination (default 0)
+
+**Pagination:** Response includes has_more, skip, top, and count fields. If has_more is true, call again with skip set to the current skip + top to get the next page. Example: first call returns skip=0, top=25, has_more=true. Next call: skip=25, top=25.
+
+**Example queries:**
+- "List all task chains in DW_SYNTAX"
+- "What pipelines exist in FINANCE?"
+- "Find task chains in SALES_DEPARTMENT"
+
+**Note:** Uses the Datasphere CLI: datasphere objects task-chains list
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space ID to list task chains from (e.g., 'DW_SYNTAX', 'FINANCE'). Must be uppercase."
+                    },
+                    "top": {
+                        "type": "integer",
+                        "description": "Maximum number of task chains to return per page (default 25).",
+                        "default": 25
+                    },
+                    "skip": {
+                        "type": "integer",
+                        "description": "Number of task chains to skip for pagination (default 0). Use with top to page through results.",
+                        "default": 0
+                    }
+                },
+                "required": ["space_id"]
+            }
+        }
+
+    @staticmethod
+    def create_sql_view() -> Dict:
+        """Enhanced description for create_sql_view (graphical view) tool"""
+        return {
+            "description": """Create a graphical view in a SAP Datasphere space using the node paradigm.
+
+**IMPORTANT: This is a HIGH-RISK tool that creates design-time objects.**
+
+**Use this tool when:**
+- User asks to "Create a view on top of table X"
+- Building reporting views on existing tables or views
+- Creating dimension or fact views for consumption
+- Projecting/renaming columns from a source object
+
+**How it works:**
+Creates a graphical view with a node chain: Entity (source) → node_type → Output.
+The node_type determines the intermediate processing node.
+
+**Node types:**
+- PROJECTION (default): Select/rename specific columns from the source. Provide 'columns' to pick which columns to include.
+  If 'columns' is omitted, all source columns are passed through.
+
+**Required parameters:**
+- space_id, view_id, source_object
+
+**Column definition (for PROJECTION with column selection):**
+```json
+[
+  {"name": "CUSTOMER_ID", "dataType": "NVARCHAR", "length": 50, "key": true, "label": "Customer ID"},
+  {"name": "CUSTOMER_NAME", "dataType": "NVARCHAR", "length": 80, "source_column": "CustomerName"},
+  {"name": "TOTAL_AMOUNT", "dataType": "DECIMAL", "precision": 15, "scale": 2, "measure": true},
+  {"name": "ORDER_DATE", "dataType": "DATE"}
+]
+```
+
+**Note:** Uses CLI: datasphere objects views create
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space ID where the view will be created."
+                    },
+                    "view_id": {
+                        "type": "string",
+                        "description": "Technical name for the view (e.g., 'V_CUSTOMER_DIM')."
+                    },
+                    "source_object": {
+                        "type": "string",
+                        "description": "Technical name of the source table or view (e.g., 'SAP_LO_Customer_V2')."
+                    },
+                    "node_type": {
+                        "type": "string",
+                        "enum": ["PROJECTION"],
+                        "description": "Type of intermediate processing node. PROJECTION: select/rename columns. Default: PROJECTION",
+                        "default": "PROJECTION"
+                    },
+                    "columns": {
+                        "type": "array",
+                        "description": "Optional column selection for PROJECTION. If omitted, all source columns pass through. Each entry defines a column to include.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "description": "Output column name"},
+                                "dataType": {"type": "string", "description": "Data type: NVARCHAR, INTEGER, DECIMAL, DATE, TIMESTAMP, BOOLEAN, BIGINT, DOUBLE, TIME"},
+                                "source_column": {"type": "string", "description": "Column name in source object (defaults to 'name' if omitted)"},
+                                "length": {"type": "integer", "description": "Length for NVARCHAR columns"},
+                                "precision": {"type": "integer", "description": "Precision for DECIMAL columns"},
+                                "scale": {"type": "integer", "description": "Scale for DECIMAL columns"},
+                                "key": {"type": "boolean", "description": "Mark as key column"},
+                                "label": {"type": "string", "description": "Business label for the column"},
+                                "measure": {"type": "boolean", "description": "Mark as measure (default: dimension)"},
+                                "aggregation": {"type": "string", "description": "Aggregation for measures: SUM, COUNT, MIN, MAX, AVG"}
+                            },
+                            "required": ["name", "dataType"]
+                        }
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Business description of the view (optional)"
+                    },
+                    "semantic_usage": {
+                        "type": "string",
+                        "enum": ["FACT", "DIMENSION", "TEXT"],
+                        "description": "Semantic usage type. FACT for measures/metrics, DIMENSION for master data, TEXT for language-dependent texts. Default: FACT",
+                        "default": "FACT"
+                    },
+                    "expose_for_consumption": {
+                        "type": "boolean",
+                        "description": "Whether to expose the view for consumption via OData API. Default: true",
+                        "default": True
+                    },
+                    "deploy": {
+                        "type": "boolean",
+                        "description": "Whether to deploy the view immediately after creation. Default: false (allows review first)",
+                        "default": False
+                    }
+                },
+                "required": ["space_id", "view_id", "source_object"]
+            }
+        }
+
+    @staticmethod
+    def update_graphical_view() -> Dict:
+        """Enhanced description for update_graphical_view tool"""
+        return {
+            "description": """Update an existing graphical view in SAP Datasphere by adding a processing node.
+
+**IMPORTANT: This is a HIGH-RISK tool that modifies design-time objects.**
+
+**Use this tool when:**
+- Adding a filter to an existing graphical view
+- Adding a calculated column to an existing graphical view
+- Adding a join with another source object
+- The view was previously created with create_sql_view
+
+**How it works:**
+Reads the existing view definition, inserts a new node into the chain,
+updates the CSN and uiModel, then saves.
+
+**Supported node types:**
+- FILTER: Add a filter condition to the view.
+- CALCULATED_COLUMN: Add a new calculated column using an expression.
+- JOIN: Join the view with another source object.
+
+**Filter condition format (for FILTER):**
+Simple column comparisons joined by AND/OR:
+- `"Country = 'US'"` — equals
+- `"Amount > 1000"` — comparison
+- `"Country = 'US' AND Status = 'Active'"` — multiple conditions
+
+**Expression format (for CALCULATED_COLUMN):**
+Column references, string literals, operators, and functions:
+- `"PersonFullName || ' - ' || Job"` — string concatenation
+- `"UPPER(PersonFullName)"` — function call
+- `"Amount * 1.1"` — arithmetic
+
+**Join conditions format (for JOIN):**
+Array of column pairs to join on:
+- `[{"left": "userId", "right": "userId"}]` — single condition
+- `[{"left": "userId", "right": "userId"}, {"left": "TRUE_END", "right": "TRUE_END"}]` — multiple conditions
+
+**Union (for UNION):**
+Combines the existing source with another source (UNION ALL by default).
+Both sources must have compatible columns. The union is inserted before the first processing node.
+
+**Note:** Uses CLI: datasphere objects views read + update
+""",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "The space ID where the view exists."
+                    },
+                    "view_id": {
+                        "type": "string",
+                        "description": "Technical name of the existing view to update."
+                    },
+                    "node_type": {
+                        "type": "string",
+                        "enum": ["FILTER", "CALCULATED_COLUMN", "JOIN", "UNION"],
+                        "description": "Type of node to add. FILTER: add a filter condition. CALCULATED_COLUMN: add a calculated column. JOIN: join with another source. UNION: combine with another source."
+                    },
+                    "filter_condition": {
+                        "type": "string",
+                        "description": "Filter expression. Required when node_type is FILTER. Example: \"Country = 'US' AND Amount > 1000\""
+                    },
+                    "column_name": {
+                        "type": "string",
+                        "description": "Technical name for the new calculated column. Required when node_type is CALCULATED_COLUMN. Example: \"FullInfo\""
+                    },
+                    "expression": {
+                        "type": "string",
+                        "description": "Calculation expression. Required when node_type is CALCULATED_COLUMN. Example: \"PersonFullName || ' - ' || Job\""
+                    },
+                    "data_type": {
+                        "type": "string",
+                        "enum": ["STRING", "INTEGER", "DECIMAL", "DATE", "BOOLEAN"],
+                        "description": "Data type of the calculated column. Default: STRING",
+                        "default": "STRING"
+                    },
+                    "column_label": {
+                        "type": "string",
+                        "description": "Display label for the calculated column. Defaults to column_name."
+                    },
+                    "column_length": {
+                        "type": "integer",
+                        "description": "Length for STRING columns. Default: 256"
+                    },
+                    "join_object": {
+                        "type": "string",
+                        "description": "Technical name of the second source object to join with. Required when node_type is JOIN."
+                    },
+                    "join_type": {
+                        "type": "string",
+                        "enum": ["inner", "left", "right", "full"],
+                        "description": "Type of join. Default: inner",
+                        "default": "inner"
+                    },
+                    "join_conditions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "left": {"type": "string", "description": "Column name from the left (existing) source"},
+                                "right": {"type": "string", "description": "Column name from the right (new) source"}
+                            },
+                            "required": ["left", "right"]
+                        },
+                        "description": "Join condition column pairs. Required when node_type is JOIN. Example: [{\"left\": \"userId\", \"right\": \"userId\"}]"
+                    },
+                    "union_object": {
+                        "type": "string",
+                        "description": "Technical name of the second source object to union with. Required when node_type is UNION."
+                    },
+                    "union_all": {
+                        "type": "boolean",
+                        "description": "Whether to use UNION ALL (keep duplicates). Default: true",
+                        "default": True
+                    },
+                    "node_name": {
+                        "type": "string",
+                        "description": "Optional display name for the node. Defaults to 'Filter 1', 'Calculated Columns 1', 'Join 1', or 'Union 1'."
+                    },
+                    "deploy": {
+                        "type": "boolean",
+                        "description": "Whether to deploy after update. Default: false",
+                        "default": False
+                    }
+                },
+                "required": ["space_id", "view_id", "node_type"]
             }
         }
 
@@ -1590,5 +1887,9 @@ This tool combines space_id and asset_id into an OData compound key format:
             # Task Management Tools (v1.0.12)
             "run_task_chain": ToolDescriptions.run_task_chain(),
             "get_task_log": ToolDescriptions.get_task_log(),
-            "get_task_history": ToolDescriptions.get_task_history()
+            "get_task_history": ToolDescriptions.get_task_history(),
+            "list_task_chains": ToolDescriptions.list_task_chains(),
+            # View Management Tools
+            "create_sql_view": ToolDescriptions.create_sql_view(),
+            "update_graphical_view": ToolDescriptions.update_graphical_view()
         }

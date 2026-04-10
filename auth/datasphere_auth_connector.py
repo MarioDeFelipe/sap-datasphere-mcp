@@ -4,6 +4,7 @@ SAP Datasphere Authenticated Connector
 Integrates OAuth 2.0 authentication with Datasphere API calls
 """
 
+import asyncio
 import logging
 from typing import Dict, List, Optional, Any
 import aiohttp
@@ -37,6 +38,11 @@ class DatasphereAuthConnector:
     - Metadata
     """
 
+    # Concurrency and timeout settings
+    MAX_CONCURRENT_REQUESTS = 10   # max parallel calls to Datasphere
+    REQUEST_TIMEOUT = 60           # seconds per request
+    CONNECT_TIMEOUT = 10           # seconds to establish connection
+
     def __init__(self, config: DatasphereConfig, oauth_handler: Optional[OAuthHandler] = None):
         """
         Initialize Datasphere connector
@@ -48,6 +54,7 @@ class DatasphereAuthConnector:
         self.config = config
         self.oauth_handler = oauth_handler
         self._session: Optional[aiohttp.ClientSession] = None
+        self._semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_REQUESTS)
 
         logger.info(f"Datasphere connector initialized for {config.base_url}")
 
@@ -109,7 +116,8 @@ class DatasphereAuthConnector:
         method: str,
         endpoint: str,
         params: Optional[Dict[str, Any]] = None,
-        data: Optional[Dict[str, Any]] = None
+        data: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
         Make authenticated API request to Datasphere
@@ -119,6 +127,7 @@ class DatasphereAuthConnector:
             endpoint: API endpoint (relative to base_url)
             params: Optional query parameters
             data: Optional request body
+            headers: Optional extra headers to merge with auth headers
 
         Returns:
             Response data as dictionary
@@ -127,70 +136,83 @@ class DatasphereAuthConnector:
             aiohttp.ClientError: On network errors
             OAuthError: On authentication errors
         """
-        headers = await self._get_headers()
+        req_headers = await self._get_headers()
+        if headers:
+            req_headers.update(headers)
+        headers = req_headers
         url = f"{self.config.base_url}/{endpoint.lstrip('/')}"
 
         if not self._session:
-            self._session = aiohttp.ClientSession()
+            connector = aiohttp.TCPConnector(limit=self.MAX_CONCURRENT_REQUESTS, limit_per_host=self.MAX_CONCURRENT_REQUESTS)
+            self._session = aiohttp.ClientSession(connector=connector)
 
-        try:
-            async with self._session.request(
-                method=method,
-                url=url,
-                headers=headers,
-                params=params,
-                json=data,
-                timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                if response.status == 401:
-                    # Token might be expired, try refreshing
-                    logger.warning("Received 401, refreshing token...")
-                    await self.oauth_handler.get_token(force_refresh=True)
+        timeout = aiohttp.ClientTimeout(total=self.REQUEST_TIMEOUT, connect=self.CONNECT_TIMEOUT)
 
-                    # Retry with new token
-                    headers = await self._get_headers()
-                    async with self._session.request(
-                        method=method,
-                        url=url,
-                        headers=headers,
-                        params=params,
-                        json=data,
-                        timeout=aiohttp.ClientTimeout(total=30)
-                    ) as retry_response:
-                        retry_response.raise_for_status()
+        async with self._semaphore:
+            try:
+                async with self._session.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    params=params,
+                    json=data,
+                    timeout=timeout
+                ) as response:
+                    if response.status == 401:
+                        # Token might be expired, try refreshing
+                        logger.warning("Received 401, refreshing token...")
+                        await self.oauth_handler.get_token(force_refresh=True)
 
-                        # Check content-type before parsing JSON
-                        content_type = retry_response.headers.get('content-type', '').lower()
-                        if 'text/html' in content_type:
-                            raise ValueError(f"API returned HTML instead of JSON. This endpoint may be UI-only or not available via REST API. URL: {url}")
+                        # Retry with new token (preserve custom headers)
+                        retry_headers = await self._get_headers()
+                        if headers:
+                            for k, v in headers.items():
+                                if k.lower() != 'authorization':
+                                    retry_headers[k] = v
+                        headers = retry_headers
+                        async with self._session.request(
+                            method=method,
+                            url=url,
+                            headers=headers,
+                            params=params,
+                            json=data,
+                            timeout=timeout
+                        ) as retry_response:
+                            retry_response.raise_for_status()
 
-                        return await retry_response.json()
+                            # Check content-type before parsing JSON
+                            content_type = retry_response.headers.get('content-type', '').lower()
+                            if 'text/html' in content_type:
+                                raise ValueError(f"API returned HTML instead of JSON. This endpoint may be UI-only or not available via REST API. URL: {url}")
 
-                response.raise_for_status()
+                            return await retry_response.json()
 
-                # Check content-type before parsing JSON
-                content_type = response.headers.get('content-type', '').lower()
-                if 'text/html' in content_type:
-                    raise ValueError(f"API returned HTML instead of JSON. This endpoint may be UI-only or not available via REST API. URL: {url}")
+                    response.raise_for_status()
 
-                return await response.json()
+                    # Check content-type before parsing JSON
+                    content_type = response.headers.get('content-type', '').lower()
+                    if 'text/html' in content_type:
+                        raise ValueError(f"API returned HTML instead of JSON. This endpoint may be UI-only or not available via REST API. URL: {url}")
 
-        except aiohttp.ClientError as e:
-            logger.error(f"API request failed: {method} {url} - {str(e)}")
-            raise
+                    return await response.json()
 
-    async def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+            except aiohttp.ClientError as e:
+                logger.error(f"API request failed: {method} {url} - {str(e)}")
+                raise
+
+    async def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """
         Make authenticated GET request
 
         Args:
             endpoint: API endpoint
             params: Optional query parameters
+            headers: Optional extra headers
 
         Returns:
             Response data as dictionary
         """
-        return await self._make_request('GET', endpoint, params=params)
+        return await self._make_request('GET', endpoint, params=params, headers=headers)
 
     async def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
