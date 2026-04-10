@@ -485,23 +485,6 @@ class AuthorizationManager:
             risk_level="low"
         ),
 
-        # View Management Tools
-        "create_sql_view": ToolPermission(
-            tool_name="create_sql_view",
-            permission_level=PermissionLevel.ADMIN,
-            category=ToolCategory.ADMINISTRATION,
-            requires_consent=False,
-            description="Create a graphical view in a Datasphere space",
-            risk_level="high"
-        ),
-        "update_graphical_view": ToolPermission(
-            tool_name="update_graphical_view",
-            permission_level=PermissionLevel.ADMIN,
-            category=ToolCategory.ADMINISTRATION,
-            requires_consent=False,
-            description="Update an existing graphical view by adding nodes",
-            risk_level="high"
-        ),
 
         # Phase 6 & 7 tools removed (endpoints not available as REST APIs)
     }

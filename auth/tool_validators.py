@@ -56,7 +56,6 @@ class ToolValidators:
             "list_repository_objects": ToolValidators._list_repository_objects_rules(),
             "get_object_definition": ToolValidators._get_object_definition_rules(),
             "get_deployed_objects": ToolValidators._get_deployed_objects_rules(),
-            "create_sql_view": ToolValidators._create_sql_view_rules(),
         }
 
         return validators.get(tool_name, [])
@@ -984,59 +983,9 @@ class ToolValidators:
             "list_repository_objects",
             "get_object_definition",
             "get_deployed_objects",
-            "create_sql_view"
         ]
 
     @staticmethod
-    def _create_sql_view_rules() -> List[ValidationRule]:
-        """Validation rules for create_sql_view tool (graphical view creation)"""
-        return [
-            ValidationRule(
-                param_name="space_id",
-                validation_type=ValidationType.SPACE_ID,
-                required=True,
-                min_length=2,
-                max_length=64
-            ),
-            ValidationRule(
-                param_name="view_id",
-                validation_type=ValidationType.STRING,
-                required=True,
-                min_length=1,
-                max_length=128,
-                pattern=r'^[A-Z][A-Z0-9_]*$'
-            ),
-            ValidationRule(
-                param_name="source_object",
-                validation_type=ValidationType.STRING,
-                required=True,
-                min_length=1,
-                max_length=256
-            ),
-            ValidationRule(
-                param_name="node_type",
-                validation_type=ValidationType.STRING,
-                required=False,
-                min_length=1,
-                max_length=20,
-                pattern=r'^(PROJECTION)$'
-            ),
-            ValidationRule(
-                param_name="description",
-                validation_type=ValidationType.STRING,
-                required=False,
-                min_length=0,
-                max_length=1000
-            ),
-            ValidationRule(
-                param_name="semantic_usage",
-                validation_type=ValidationType.STRING,
-                required=False,
-                min_length=4,
-                max_length=10,
-                pattern=r'^(FACT|DIMENSION|TEXT)$'
-            )
-        ]
 
     @staticmethod
     def has_validator(tool_name: str) -> bool:
