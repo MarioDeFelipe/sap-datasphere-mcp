@@ -60,6 +60,17 @@ from telemetry import TelemetryManager
 # Load environment variables from .env file
 load_dotenv()
 
+# Only task-monitoring tools exposed. Other tools remain implemented but
+# are hidden from list_tools and rejected in handle_call_tool. Re-enable
+# by removing this set check.
+_TASK_MONITORING_TOOLS = {
+    "get_task_status",
+    "run_task_chain",
+    "get_task_log",
+    "get_task_history",
+    "list_task_chains",
+}
+
 # Configure logging
 log_level = os.getenv('LOG_LEVEL', 'INFO')
 logging.basicConfig(level=getattr(logging, log_level))
@@ -354,7 +365,7 @@ async def handle_list_tools() -> list[Tool]:
     # Get enhanced descriptions
     enhanced = ToolDescriptions.get_all_enhanced_descriptions()
 
-    return [
+    _all_tools = [
         Tool(
             name="list_spaces",
             description=enhanced["list_spaces"]["description"],
@@ -1098,6 +1109,7 @@ async def handle_list_tools() -> list[Tool]:
         )
         # Phase 6 & 7 tools removed - endpoints not available as REST APIs (return HTML instead of JSON)
     ]
+    return [t for t in _all_tools if t.name in _TASK_MONITORING_TOOLS]
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict | None) -> list[types.TextContent]:
@@ -1105,6 +1117,13 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
 
     if arguments is None:
         arguments = {}
+
+    if name not in _TASK_MONITORING_TOOLS:
+        logger.warning(f"Rejected call to disabled tool: {name}")
+        return [types.TextContent(
+            type="text",
+            text=f"Tool '{name}' is disabled. Only task-monitoring tools are available."
+        )]
 
     # Start timing for telemetry
     start_time = time.time()
@@ -8218,6 +8237,15 @@ async def main_http(host: str = "0.0.0.0", port: int = 8000):
                 logger.warning(f"Rejected unauthorized request from {scope.get('client', ['?'])[0]}")
                 return await _send_error(send, 401, b"Unauthorized")
 
+        if path == "/health" or path == "/healthz":
+            await send({
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [[b"content-type", b"application/json"]],
+            })
+            await send({"type": "http.response.body", "body": b'{"status":"ok"}'})
+            return
+
         if path == "/mcp":
             await transport.handle_request(scope, receive, send)
         else:
@@ -8238,8 +8266,8 @@ async def main_http(host: str = "0.0.0.0", port: int = 8000):
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "http":
-        host = sys.argv[2] if len(sys.argv) > 2 else "0.0.0.0"
-        port = int(sys.argv[3]) if len(sys.argv) > 3 else 8000
+        host = sys.argv[2] if len(sys.argv) > 2 else os.getenv("SERVER_HOST", "0.0.0.0")
+        port = int(sys.argv[3]) if len(sys.argv) > 3 else int(os.getenv("SERVER_PORT", "8080"))
         asyncio.run(main_http(host, port))
     else:
         asyncio.run(main_stdio())

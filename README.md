@@ -886,6 +886,63 @@ python sap_datasphere_mcp_server.py
 
 ---
 
+### ☁️ Cloud Deployment (Streamable HTTP Mode)
+
+The server supports two transports:
+
+- **stdio** — local use with Claude Desktop / Studio via subprocess
+- **HTTP (Streamable HTTP)** — remote deployment, exposed at `/mcp`
+
+For a remote instance accessible from SAP Studio or any MCP client over the network, run in HTTP mode:
+
+```bash
+# Build
+docker build -t sap-datasphere-mcp:latest .
+
+# Run (HTTP mode is the default Docker CMD)
+docker run -d --name sap-mcp \
+  -p 8080:8080 \
+  --env-file .env \
+  sap-datasphere-mcp:latest
+```
+
+**Required env vars** (see `.env.example`):
+
+| Variable | Purpose |
+|----------|---------|
+| `DATASPHERE_BASE_URL` | Tenant URL |
+| `DATASPHERE_CLIENT_ID` | OAuth client ID (technical user) |
+| `DATASPHERE_CLIENT_SECRET` | OAuth client secret |
+| `DATASPHERE_TOKEN_URL` | OAuth token endpoint |
+| `MCP_API_KEY` | Bearer token clients must send. Generate: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `SERVER_PORT` | HTTP port (default `8080`) |
+
+**Endpoints:**
+
+- `POST /mcp` — MCP Streamable HTTP endpoint (requires `Authorization: Bearer <MCP_API_KEY>`)
+- `GET /health` — healthcheck (returns `{"status":"ok"}`, no auth)
+
+**TLS:** the server speaks plain HTTP. Put a TLS-terminating proxy in front (nginx, Cloudflare, or a cloud load balancer — Cloud Run / ECS Fargate / Fly.io handle this automatically).
+
+**Client configuration** (e.g., Studio):
+
+```
+URL:    https://your-public-host/mcp
+Header: Authorization: Bearer <MCP_API_KEY>
+```
+
+**Validate deployment:**
+
+```bash
+curl https://your-public-host/health
+# {"status":"ok"}
+
+curl -H "Authorization: Bearer $MCP_API_KEY" https://your-public-host/mcp
+# MCP handshake response
+```
+
+---
+
 ## 📈 Performance Characteristics
 
 ### Response Times

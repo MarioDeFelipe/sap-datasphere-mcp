@@ -38,17 +38,17 @@ ENV LOG_LEVEL=INFO
 ENV SERVER_PORT=8080
 ENV USE_MOCK_DATA=false
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)" || exit 1
+# Health check hits the /health endpoint exposed by HTTP mode
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -fsS "http://127.0.0.1:${SERVER_PORT:-8080}/health" || exit 1
 
-# Expose port (if running HTTP server mode)
-# EXPOSE 8080
+EXPOSE 8080
 
 # Run as non-root user for security
 RUN useradd -m -u 1000 mcpuser && \
     chown -R mcpuser:mcpuser /app
 USER mcpuser
 
-# Run the MCP server
-CMD ["python", "sap_datasphere_mcp_server.py"]
+# Run the MCP server in HTTP (Streamable HTTP) mode for cloud deployment.
+# Override CMD to "python sap_datasphere_mcp_server.py" for stdio mode.
+CMD ["sh", "-c", "python sap_datasphere_mcp_server.py http 0.0.0.0 ${SERVER_PORT:-8080}"]
