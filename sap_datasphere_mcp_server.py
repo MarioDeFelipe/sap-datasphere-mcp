@@ -7994,9 +7994,114 @@ def compare_design_deployed(design_obj: Dict[str, Any], deployed_obj: Dict[str, 
     return comparison
 
 
+def _build_init_options():
+    return InitializationOptions(
+        server_name="sap-datasphere-mcp",
+        server_version="1.1.0",
+        capabilities=server.get_capabilities(
+            notification_options=NotificationOptions(),
+            experimental_capabilities={}
+        )
+    )
+
+
+async def _run_stdio():
+    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+        await server.run(read_stream, write_stream, _build_init_options())
+
+
+async def _run_http(host: str, port: int, path: str, auth_token: Optional[str]):
+    """Run server over Streamable HTTP (MCP 2025-03-26 transport)."""
+    import contextlib
+    try:
+        from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+    except ImportError as e:
+        raise RuntimeError(
+            "Streamable HTTP transport requires mcp>=1.2.0. "
+            "Install with: pip install 'mcp>=1.2.0'"
+        ) from e
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+    from starlette.responses import JSONResponse
+    from starlette.middleware import Middleware
+    from starlette.middleware.base import BaseHTTPMiddleware
+    import uvicorn
+
+    session_manager = StreamableHTTPSessionManager(
+        app=server,
+        event_store=None,
+        json_response=False,
+        stateless=False,
+    )
+
+    async def handle_mcp(scope, receive, send):
+        await session_manager.handle_request(scope, receive, send)
+
+    class BearerAuthMiddleware(BaseHTTPMiddleware):
+        def __init__(self, app, token: str):
+            super().__init__(app)
+            self._token = token
+
+        async def dispatch(self, request, call_next):
+            if request.url.path.startswith("/health"):
+                return await call_next(request)
+            header = request.headers.get("authorization", "")
+            if not header.startswith("Bearer ") or header[7:] != self._token:
+                return JSONResponse({"error": "unauthorized"}, status_code=401)
+            return await call_next(request)
+
+    @contextlib.asynccontextmanager
+    async def lifespan(app):
+        async with session_manager.run():
+            logger.info(f"✅ Streamable HTTP MCP server listening on http://{host}:{port}{path}")
+            yield
+
+    async def health(request):
+        return JSONResponse({"status": "ok", "transport": "streamable-http"})
+
+    from starlette.routing import Route
+    middleware = [Middleware(BearerAuthMiddleware, token=auth_token)] if auth_token else []
+    app = Starlette(
+        routes=[
+            Route("/health", endpoint=health),
+            Mount(path, app=handle_mcp),
+        ],
+        middleware=middleware,
+        lifespan=lifespan,
+    )
+
+    config = uvicorn.Config(app, host=host, port=port, log_level="info")
+    await uvicorn.Server(config).serve()
+
+
 async def main():
     """Main function to run the MCP server"""
     global datasphere_connector
+
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog="sap-datasphere-mcp",
+        description="SAP Datasphere MCP server (stdio or streamable-HTTP transport)",
+    )
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "http"],
+        default=os.getenv("MCP_TRANSPORT", "stdio"),
+        help="Transport to use (default: stdio; env: MCP_TRANSPORT)",
+    )
+    parser.add_argument("--host", default=os.getenv("MCP_HTTP_HOST", "127.0.0.1"))
+    parser.add_argument("--port", type=int, default=int(os.getenv("MCP_HTTP_PORT", "8080")))
+    parser.add_argument("--path", default=os.getenv("MCP_HTTP_PATH", "/mcp"))
+    parser.add_argument(
+        "--auth-token",
+        default=os.getenv("MCP_HTTP_AUTH_TOKEN"),
+        help="Require this bearer token on every HTTP request. If unset, no auth (localhost-only recommended).",
+    )
+    # argparse would normally consume argv even when used as a library; be safe under stdio.
+    try:
+        args, _ = parser.parse_known_args()
+    except SystemExit:
+        args = parser.parse_args([])
 
     # Initialize OAuth connector if not using mock data
     if not DATASPHERE_CONFIG["use_mock_data"]:
@@ -8028,21 +8133,19 @@ async def main():
         logger.info("ℹ️  Running in MOCK DATA mode")
         logger.info("Set USE_MOCK_DATA=false in .env to connect to real SAP Datasphere")
 
-    # Use stdin/stdout for MCP communication
+    # Dispatch to the requested transport
     try:
-        async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-            await server.run(
-                read_stream,
-                write_stream,
-                InitializationOptions(
-                    server_name="sap-datasphere-mcp",
-                    server_version="1.0.0",
-                    capabilities=server.get_capabilities(
-                        notification_options=NotificationOptions(),
-                        experimental_capabilities={}
-                    )
-                ),
-            )
+        if args.transport == "http":
+            logger.info(f"Starting Streamable HTTP transport on {args.host}:{args.port}{args.path}")
+            if not args.auth_token and args.host not in ("127.0.0.1", "localhost", "::1"):
+                logger.warning(
+                    "⚠️  HTTP transport bound to non-loopback %s without --auth-token. "
+                    "Anyone who can reach this port can invoke Datasphere tools with your OAuth creds.",
+                    args.host,
+                )
+            await _run_http(args.host, args.port, args.path, args.auth_token)
+        else:
+            await _run_stdio()
     finally:
         # Cleanup OAuth connector on shutdown
         if datasphere_connector:
@@ -8050,5 +8153,10 @@ async def main():
             await datasphere_connector.close()
             logger.info("OAuth connection closed")
 
-if __name__ == "__main__":
+def main_sync():
+    """Synchronous entry point for console_scripts. Wraps the async main()."""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    main_sync()
