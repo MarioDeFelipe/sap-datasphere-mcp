@@ -36,6 +36,71 @@ sap-datasphere-mcp
 
 ---
 
+## ✨ What's New in v1.1.0
+
+**🌐 Streamable HTTP Transport** — the server now speaks MCP over HTTP as well as stdio, so you can run it as a long-lived service (Docker, ECS, App Runner, behind a reverse proxy) and point multiple clients at the same instance.
+
+### Highlights
+
+- ✅ **New `--transport http` flag** — serves MCP Streamable HTTP (spec 2025-03-26) at `/mcp`, replacing the legacy SSE dual-endpoint dance with a single HTTP route.
+- ✅ **Backward compatible** — `stdio` is still the default; existing Claude Desktop / Claude Code configs keep working with zero changes.
+- ✅ **Optional bearer-token auth** — enable via `--auth-token` or `MCP_HTTP_AUTH_TOKEN`. The server warns if bound to a non-loopback interface without one.
+- ✅ **`/health` endpoint** — plain JSON liveness probe for load balancers and uptime checks.
+- ✅ **Fixed async entry point** — new `main_sync()` wraps `asyncio.run(main())` so the console script works reliably on macOS and Linux.
+
+### Usage
+
+```bash
+# stdio (default, unchanged)
+sap-datasphere-mcp
+
+# Streamable HTTP on http://127.0.0.1:8080/mcp
+sap-datasphere-mcp --transport http --port 8080
+
+# Exposed on LAN with bearer-token auth
+MCP_HTTP_AUTH_TOKEN=$(openssl rand -hex 32) \
+  sap-datasphere-mcp --transport http --host 0.0.0.0 --port 8080
+
+# Via env vars only (great for Docker / ECS)
+MCP_TRANSPORT=http MCP_HTTP_PORT=8080 \
+MCP_HTTP_AUTH_TOKEN=$MY_TOKEN \
+  sap-datasphere-mcp
+```
+
+### Install with HTTP extras
+
+```bash
+pip install 'sap-datasphere-mcp[http]'   # adds starlette + uvicorn
+# or
+uv tool install 'sap-datasphere-mcp[http]' --python 3.12
+```
+
+### Client call example
+
+```bash
+curl -N -X POST http://127.0.0.1:8080/mcp/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize",
+       "params":{"protocolVersion":"2025-03-26",
+                 "capabilities":{},
+                 "clientInfo":{"name":"curl","version":"0"}}}'
+```
+
+### CLI / env reference
+
+| Flag | Env var | Default | Purpose |
+|---|---|---|---|
+| `--transport` | `MCP_TRANSPORT` | `stdio` | `stdio` or `http` |
+| `--host` | `MCP_HTTP_HOST` | `127.0.0.1` | Bind address in HTTP mode |
+| `--port` | `MCP_HTTP_PORT` | `8080` | Bind port in HTTP mode |
+| `--path` | `MCP_HTTP_PATH` | `/mcp` | URL path for the MCP endpoint |
+| `--auth-token` | `MCP_HTTP_AUTH_TOKEN` | _(none)_ | Require `Authorization: Bearer <token>` |
+
+**See [PR #31](https://github.com/MarioDeFelipe/sap-datasphere-mcp/pull/31) for implementation details.**
+
+---
+
 ## ✨ What's New in v1.0.9
 
 **Enhanced Aggregation & Improved Logging** - Production-ready smart query enhancements:
