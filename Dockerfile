@@ -11,11 +11,21 @@ LABEL version="1.0.0"
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies. Debian bookworm ships nodejs 18 but
+# @sap/datasphere-cli requires node >= 20, so pull Node 20 from NodeSource.
 RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     curl \
+    ca-certificates \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Install SAP Datasphere CLI globally (required for task-chain / view tools
+# that shell out to `datasphere objects ...`)
+RUN npm install -g @sap/datasphere-cli && \
+    datasphere --version
 
 # Copy requirements first (for better layer caching)
 COPY requirements.txt .
@@ -25,9 +35,13 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY sap_datasphere_mcp_server.py .
+# Copy all top-level Python modules — server imports tool_descriptions,
+# error_helpers, mock_data, cache_manager, telemetry alongside the main
+# entry. .dockerignore already filters test_*.py out of the build context.
+COPY *.py ./
 COPY auth/ ./auth/
-COPY .env.example .
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create directory for logs
 RUN mkdir -p /app/logs
@@ -48,6 +62,10 @@ EXPOSE 8080
 RUN useradd -m -u 1000 mcpuser && \
     chown -R mcpuser:mcpuser /app
 USER mcpuser
+
+# Entrypoint authenticates the datasphere CLI (client_credentials) before
+# handing control to the MCP server. See docker-entrypoint.sh.
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Run the MCP server in HTTP (Streamable HTTP) mode for cloud deployment.
 # Override CMD to "python sap_datasphere_mcp_server.py" for stdio mode.
