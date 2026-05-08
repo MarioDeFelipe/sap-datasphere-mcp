@@ -239,47 +239,87 @@ class EnhancedDatasphereClient:
             logger.warning(f"⚠️ Column extraction failed: {e}")
             return []
     
-    def parse_odata_metadata_xml(self, xml_content: str) -> List[Dict[str, Any]]:
-        """Parse OData XML metadata to extract column information"""
-        columns = []
-        
+    def parse_odata_metadata_xml_full(self, xml_content: str) -> Dict[str, Any]:
+        """Parse OData $metadata XML for columns AND variables/filters.
+
+        Wave 2026.10: SAP Datasphere $metadata now exposes input parameters
+        / variables and filter capability annotations alongside columns.
+        This method surfaces all three.
+        """
+        namespaces = {
+            'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
+            'edm':  'http://docs.oasis-open.org/odata/ns/edm',
+            'sap':  'http://www.sap.com/Protocols/SAPData',
+        }
+        columns, variables, filters = [], [], []
         try:
             root = ET.fromstring(xml_content)
-            
-            # Define namespaces
-            namespaces = {
-                'edmx': 'http://docs.oasis-open.org/odata/ns/edmx',
-                'edm': 'http://docs.oasis-open.org/odata/ns/edm'
-            }
-            
-            # Find EntityType elements
+
+            # ---- Columns ----
             for entity_type in root.findall('.//edm:EntityType', namespaces):
                 for prop in entity_type.findall('edm:Property', namespaces):
                     column = {
                         'name': prop.get('Name', ''),
                         'type': self.convert_odata_type_to_glue(prop.get('Type', '')),
                         'nullable': prop.get('Nullable', 'true').lower() == 'true',
-                        'description': f"Column from OData metadata"
+                        'description': "Column from OData metadata",
                     }
-                    
-                    # Add additional attributes if present
                     if prop.get('MaxLength'):
                         column['max_length'] = prop.get('MaxLength')
                     if prop.get('Precision'):
                         column['precision'] = prop.get('Precision')
                     if prop.get('Scale'):
                         column['scale'] = prop.get('Scale')
-                    
+                    # SAP semantic annotations (label, aggregation-role, semantics)
+                    for ann in prop.findall('edm:Annotation', namespaces):
+                        term = ann.get('Term', '')
+                        if term.startswith('Common.') or term.startswith('Analytics.'):
+                            column.setdefault('annotations', []).append(term)
                     columns.append(column)
-            
-            logger.info(f"✅ Parsed {len(columns)} columns from XML metadata")
-            
+
+            # ---- 2026.10: Variables / input parameters ----
+            for fn in root.findall('.//edm:FunctionImport', namespaces):
+                for p in fn.findall('edm:Parameter', namespaces):
+                    variables.append({
+                        'name': p.get('Name', ''),
+                        'type': p.get('Type', ''),
+                        'nullable': p.get('Nullable', 'true').lower() == 'true',
+                        'default': p.get('DefaultValue'),
+                        'multi_value': p.get('MaxLength') is not None,
+                    })
+            for act in root.findall('.//edm:Action', namespaces):
+                for p in act.findall('edm:Parameter', namespaces):
+                    variables.append({
+                        'name': p.get('Name', ''),
+                        'type': p.get('Type', ''),
+                        'default': p.get('DefaultValue'),
+                    })
+
+            # ---- 2026.10: Filter capability annotations ----
+            for ann in root.findall('.//edm:Annotation', namespaces):
+                term = ann.get('Term', '')
+                if 'Filter' in term or 'Sort' in term:
+                    filters.append({'term': term, 'target': ann.get('Target')})
+
+            logger.info(
+                f"Parsed {len(columns)} columns, {len(variables)} variables, "
+                f"{len(filters)} filter annotations from $metadata"
+            )
+
         except ET.ParseError as e:
-            logger.error(f"❌ XML parsing failed: {e}")
+            logger.error(f"XML parsing failed: {e}")
         except Exception as e:
-            logger.error(f"❌ Metadata parsing failed: {e}")
-        
-        return columns
+            logger.error(f"Metadata parsing failed: {e}")
+
+        return {'columns': columns, 'variables': variables, 'filters': filters}
+
+    def parse_odata_metadata_xml(self, xml_content: str) -> List[Dict[str, Any]]:
+        """Back-compat wrapper. Returns just the columns list.
+
+        Prefer parse_odata_metadata_xml_full() to also receive variables and
+        filter annotations introduced by Datasphere wave 2026.10.
+        """
+        return self.parse_odata_metadata_xml_full(xml_content).get('columns', [])
     
     def infer_columns_from_data(self, data_url: str) -> List[Dict[str, Any]]:
         """Infer column structure from actual data"""
