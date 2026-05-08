@@ -1,6 +1,7 @@
 # 🚀 SAP Datasphere MCP Server
 
 [![PyPI version](https://badge.fury.io/py/sap-datasphere-mcp.svg)](https://pypi.org/project/sap-datasphere-mcp/)
+[![npm version](https://img.shields.io/npm/v/@mariodefe/sap-datasphere-mcp.svg)](https://www.npmjs.com/package/@mariodefe/sap-datasphere-mcp)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Compatible-purple.svg)](https://modelcontextprotocol.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -9,6 +10,12 @@
 [![API Integration](https://img.shields.io/badge/API%20Integration-43%2F44%20(98%25)-blue.svg)]()
 
 > **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling.**
+
+## 🆕 What's New (v1.2.1 — wave 2026.10)
+
+- **`get_asset_variables` tool** — surfaces input parameters/variables and filter capability annotations declared in OData `$metadata`. Use it to discover what variables a parameterised view or analytic model expects before querying.
+- **Variables & filters parsing** — `parse_odata_metadata_xml_full` returns `{columns, variables, filters}` in one call; the legacy `parse_odata_metadata_xml` is preserved as a back-compat wrapper.
+- Aligns with SAP Datasphere wave **2026.10** (May 6, 2026). The legacy `/api/v1/dwc/consumption/...` path is deprecated — use `/api/v1/datasphere/consumption/...`.
 
 ## 🚀 Quick Start
 
