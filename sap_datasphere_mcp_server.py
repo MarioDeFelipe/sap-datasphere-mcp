@@ -664,6 +664,24 @@ async def handle_list_tools() -> list[Tool]:
             }
         ),
         Tool(
+            name="get_asset_variables",
+            description="Retrieve input parameters/variables and filter-capability annotations declared in the OData $metadata of a SAP Datasphere asset (wave 2026.10). Use this when the asset is parameterised (e.g., a view or analytic model with input variables) and you need to know what variables to bind and which fields are filterable/sortable before querying. Returns variables (name, type, default, nullable, multi_value), filter annotations, and the column list.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "space_id": {
+                        "type": "string",
+                        "description": "Space identifier (e.g., 'SAP_CONTENT')"
+                    },
+                    "asset_id": {
+                        "type": "string",
+                        "description": "Asset identifier (view or analytic model exposed for consumption)"
+                    }
+                },
+                "required": ["space_id", "asset_id"]
+            }
+        ),
+        Tool(
             name="list_relational_entities",
             description="List all available relational entities (tables/views) within a specific SAP Datasphere asset for row-level data access and ETL operations. Returns OData entity sets that can be queried for detailed data extraction.",
             inputSchema={
@@ -5452,6 +5470,49 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     type="text",
                     text=f"Error retrieving relational metadata: {str(e)}"
                 )]
+
+    elif name == "get_asset_variables":
+        space_id = arguments["space_id"]
+        asset_id = arguments["asset_id"]
+
+        if datasphere_connector is None:
+            return [types.TextContent(
+                type="text",
+                text="Error: OAuth connector not initialized. Cannot retrieve asset variables."
+            )]
+
+        try:
+            import aiohttp
+            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/$metadata"
+            url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
+            headers = await datasphere_connector._get_headers()
+            headers['Accept'] = 'application/xml'
+
+            async with datasphere_connector._session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                response.raise_for_status()
+                xml_content = await response.text()
+
+            parsed = datasphere_connector._parse_odata_metadata_xml_full(xml_content)
+            result = {
+                "space_id": space_id,
+                "asset_id": asset_id,
+                "variables": parsed.get("variables", []),
+                "filters": parsed.get("filters", []),
+                "columns": parsed.get("columns", []),
+                "variable_count": len(parsed.get("variables", [])),
+                "filter_count": len(parsed.get("filters", [])),
+                "note": "Variables and filter annotations are exposed in $metadata as of SAP Datasphere wave 2026.10. Bind variables using (param=val) or Set syntax when consuming the asset."
+            }
+            return [types.TextContent(
+                type="text",
+                text="Asset Variables:\n\n" + json.dumps(result, indent=2)
+            )]
+        except Exception as e:
+            logger.error(f"Asset variables retrieval failed: {e}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error retrieving asset variables: {str(e)}"
+            )]
 
     elif name == "list_relational_entities":
         space_id = arguments["space_id"]
