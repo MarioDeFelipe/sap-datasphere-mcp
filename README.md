@@ -11,6 +11,12 @@
 
 > **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling.**
 
+## 🆕 What's New (v1.3.0 — lean tool profile)
+
+- **Leaner agent-facing tool surface** — the server now advertises **39 tools by default** (down from 49) by hiding redundant/overlapping metadata-discovery tools and developer diagnostics. Tool *handlers* are unchanged; only what's advertised to the MCP client is filtered, which improves LLM tool-selection accuracy. Controlled by two env vars:
+  - `DATASPHERE_TOOL_PROFILE` — `lean` (default) or `full` (advertise everything)
+  - `DATASPHERE_EXPOSE_DIAGNOSTICS` — `false` (default) or `true` (advertise the `test_phase*` diagnostic tools)
+
 ## 🆕 What's New (v1.2.1 — wave 2026.10)
 
 - **`get_asset_variables` tool** — surfaces input parameters/variables and filter capability annotations declared in OData `$metadata`. Use it to discover what variables a parameterised view or analytic model expects before querying.

@@ -353,7 +353,7 @@ async def handle_list_tools() -> list[Tool]:
     # Get enhanced descriptions
     enhanced = ToolDescriptions.get_all_enhanced_descriptions()
 
-    return [
+    tools = [
         Tool(
             name="list_spaces",
             description=enhanced["list_spaces"]["description"],
@@ -1110,6 +1110,44 @@ async def handle_list_tools() -> list[Tool]:
         )
         # Phase 6 & 7 tools removed - endpoints not available as REST APIs (return HTML instead of JSON)
     ]
+
+    # --- Tool visibility filter ---
+    _is_truthy = lambda v: str(v).strip().lower() in ("1", "true", "yes", "on")
+
+    _expose_diag = _is_truthy(os.environ.get("DATASPHERE_EXPOSE_DIAGNOSTICS", "false"))
+    _profile = os.environ.get("DATASPHERE_TOOL_PROFILE", "lean").strip().lower()
+
+    _hidden: set = set()
+
+    # Always hide diagnostic tools unless explicitly opted in
+    if not _expose_diag:
+        _hidden.update({
+            "test_phase67_endpoints",
+            "test_phase8_endpoints",
+            "test_analytical_endpoints",
+        })
+
+    # In lean mode, also hide redundant/overlapping tools
+    if _profile != "full":
+        _hidden.update({
+            "search_repository",
+            "list_repository_objects",
+            "get_repository_search_metadata",
+            "get_relational_odata_service",
+            "get_analytical_service_document",
+            "get_consumption_metadata",
+            "get_catalog_metadata",
+        })
+
+    tools = [t for t in tools if t.name not in _hidden]
+
+    logger.info(
+        "Tool visibility: profile=%s expose_diagnostics=%s "
+        "advertised=%d hidden=%d",
+        _profile, _expose_diag, len(tools), len(_hidden)
+    )
+
+    return tools
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict | None) -> list[types.TextContent]:
