@@ -1,0 +1,91 @@
+# pii_policy.yaml — Sample PII masking policy for the SAP Datasphere MCP server.
+#
+# Point at this file with:
+#   DATASPHERE_PII_POLICY=/path/to/pii_policy.yaml
+#
+# Override mode at runtime without editing this file:
+#   DATASPHERE_PII_MODE=audit_only   # log what would be masked, pass through
+#   DATASPHERE_PII_MODE=off          # disable masking entirely
+#
+# Required when any rule uses hash / tokenize:
+#   DATASPHERE_PII_SALT=<your-secret-salt>   # treat this like a password
+
+# Top-level mode — overridden by DATASPHERE_PII_MODE env var if set.
+mode: enforce
+
+# What to do when a value matches a *pattern* but has no explicit column rule.
+# Options: redact | drop | hash | tokenize | partial:N
+default_action: redact
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Column rules
+# ─────────────────────────────────────────────────────────────────────────────
+# Precedence (most specific wins):
+#   space+asset+column  >  space+column  >  global(*)+column  >  glob patterns
+#
+# Actions:
+#   redact      — replace value with "***"
+#   drop        — remove the column from every returned row entirely
+#   hash        — sha256(SALT:value) hex — deterministic so agent can still group/join
+#   partial:N   — keep last N characters, mask the rest with "*"
+#   tokenize    — stable surrogate "TKN_<first8 of hash>" — deterministic
+rules:
+  # Asset-specific rules take highest precedence.
+  - space: ZDCS_08
+    asset: ZR_SAP_CUSTOMER
+    columns:
+      EMAIL:        redact       # full redact  →  "***"
+      PHONE:        partial:4    # keep last 4  →  "******1234"
+      TAXID:        hash         # deterministic hash — joins/grouping still work
+      SSN:          drop         # column removed from every row
+      NAME1:        redact       # customer name
+
+  - space: ZDCS_08
+    asset: ZR_SAP_SUPPLIER
+    columns:
+      SUPPLIERNAME:     redact
+      SUPPLIERFULLNAME: redact
+      PHONE:            partial:4
+      EMAIL:            redact
+
+  # Space-level rules apply to every asset in ZDCS_08.
+  - space: ZDCS_08
+    columns:
+      BANKACCOUNT: hash
+      IBAN:        tokenize
+
+  # Global rules (space: "*") apply to every space.
+  - space: "*"
+    columns:
+      "*SSN*":    redact      # glob: any column whose name contains SSN
+      "*IBAN*":   tokenize    # glob: any column whose name contains IBAN
+      "*PASSWD*": drop        # glob: password columns dropped entirely
+      "*PASSWORD*": drop
+      "*SECRET*": drop
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Allowlist (strongest / fail-closed)
+# ─────────────────────────────────────────────────────────────────────────────
+# When enabled for an asset, ONLY the listed columns are returned.
+# All other columns are silently dropped before column rules run.
+#
+# Syntax:  "SPACE_ID.ASSET_ID": [COL1, COL2, ...]
+#
+# Set enabled: false (or remove entries) to rely purely on column rules.
+allowlist:
+  enabled: false
+  assets:
+    # Example: only expose aggregated revenue columns, not individual customer data.
+    # ZDCS_08.ZR_OTC_CUST_MONTH: [CUSTOMER, MONTH, REVENUE]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Value patterns (secondary net — applied to string values with no column rule)
+# ─────────────────────────────────────────────────────────────────────────────
+# Regex patterns scanned against every remaining string value.
+# A match triggers default_action (defined above).
+# These are best-effort — explicit column rules above are authoritative.
+patterns:
+  email: '[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}'
+  iban:  '\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b'
+  us_ssn: '\b\d{3}-\d{2}-\d{4}\b'
+  us_phone: '\b(\+1[\s\-]?)?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{4}\b'

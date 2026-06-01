@@ -1,7 +1,7 @@
 {
   "name": "@mariodefe/sap-datasphere-mcp",
-  "version": "1.3.0",
-  "description": "Model Context Protocol server for SAP Datasphere integration with 48 tools including Task Management (run_task_chain, get_task_log, get_task_history) and Smart Query",
+  "version": "1.4.0",
+  "description": "MCP server for SAP Datasphere — 48 tools, Smart Query, Streamable HTTP, and built-in config-driven PII/sensitive-field masking (fail-closed, audit-logged, GDPR-ready).",
   "keywords": [
     "sap",
     "datasphere",
@@ -14,7 +14,10 @@
     "analytics",
     "cloud",
     "claude",
-    "ai"
+    "ai",
+    "pii-masking",
+    "data-privacy",
+    "gdpr"
   ],
   "author": "Mario DeFelipe <mario.defelipe@example.com>",
   "license": "MIT",
@@ -43,6 +46,7 @@
     "bin/",
     "README.md",
     "LICENSE",
+    "pii_policy.yaml",
     "CHANGELOG_v1.0.10.md"
   ]
 }
