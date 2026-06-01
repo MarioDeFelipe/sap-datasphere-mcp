@@ -30,6 +30,9 @@ python-dateutil==2.8.2
 # Configuration Management
 python-dotenv==1.0.0
 
+# PII masking — YAML policy files
+PyYAML>=6.0
+
 # Development Dependencies (optional)
 pytest==7.4.3
 pytest-asyncio==0.21.1

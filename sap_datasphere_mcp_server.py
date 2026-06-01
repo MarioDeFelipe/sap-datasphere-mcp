@@ -56,6 +56,11 @@ from cache_manager import CacheManager, CacheCategory
 # Telemetry and monitoring
 from telemetry import TelemetryManager
 
+# PII / sensitive-field masking (config-driven, fail-closed)
+# load_policy() raises RuntimeError at import time if the policy file is set
+# but cannot be parsed — server must not start with broken masking config.
+from pii_masking import load_policy, apply_masking
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -63,6 +68,11 @@ load_dotenv()
 log_level = os.getenv('LOG_LEVEL', 'INFO')
 logging.basicConfig(level=getattr(logging, log_level))
 logger = logging.getLogger("sap-datasphere-mcp")
+
+# Load PII masking policy (fail-closed: raises if DATASPHERE_PII_POLICY is set
+# but the file is missing or unparseable).
+# Returns None when the env var is unset — masking disabled (back-compat).
+MASKING_POLICY = load_policy()
 
 # Configuration from environment variables
 USE_MOCK_DATA = os.getenv('USE_MOCK_DATA', 'true').lower() == 'true'
@@ -2118,6 +2128,17 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 }
             }
 
+            # ── PII masking: scan top_values sample entries ───────────────
+            # Represent each top-value entry as a single-key row {column_name: value}
+            # so apply_masking can apply column rules and value-pattern scanning.
+            if result.get("distribution", {}).get("top_values"):
+                sample_rows = [{column_name: entry["value"]} for entry in result["distribution"]["top_values"]]
+                masked_rows, _masked = apply_masking(sample_rows, space_id, asset_name, MASKING_POLICY)
+                for i, entry in enumerate(result["distribution"]["top_values"]):
+                    entry["value"] = masked_rows[i].get(column_name, entry["value"])
+                if _masked:
+                    result["masked_fields"] = _masked
+
             return [types.TextContent(
                 type="text",
                 text=f"{json.dumps(result, indent=2)}\n\nNote: Mock data. Configure OAuth credentials to access real SAP Datasphere data."
@@ -2895,6 +2916,15 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     "extracted_table": table_name,
                     "fallback_enabled": fallback_enabled
                 }
+
+            # ── PII masking ────────────────────────────────────────────────
+            if "data" in result and isinstance(result["data"], list):
+                _mask_asset = table_name or asset_id if "asset_id" in dir() else table_name or ""
+                result["data"], _masked = apply_masking(
+                    result["data"], space_id, _mask_asset or "", MASKING_POLICY
+                )
+                if _masked:
+                    result["masked_fields"] = _masked
 
             return [types.TextContent(
                 type="text",
@@ -3928,14 +3958,19 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             # Apply pagination
             assets = assets[skip:skip + top]
 
+            # ── PII masking (mock path) ───────────────────────────────────
+            assets, _masked = apply_masking(assets, space_id, "catalog_assets", MASKING_POLICY)
+
             result = {
                 "space_id": space_id,
                 "value": assets,
                 "count": total_count if count else None,
                 "top": top,
                 "skip": skip,
-                "returned": len(assets)
+                "returned": len(assets),
             }
+            if _masked:
+                result["masked_fields"] = _masked
 
             return [types.TextContent(
                 type="text",
@@ -3969,14 +4004,19 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 assets = data.get("value", [])
                 total_count = data.get("@odata.count", len(assets))
 
+                # ── PII masking (real path) ───────────────────────────────
+                assets, _masked = apply_masking(assets, space_id, "catalog_assets", MASKING_POLICY)
+
                 result = {
                     "space_id": space_id,
                     "value": assets,
                     "count": total_count if count else None,
                     "top": top,
                     "skip": skip,
-                    "returned": len(assets)
+                    "returned": len(assets),
                 }
+                if _masked:
+                    result["masked_fields"] = _masked
 
                 return [types.TextContent(
                     type="text",
@@ -5775,16 +5815,23 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             execution_time = time.time() - start_time
 
             # Format response with ETL metadata
+            rows = data.get("value", [])
+
+            # ── PII masking ────────────────────────────────────────────────
+            rows, _masked = apply_masking(rows, space_id, asset_id, MASKING_POLICY)
+
             result = {
                 "space_id": space_id,
                 "asset_id": asset_id,
                 "entity_name": entity_name,
                 "execution_time_seconds": round(execution_time, 3),
-                "rows_returned": len(data.get("value", [])),
+                "rows_returned": len(rows),
                 "odata_params": params,
                 "extraction_mode": "etl_batch",
-                "data": data.get("value", [])
+                "data": rows,
             }
+            if _masked:
+                result["masked_fields"] = _masked
 
             # Add pagination guidance if more data available
             if len(data.get("value", [])) == params["$top"]:
@@ -6251,6 +6298,13 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             if apply_param:
                 query_info += f"  $apply: {apply_param}\n"
 
+            # ── PII masking (mock path) ───────────────────────────────────
+            mock_data["value"], _masked = apply_masking(
+                mock_data.get("value", []), space_id, asset_id, MASKING_POLICY
+            )
+            if _masked:
+                mock_data["masked_fields"] = _masked
+
             return [types.TextContent(
                 type="text",
                 text=f"Analytical Query Results from {space_id}/{asset_id}/{entity_set}:{query_info}\n" +
@@ -6286,6 +6340,14 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
                 # Use .get() method from DatasphereAuthConnector
                 data = await datasphere_connector.get(endpoint, params=params)
+
+                # ── PII masking (real path) ───────────────────────────────
+                if isinstance(data.get("value"), list):
+                    data["value"], _masked = apply_masking(
+                        data["value"], space_id, asset_id, MASKING_POLICY
+                    )
+                    if _masked:
+                        data["masked_fields"] = _masked
 
                 query_info = f"\nQuery Parameters:\n"
                 for key, value in params.items():
