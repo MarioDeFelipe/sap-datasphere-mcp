@@ -871,6 +871,108 @@ Once configured, ask your AI assistant:
 
 ---
 
+## 🔏 PII / Sensitive-Field Masking
+
+The server ships a **config-driven, fail-closed PII masking layer** that runs
+inside the MCP response pipeline. Every data-returning tool
+(`smart_query`, `query_relational_entity`, `query_analytical_data`,
+`get_space_assets`, `analyze_column_distribution`) funnels results through
+`apply_masking()` before the data reaches the LLM client.
+
+> **Defense-in-depth note.** The authoritative access control remains upstream
+> (SAP Datasphere Data Access Controls / not granting the technical user access
+> to PII tables). This layer is the enforced, auditable net on top — no prompt
+> can bypass it.
+
+### Configuration
+
+| Environment Variable | Values | Default | Purpose |
+|---|---|---|---|
+| `DATASPHERE_PII_POLICY` | path to YAML or JSON | *(unset)* | Policy file path. **When unset masking is fully disabled** — backwards-compatible default. |
+| `DATASPHERE_PII_MODE` | `enforce` \| `audit_only` \| `off` | `enforce` (when policy present) | `audit_only` logs what *would* be masked but passes data through; `off` disables. |
+| `DATASPHERE_PII_SALT` | secret string | *(empty)* | Salt for deterministic `hash` / `tokenize` actions. **Treat as a secret — never log.** |
+
+```bash
+# .env
+DATASPHERE_PII_POLICY=/etc/datasphere/pii_policy.yaml
+DATASPHERE_PII_MODE=enforce
+DATASPHERE_PII_SALT=my-very-secret-salt
+```
+
+### Fail-closed behaviour
+
+If `DATASPHERE_PII_POLICY` is set but the file is **missing or unparseable**,
+the server raises a `RuntimeError` at startup and refuses to start. It never
+silently falls back to serving raw data with a broken policy.
+
+### Policy file schema
+
+See the bundled [`pii_policy.yaml`](./pii_policy.yaml) for a full annotated
+example. Key concepts:
+
+```yaml
+mode: enforce           # overridden by DATASPHERE_PII_MODE if set
+default_action: redact  # applied to value-pattern matches and unknown actions
+
+rules:
+  # Most-specific match wins: asset-level > space-level > global > glob pattern
+  - space: ZDCS_08
+    asset: ZR_SAP_CUSTOMER
+    columns:
+      EMAIL:  redact       # → "***"
+      PHONE:  partial:4    # keep last 4 chars → "******1234"
+      TAXID:  hash         # sha256(salt:value) — deterministic, supports grouping
+      SSN:    drop         # column removed from every returned row entirely
+  - space: "*"             # applies to every space
+    columns:
+      "*IBAN*": tokenize   # glob match on column name → "TKN_<8hex>"
+
+allowlist:
+  enabled: true
+  assets:
+    ZDCS_08.ZR_OTC_CUST_MONTH: [CUSTOMER, MONTH, REVENUE]  # ONLY these cols returned
+
+patterns:
+  email: '[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}'
+  iban:  '\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b'
+```
+
+### Masking actions
+
+| Action | Result | Deterministic? |
+|---|---|---|
+| `redact` | `"***"` | N/A |
+| `drop` | column removed from row | N/A |
+| `hash` | `sha256(salt:value)` hex string | ✅ — safe for GROUP BY / JOIN |
+| `partial:N` | last N chars kept, rest replaced with `*` | N/A |
+| `tokenize` | `"TKN_<first8 of hash>"` stable surrogate | ✅ |
+
+### Precedence
+
+1. **Allowlist** (strongest): if enabled for an asset, all non-listed columns
+   are dropped before rules run.
+2. **Column rules**: most-specific match wins (asset > space > global; exact >
+   glob).
+3. **Value patterns**: scanned on remaining string values; match →
+   `default_action`.
+
+### Audit log
+
+Every tool call emits a structured log line at `INFO` level:
+
+```
+[pii_masking] space=ZDCS_08 asset=ZR_SAP_CUSTOMER rows=42
+              masked_fields=['EMAIL', 'PHONE', 'SSN'] mode=enforce
+```
+
+Raw masked values are **never** logged. This provides SIEM / EU-AI-Act evidence
+that masking fired on every call.
+
+The MCP response also includes a `masked_fields` key listing which columns were
+touched, so the LLM client can see what was withheld.
+
+---
+
 ## 📊 Architecture
 
 ### System Architecture
