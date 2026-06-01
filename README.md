@@ -36,7 +36,7 @@ sap-datasphere-mcp
 
 ---
 
-## ✨ What's New in v1.2.0
+## ✨ What's New in v1.4.0
 
 **🔏 Config-driven PII / Sensitive-Field Masking** — a fail-closed masking layer now runs inside the MCP response pipeline. Sensitive columns are redacted, dropped, hashed, or tokenised *before the data ever reaches the LLM*, based on a YAML/JSON policy file you control. No prompt can bypass it.
 
