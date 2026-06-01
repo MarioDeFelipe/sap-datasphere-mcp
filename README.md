@@ -1,14 +1,14 @@
 # 🚀 SAP Datasphere MCP Server
 
 [![PyPI version](https://badge.fury.io/py/sap-datasphere-mcp.svg)](https://pypi.org/project/sap-datasphere-mcp/)
+[![npm version](https://img.shields.io/npm/v/@mariodefe/sap-datasphere-mcp.svg)](https://www.npmjs.com/package/@mariodefe/sap-datasphere-mcp)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Compatible-purple.svg)](https://modelcontextprotocol.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](https://pypi.org/project/sap-datasphere-mcp/)
-[![Real Data](https://img.shields.io/badge/Real%20Data-43%2F44%20(98%25)-success.svg)]()
-[![API Integration](https://img.shields.io/badge/API%20Integration-43%2F44%20(98%25)-blue.svg)]()
+[![PII Masking](https://img.shields.io/badge/PII%20Masking-Built--in-critical.svg)]()
 
-> **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling.**
+> **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling — with built-in config-driven PII masking so sensitive fields never reach the LLM.**
 
 ## 🚀 Quick Start
 
@@ -33,6 +33,23 @@ sap-datasphere-mcp
 ```
 
 **See [Getting Started Guide](GETTING_STARTED_GUIDE.md) for complete setup instructions.**
+
+---
+
+## ✨ What's New in v1.2.0
+
+**🔏 Config-driven PII / Sensitive-Field Masking** — a fail-closed masking layer now runs inside the MCP response pipeline. Sensitive columns are redacted, dropped, hashed, or tokenised *before the data ever reaches the LLM*, based on a YAML/JSON policy file you control. No prompt can bypass it.
+
+### Highlights
+
+- ✅ **`DATASPHERE_PII_POLICY`** — point at a YAML or JSON policy file to activate masking; leave it unset for zero behaviour change.
+- ✅ **Five masking actions** — `redact` (`***`), `drop` (column removed), `hash` (SHA-256, deterministic — safe for GROUP BY), `partial:N` (keep last N chars), `tokenize` (stable `TKN_xxxx` surrogate).
+- ✅ **Fail-closed** — if the policy file is configured but can't be parsed, the server refuses to start. It never silently falls back to serving raw data.
+- ✅ **Allowlist mode** — lock an asset to an explicit column whitelist; everything else is dropped before column rules even run.
+- ✅ **Value-pattern scanning** — secondary regex net catches PII in free-text columns (email, IBAN, SSN, phone) with no explicit column rule required.
+- ✅ **Audit log** — every tool call emits a structured log line with `space`, `asset`, `masked_fields`, and `mode` — SIEM / EU-AI-Act ready. Raw values are never logged.
+- ✅ **`audit_only` mode** — log what *would* be masked without changing the data; use during policy rollout to validate coverage before enforcing.
+- ✅ **Hooked into all 5 data tools** — `smart_query`, `query_relational_entity`, `query_analytical_data`, `get_space_assets`, `analyze_column_distribution`.
 
 ---
 
@@ -231,6 +248,7 @@ query_analytical_data(
 
 - 🎯 **45 MCP Tools**: Comprehensive SAP Datasphere operations via Model Context Protocol
 - 🔐 **OAuth 2.0**: Production-ready authentication with automatic token refresh
+- 🔏 **Built-in PII Masking**: Config-driven, fail-closed masking layer — sensitive fields never reach the LLM
 - ✅ **Real Data Access**: 44 tools (98%) accessing actual tenant data - spaces, assets, users, metadata
 - 🚀 **API Integration**: 44 tools (98%) with real data integration via API and CLI
 - 🧠 **Smart Query Engine**: Production-ready SQL support with client-side aggregation for all query types
@@ -241,7 +259,7 @@ query_analytical_data(
 - 👥 **User Management**: Create, update, and manage database users with real API
 - 🧠 **AI Integration**: Claude Desktop, Cursor IDE, and other MCP-compatible assistants
 - 🏆 **100% Foundation & Catalog Tools**: All core discovery tools fully functional
-- 📦 **Production Ready**: Docker, Kubernetes, PyPI packaging available
+- 📦 **Production Ready**: Docker, Kubernetes, PyPI + npm packaging available
 
 ---
 
