@@ -872,7 +872,19 @@ async def handle_list_tools() -> list[Tool]:
         ),
         Tool(
             name="query_analytical_data",
-            description="Execute OData queries on analytical models to retrieve aggregated data with dimensions and measures. Supports full OData query syntax: $select (column selection), $filter (WHERE conditions), $orderby (sorting), $top/$skip (pagination), $apply (aggregations with sum/average/min/max/count/groupby). Perfect for business intelligence, reporting, and data analysis.",
+            description=(
+                "Execute OData queries on analytical models to retrieve aggregated data with dimensions and measures. "
+                "Supports full OData query syntax: $select (column selection), $filter (WHERE conditions), "
+                "$orderby (sorting), $top/$skip (pagination), $apply (aggregations with sum/average/min/max/count/groupby). "
+                "Perfect for business intelligence, reporting, and data analysis.\n\n"
+                "PARAMETERIZED MODELS: Some analytical models enforce an input contract (hasParameters=true). "
+                "These refuse bare queries with HTTP 400 by design — governance by construction. "
+                "Pass model_parameters as a dict of key/value pairs (e.g. {\"DATE_FROM\": \"20240101\", "
+                "\"DATE_TO\": \"20241231\", \"REGION1\": \"IL\", \"COUNTRY1\": \"US\"}). "
+                "SAP date parameters must use DATS format: YYYYMMDD with no dashes (e.g. '20240101', never '2024-01-01'). "
+                "The tool constructs the correct OData key-predicate path automatically: "
+                "{entity_set}Parameters(k='v',...)/Set"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -886,7 +898,19 @@ async def handle_list_tools() -> list[Tool]:
                     },
                     "entity_set": {
                         "type": "string",
-                        "description": "Entity set name to query"
+                        "description": "Base entity set name to query (e.g. 'AM_CUST_INV_TAX_ADDRESS'). "
+                                       "Do not include 'Parameters' suffix or key predicates — use model_parameters for those."
+                    },
+                    "model_parameters": {
+                        "type": "object",
+                        "description": (
+                            "Required for models with hasParameters=true. Dict of parameter name → value. "
+                            "Triggers parameterized OData path: {entity_set}Parameters(k='v',...)/Set. "
+                            "Date values must be SAP DATS format YYYYMMDD (no dashes). "
+                            "Example: {\"DATE_FROM\": \"20240101\", \"DATE_TO\": \"20241231\", "
+                            "\"REGION1\": \"IL\", \"COUNTRY1\": \"US\"}"
+                        ),
+                        "additionalProperties": {"type": "string"}
                     },
                     "select": {
                         "type": "string",
@@ -6241,6 +6265,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         space_id = arguments["space_id"]
         asset_id = arguments["asset_id"]
         entity_set = arguments["entity_set"]
+        model_parameters = arguments.get("model_parameters")  # dict for hasParameters=true models
         select_param = arguments.get("select")
         filter_param = arguments.get("filter")
         orderby_param = arguments.get("orderby")
@@ -6319,8 +6344,21 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                # Build OData query URL
-                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/{entity_set}"
+                # Build OData query URL.
+                # Parameterized models (hasParameters=true) require key-predicate path syntax:
+                #   {entity_set}Parameters(DATE_FROM='20240101',DATE_TO='20241231',...)/Set
+                # A bare query against such a model returns HTTP 400 by design (governance).
+                if model_parameters:
+                    kv = ",".join(
+                        f"{k}='{v}'" for k, v in model_parameters.items()
+                    )
+                    parameterized_segment = f"{entity_set}Parameters({kv})/Set"
+                    endpoint = (
+                        f"/api/v1/datasphere/consumption/analytical"
+                        f"/{space_id}/{asset_id}/{parameterized_segment}"
+                    )
+                else:
+                    endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/{entity_set}"
                 params = {}
 
                 if select_param:
@@ -6350,12 +6388,19 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                         data["masked_fields"] = _masked
 
                 query_info = f"\nQuery Parameters:\n"
+                if model_parameters:
+                    query_info += f"  model_parameters: {model_parameters}\n"
                 for key, value in params.items():
                     query_info += f"  {key}: {value}\n"
 
+                result_label = (
+                    f"{space_id}/{asset_id}/{parameterized_segment}"
+                    if model_parameters else
+                    f"{space_id}/{asset_id}/{entity_set}"
+                )
                 return [types.TextContent(
                     type="text",
-                    text=f"Analytical Query Results from {space_id}/{asset_id}/{entity_set}:{query_info}\n" +
+                    text=f"Analytical Query Results from {result_label}:{query_info}\n" +
                          json.dumps(data, indent=2)
                 )]
             except Exception as e:
