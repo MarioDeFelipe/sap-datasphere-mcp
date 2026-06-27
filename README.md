@@ -48,7 +48,11 @@ sap-datasphere-mcp
 
 ---
 
-## ✨ What's New in v1.4.0
+## ✨ What's New in v1.5.0
+
+**🩹 OData V4 annotation parsing for consumption `$metadata`** — Datasphere's consumption APIs return OData 4.0, where semantic info (`Common.Label`, `Analytics.Dimension`, `Analytics.measure`, units, hierarchies) lives in `<Annotation Term="…">` elements rather than legacy `sap:*` attributes. The metadata tools now read both forms, restoring previously-empty `label`, `dimensions`, and `measures` on `get_relational_metadata` / `get_analytical_metadata` / `get_analytical_model`. The V2 attribute path is kept as a fallback for older sources. See [`CHANGELOG_v1.5.0.md`](CHANGELOG_v1.5.0.md).
+
+## What's New in v1.4.0
 
 **🔏 Config-driven PII / Sensitive-Field Masking** — a fail-closed masking layer now runs inside the MCP response pipeline. Sensitive columns are redacted, dropped, hashed, or tokenised *before the data ever reaches the LLM*, based on a YAML/JSON policy file you control. No prompt can bypass it.
 

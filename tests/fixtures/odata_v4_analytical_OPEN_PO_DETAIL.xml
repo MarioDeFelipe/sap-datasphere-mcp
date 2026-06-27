@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Aggregation.V1.xml">
+    <edmx:Include Alias="Aggregation" Namespace="Org.OData.Aggregation.V1"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/Analytics.xml">
+    <edmx:Include Alias="Analytics" Namespace="com.sap.vocabularies.Analytics.v1"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Capabilities.V1.xml">
+    <edmx:Include Alias="Capabilities" Namespace="Org.OData.Capabilities.V1"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/Common.xml">
+    <edmx:Include Alias="Common" Namespace="com.sap.vocabularies.Common.v1"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Core.V1.xml">
+    <edmx:Include Alias="Core" Namespace="Org.OData.Core.V1"/>
+  </edmx:Reference>
+  <edmx:DataServices>
+    <Schema Namespace="InaApplicationService" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityContainer Name="EntityContainer">
+        <EntitySet Name="OPEN_PO_DETAIL" EntityType="InaApplicationService.OPEN_PO_DETAIL"/>
+      </EntityContainer>
+      <EntityType Name="OPEN_PO_DETAIL">
+        <Property Name="DELIVERYTIMEINDAYS" Type="Edm.Decimal" Precision="3"/>
+        <Property Name="EBELN" Type="Edm.String" MaxLength="10"/>
+        <Property Name="EBELP" Type="Edm.String" MaxLength="5"/>
+        <Property Name="EXPECTED_DEL_DT" Type="Edm.String" MaxLength="8"/>
+        <Property Name="GR_QTY" Type="Edm.Decimal" Precision="17" Scale="3"/>
+        <Property Name="INFNR" Type="Edm.String" MaxLength="10"/>
+        <Property Name="INFOREC_PRICE" Type="Edm.Decimal" Precision="17" Scale="2"/>
+        <Property Name="ITEM_DEL_DT" Type="Edm.String" MaxLength="8"/>
+        <Property Name="MATNR" Type="Edm.String" MaxLength="40"/>
+        <Property Name="OPEN_PO_QTY" Type="Edm.Decimal" Precision="17" Scale="3"/>
+        <Property Name="PLANT" Type="Edm.String" MaxLength="4"/>
+        <Property Name="POLINECHANGDT" Type="Edm.String" MaxLength="8"/>
+        <Property Name="PO_CREATION_DT" Type="Edm.String" MaxLength="8"/>
+        <Property Name="PO_DOC_TYPE" Type="Edm.String" MaxLength="4"/>
+        <Property Name="PO_NET_PRICE" Type="Edm.Decimal" Precision="17" Scale="2"/>
+        <Property Name="PO_QTY" Type="Edm.Decimal" Precision="17" Scale="3"/>
+        <Property Name="PRODUCTHIERARCHY" Type="Edm.String" MaxLength="18"/>
+        <Property Name="VENDOR" Type="Edm.String" MaxLength="10"/>
+      </EntityType>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL">
+        <Annotation Term="Common.Label" String="OPEN_PO_DETAIL"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.EntityContainer/OPEN_PO_DETAIL">
+        <Annotation Term="Capabilities.CountRestrictions">
+          <Record Type="Capabilities.CountRestrictionsType">
+            <PropertyValue Property="Countable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.DeleteRestrictions">
+          <Record Type="Capabilities.DeleteRestrictionsType">
+            <PropertyValue Property="Deletable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.InsertRestrictions">
+          <Record Type="Capabilities.InsertRestrictionsType">
+            <PropertyValue Property="Insertable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.UpdateRestrictions">
+          <Record Type="Capabilities.UpdateRestrictionsType">
+            <PropertyValue Property="Updatable" Bool="false"/>
+          </Record>
+        </Annotation>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/DELIVERYTIMEINDAYS">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="Planned Delivery Time in Days"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/EBELN">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="Purchasing Document Number"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/EBELP">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="Item Number of Purchasing Document"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/EXPECTED_DEL_DT">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="EXPECTED_DEL_DT"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/GR_QTY">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/INFNR">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="Number of purchasing info record"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/INFOREC_PRICE">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/ITEM_DEL_DT">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/MATNR">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="Material Number"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/OPEN_PO_QTY">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="OPEN_PO_QTY"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/PLANT">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="Plant"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/POLINECHANGDT">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="Purchasing Document Item Change Date"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/PO_CREATION_DT">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/PO_DOC_TYPE">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/PO_NET_PRICE">
+        <Annotation Term="Common.Label" String="Net Price in Purchasing Document (in Document Currency)"/>
+        <Annotation Term="Analytics.measure" Bool="true"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/PO_QTY">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="Purchase Order Quantity"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/PRODUCTHIERARCHY">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+        <Annotation Term="Common.Label" String="Product hierarchy"/>
+      </Annotations>
+      <Annotations Target="InaApplicationService.OPEN_PO_DETAIL/VENDOR">
+        <Annotation Term="Analytics.Dimension" Bool="true"/>
+      </Annotations>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

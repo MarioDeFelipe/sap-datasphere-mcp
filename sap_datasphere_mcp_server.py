@@ -46,6 +46,7 @@ from tool_descriptions import ToolDescriptions
 
 # Error helpers for better UX
 from error_helpers import ErrorHelpers
+from odata_v4_annotations import make_semantics_extractor
 
 # Mock data for development and testing
 from mock_data import MOCK_DATA, get_mock_catalog_assets, get_mock_asset_details
@@ -849,7 +850,7 @@ async def handle_list_tools() -> list[Tool]:
         ),
         Tool(
             name="get_analytical_model",
-            description="Get the OData service document and metadata for a specific analytical model. Returns entity sets, dimensions, measures, and query capabilities. Parses CSDL metadata to identify analytical properties (dimensions with sap:aggregation-role='dimension', measures with sap:aggregation-role='measure').",
+            description="Get the OData service document and metadata for a specific analytical model. Returns entity sets, dimensions, measures, and query capabilities. Parses CSDL metadata (OData V4) to identify analytical properties via Common.Label / Analytics.Dimension / Analytics.Measure / Analytics.AggregationRole annotations, with V2 sap:* attributes kept as a fallback.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -5128,6 +5129,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     "complex_types": []
                 }
 
+                # OData V4 annotation extractor (with V2 sap:* fallback)
+                get_semantics = make_semantics_extractor(root, namespaces)
+
                 # Extract entity types
                 for entity_type in root.findall('.//edm:EntityType', namespaces):
                     entity_info = {
@@ -5153,9 +5157,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                         }
 
                         if include_annotations:
-                            sap_label = prop.get('{http://www.sap.com/Protocols/SAPData}label')
-                            if sap_label:
-                                prop_info['label'] = sap_label
+                            sem = get_semantics(prop, entity_type)
+                            if sem['label']:
+                                prop_info['label'] = sem['label']
 
                         entity_info['properties'].append(prop_info)
 
@@ -5309,6 +5313,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     "hierarchies": []
                 }
 
+                # OData V4 annotation extractor (with V2 sap:* fallback)
+                get_semantics = make_semantics_extractor(root, namespaces)
+
                 # Extract entity types and identify dimensions/measures
                 for entity_type in root.findall('.//edm:EntityType', namespaces):
                     entity_info = {
@@ -5335,29 +5342,30 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                             'nullable': prop.get('Nullable', 'true') == 'true'
                         }
 
-                        # Check SAP annotations
-                        is_dimension = prop.get('{http://www.sap.com/Protocols/SAPData}dimension') == 'true'
-                        aggregation = prop.get('{http://www.sap.com/Protocols/SAPData}aggregation')
-                        label = prop.get('{http://www.sap.com/Protocols/SAPData}label')
+                        sem = get_semantics(prop, entity_type)
+                        label = sem['label']
 
                         if identify_dimensions_measures:
-                            if is_dimension:
+                            if sem['is_dimension']:
                                 metadata['dimensions'].append({
                                     'name': prop_name,
                                     'type': prop_type,
                                     'label': label or prop_name,
-                                    'hierarchy': prop.get('{http://www.sap.com/Protocols/SAPData}hierarchy')
+                                    'hierarchy': sem['hierarchy']
                                 })
                                 prop_info['is_dimension'] = True
-                            elif aggregation:
+                            elif sem['is_measure'] or sem['aggregation']:
                                 metadata['measures'].append({
                                     'name': prop_name,
                                     'type': prop_type,
                                     'label': label or prop_name,
-                                    'aggregation': aggregation,
-                                    'unit': prop.get('{http://www.sap.com/Protocols/SAPData}unit')
+                                    'aggregation': sem['aggregation'],
+                                    'unit': sem['unit']
                                 })
-                                prop_info['aggregation'] = aggregation
+                                if sem['aggregation']:
+                                    prop_info['aggregation'] = sem['aggregation']
+                                else:
+                                    prop_info['is_measure'] = True
 
                         entity_info['properties'].append(prop_info)
 
@@ -5477,6 +5485,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     "tables": []
                 }
 
+                # OData V4 annotation extractor (with V2 sap:* fallback)
+                get_semantics = make_semantics_extractor(root, namespaces)
+
                 # Extract entity types (tables)
                 for entity_type in root.findall('.//edm:EntityType', namespaces):
                     table_info = {
@@ -5515,14 +5526,11 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                         if map_to_sql_types:
                             column_info['sql_type'] = map_odata_to_sql(odata_type, precision, scale, max_length)
 
-                        # Add SAP annotations
-                        label = prop.get('{http://www.sap.com/Protocols/SAPData}label')
-                        if label:
-                            column_info['label'] = label
-
-                        semantics = prop.get('{http://www.sap.com/Protocols/SAPData}semantics')
-                        if semantics:
-                            column_info['semantics'] = semantics
+                        sem = get_semantics(prop, entity_type)
+                        if sem['label']:
+                            column_info['label'] = sem['label']
+                        if sem['semantics']:
+                            column_info['semantics'] = sem['semantics']
 
                         table_info['columns'].append(column_info)
 
@@ -6195,6 +6203,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                                 'sap': 'http://www.sap.com/Protocols/SAPData'
                             }
 
+                            # OData V4 annotation extractor (with V2 sap:* fallback)
+                            get_semantics = make_semantics_extractor(root, namespaces)
+
                             entity_sets = []
                             for entity_type in root.findall('.//edm:EntityType', namespaces):
                                 dimensions = []
@@ -6209,11 +6220,11 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                                 for prop in entity_type.findall('.//edm:Property', namespaces):
                                     prop_name = prop.get('Name')
                                     prop_type = prop.get('Type')
-                                    agg_role = prop.get('{http://www.sap.com/Protocols/SAPData}aggregation-role')
+                                    sem = get_semantics(prop, entity_type)
 
-                                    if agg_role == 'dimension':
+                                    if sem['is_dimension']:
                                         dimensions.append({"name": prop_name, "type": prop_type})
-                                    elif agg_role == 'measure':
+                                    elif sem['is_measure'] or sem['aggregation']:
                                         measures.append({"name": prop_name, "type": prop_type})
 
                                 entity_sets.append({
