@@ -31,6 +31,12 @@ jobs:
       - name: Check dist
         run: twine check dist/*
 
+      - name: Smoke-test built wheel (clean env import)
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install dist/*.whl
+          /tmp/smoke/bin/python -c "import sap_datasphere_mcp_server; import odata_v4_annotations; print('wheel import OK')"
+
       - name: Publish to PyPI
         env:
           TWINE_USERNAME: __token__
