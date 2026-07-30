@@ -1,5 +1,7 @@
 # Model Context Protocol
-mcp>=0.9.0
+# Upper bound is load-bearing: SDK 2.0.0 dropped the low-level Server
+# decorator API this server depends on. See CHANGELOG_v1.5.2.md.
+mcp>=1.28,<2
 
 # Core Web Framework (updated for anyio>=4.5 compatibility with MCP)
 fastapi>=0.115.0
