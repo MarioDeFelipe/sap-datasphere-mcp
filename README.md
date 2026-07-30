@@ -10,6 +10,23 @@
 
 > **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling — with built-in config-driven PII masking so sensitive fields never reach the LLM.**
 
+> [!IMPORTANT]
+> **Installed between 2026-07-28 and 2026-07-30? Upgrade to 1.5.2.**
+>
+> The MCP Python SDK released 2.0.0 on 2026-07-28, which removes the
+> low-level `Server` decorator API this project is built on. Versions up to
+> and including 1.5.1 declared `mcp>=1.2.0` with no upper bound, so pip
+> resolved SDK 2.0.0 and the server crashed on startup with
+> `AttributeError: 'Server' object has no attribute 'list_resources'`
+> (surfacing in MCP clients as `-32000: Connection closed`).
+>
+> **Fix:**
+> ```bash
+> pip install --upgrade sap-datasphere-mcp
+> ```
+> 1.5.2 pins `mcp>=1.28,<2`. Versions 1.4.0–1.5.1 are yanked on PyPI and
+> deprecated on npm. Details: [`CHANGELOG_v1.5.2.md`](CHANGELOG_v1.5.2.md).
+
 ## 🆕 What's New (v1.3.0 — lean tool profile)
 
 - **Leaner agent-facing tool surface** — the server now advertises **39 tools by default** (down from 49) by hiding redundant/overlapping metadata-discovery tools and developer diagnostics. Tool *handlers* are unchanged; only what's advertised to the MCP client is filtered, which improves LLM tool-selection accuracy. Controlled by two env vars:
