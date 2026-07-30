@@ -48,6 +48,14 @@ from tool_descriptions import ToolDescriptions
 from error_helpers import ErrorHelpers
 from odata_v4_annotations import make_semantics_extractor
 
+# Report the installed package version over the wire rather than a literal
+# that silently drifts from pyproject.toml on every release.
+from importlib.metadata import version as _pkg_version
+try:
+    _SERVER_VERSION = _pkg_version("sap-datasphere-mcp")
+except Exception:
+    _SERVER_VERSION = "0.0.0-dev"
+
 # Mock data for development and testing
 from mock_data import MOCK_DATA, get_mock_catalog_assets, get_mock_asset_details
 
@@ -108,8 +116,11 @@ if not USE_MOCK_DATA:
         logger.warning("⚠️  Server will fail to connect. Please configure .env file.")
 logger.info(f"=" * 80)
 
-# Initialize the MCP server
-server = Server("sap-datasphere-mcp")
+# Initialize the MCP server. Pass the version explicitly: the HTTP transport
+# builds its own InitializationOptions from this object rather than going
+# through _build_init_options(), and the SDK otherwise reports its own
+# version as ours.
+server = Server("sap-datasphere-mcp", version=_SERVER_VERSION)
 
 # Initialize authorization and security components
 auth_manager = AuthorizationManager()
@@ -8169,7 +8180,7 @@ def compare_design_deployed(design_obj: Dict[str, Any], deployed_obj: Dict[str, 
 def _build_init_options():
     return InitializationOptions(
         server_name="sap-datasphere-mcp",
-        server_version="1.1.0",
+        server_version=_SERVER_VERSION,
         capabilities=server.get_capabilities(
             notification_options=NotificationOptions(),
             experimental_capabilities={}
@@ -8182,8 +8193,16 @@ async def _run_stdio():
         await server.run(read_stream, write_stream, _build_init_options())
 
 
-async def _run_http(host: str, port: int, path: str, auth_token: Optional[str]):
-    """Run server over Streamable HTTP (MCP 2025-03-26 transport)."""
+async def _run_http(host: str, port: int, path: str, auth_token: Optional[str],
+                    stateful: bool = False):
+    """Run server over Streamable HTTP (MCP 2025-03-26 transport).
+
+    Defaults to stateless JSON responses: this server exposes no sampling,
+    elicitation, or roots, and its consent/cache state is process-global
+    rather than session-scoped, so nothing depends on a pinned session.
+    Pass stateful=True (--stateful) to restore the pre-2026 SSE session
+    behaviour.
+    """
     import contextlib
     try:
         from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
@@ -8202,8 +8221,8 @@ async def _run_http(host: str, port: int, path: str, auth_token: Optional[str]):
     session_manager = StreamableHTTPSessionManager(
         app=server,
         event_store=None,
-        json_response=False,
-        stateless=False,
+        json_response=not stateful,
+        stateless=not stateful,
     )
 
     async def handle_mcp(scope, receive, send):
@@ -8269,6 +8288,11 @@ async def main():
         default=os.getenv("MCP_HTTP_AUTH_TOKEN"),
         help="Require this bearer token on every HTTP request. If unset, no auth (localhost-only recommended).",
     )
+    parser.add_argument(
+        "--stateful",
+        action="store_true",
+        help="Restore pre-2026 stateful SSE session behavior on the HTTP transport.",
+    )
     # argparse would normally consume argv even when used as a library; be safe under stdio.
     try:
         args, _ = parser.parse_known_args()
@@ -8315,7 +8339,7 @@ async def main():
                     "Anyone who can reach this port can invoke Datasphere tools with your OAuth creds.",
                     args.host,
                 )
-            await _run_http(args.host, args.port, args.path, args.auth_token)
+            await _run_http(args.host, args.port, args.path, args.auth_token, args.stateful)
         else:
             await _run_stdio()
     finally:
