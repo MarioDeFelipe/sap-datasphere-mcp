@@ -70,7 +70,7 @@
 
 #### 7. **get_task_status**
 - **Current**: Returns mock task data
-- **Real API**: `GET /api/v1/dwc/tasks/{task_id}`
+- **Real API**: `GET /api/v1/datasphere/tasks/{task_id}`
 - **Priority**: MEDIUM (task monitoring)
 - **Note**: Already uses real API endpoint, just needs USE_MOCK_DATA check
 
@@ -129,7 +129,7 @@ else:
 
 ### Task API Endpoints
 ```
-✅ GET /api/v1/dwc/tasks/{task_id}
+✅ GET /api/v1/datasphere/tasks/{task_id}
 ```
 
 ### Marketplace API
