@@ -142,7 +142,7 @@ full_username = f"{space_id}#{database_user_id}"
 
 #### 6. `get_task_status`
 **Error:** `200, message='Attempt to decode JSON with unexpected mimetype: text/html'`
-**URL:** `/api/v1/dwc/tasks`
+**URL:** `/api/v1/datasphere/tasks`
 **Problem:** API returns HTML page instead of JSON
 **Root Cause:** `/dwc/` might be Data Warehouse Cloud legacy endpoint
 **Fix Options:**

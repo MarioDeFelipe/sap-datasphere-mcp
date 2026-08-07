@@ -65,9 +65,9 @@ elif name == "get_task_status":
     else:
         # Real API mode
         if task_id:
-            endpoint = f"/api/v1/dwc/tasks/{task_id}"
+            endpoint = f"/api/v1/datasphere/tasks/{task_id}"
         else:
-            endpoint = "/api/v1/dwc/tasks"
+            endpoint = "/api/v1/datasphere/tasks"
             if space_filter:
                 params = {"$filter": f"space eq '{space_filter}'"}
 
@@ -205,7 +205,7 @@ elif name == "browse_marketplace":
         return mock_response(products)
     else:
         # Real API mode
-        endpoint = "/api/v1/dwc/marketplace/browse"
+        endpoint = "/api/v1/datasphere/marketplace/browse"
         params = {}
         if category:
             params["category"] = category
