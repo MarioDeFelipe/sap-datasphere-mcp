@@ -73,7 +73,7 @@ All 8 tools identified in the remediation plan have been successfully converted 
 13. ⚠️ **get_task_status** - Real API call but HTML response:
     ```
     Error: 200, message='Attempt to decode JSON with unexpected mimetype: text/html'  
-    URL: /api/v1/dwc/tasks
+    URL: /api/v1/datasphere/tasks
     Issue: API exists but returns HTML instead of JSON
     ```
 
