@@ -10,22 +10,13 @@
 
 > **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling — with built-in config-driven PII masking so sensitive fields never reach the LLM.**
 
-> [!IMPORTANT]
-> **Installed between 2026-07-28 and 2026-07-30? Upgrade to 1.5.2.**
->
-> The MCP Python SDK released 2.0.0 on 2026-07-28, which removes the
-> low-level `Server` decorator API this project is built on. Versions up to
-> and including 1.5.1 declared `mcp>=1.2.0` with no upper bound, so pip
-> resolved SDK 2.0.0 and the server crashed on startup with
-> `AttributeError: 'Server' object has no attribute 'list_resources'`
-> (surfacing in MCP clients as `-32000: Connection closed`).
->
-> **Fix:**
-> ```bash
-> pip install --upgrade sap-datasphere-mcp
-> ```
-> 1.5.2 pins `mcp>=1.28,<2`. Versions 1.4.0–1.5.1 are yanked on PyPI and
-> deprecated on npm. Details: [`CHANGELOG_v1.5.2.md`](CHANGELOG_v1.5.2.md).
+## 🆕 What's New (v1.6.0 — partial text matching in `$filter`)
+
+- **`startswith` / `endswith` / `contains`** are now supported in `$filter` on the Consumption API, so an agent can match on partial values instead of first listing distinct ones. Example: `startswith(Product,'TV') and Country eq 'US'`.
+- **Filtering is case-sensitive** — `'us'` does not match `'US'`. Verified against a live tenant; there is no server-side workaround, as `tolower()` is not in the supported function list.
+- **`$filter` is now validated before it is sent.** Unknown fields, non-text columns, and unsupported functions are rejected with a message the model can act on rather than an opaque `400`. Values containing a single quote are refused outright — the API has no escape form for them.
+- **Federated assets degrade gracefully** — an asset whose lineage includes non-replicated sources supports only `eq`/`and`/`or`/`()`; that failure is now mapped to a message suggesting an equality retry.
+- See [`CHANGELOG_v1.6.0.md`](CHANGELOG_v1.6.0.md) for the full tenant-probe results.
 
 ## 🆕 What's New (v1.3.0 — lean tool profile)
 
@@ -37,7 +28,7 @@
 
 - **`get_asset_variables` tool** — surfaces input parameters/variables and filter capability annotations declared in OData `$metadata`. Use it to discover what variables a parameterised view or analytic model expects before querying.
 - **Variables & filters parsing** — `parse_odata_metadata_xml_full` returns `{columns, variables, filters}` in one call; the legacy `parse_odata_metadata_xml` is preserved as a back-compat wrapper.
-- Aligns with SAP Datasphere wave **2026.10** (May 6, 2026). The legacy `/api/v1/dwc/consumption/...` path is deprecated — use `/api/v1/datasphere/consumption/...`.
+- Aligns with SAP Datasphere wave **2026.10** (May 6, 2026). All calls use the current `/api/v1/datasphere/consumption/...` path; the superseded `dwc` form was removed from the codebase in v1.6.0.
 
 ## 🚀 Quick Start
 

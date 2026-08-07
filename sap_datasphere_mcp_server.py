@@ -47,6 +47,13 @@ from tool_descriptions import ToolDescriptions
 # Error helpers for better UX
 from error_helpers import ErrorHelpers
 from odata_v4_annotations import make_semantics_extractor
+from odata_filter import (
+    FilterValidationError,
+    federated_filter_error,
+    uses_beyond_federated_subset,
+    validate_filter_expression,
+    validate_parameter_value,
+)
 
 # Report the installed package version over the wire rather than a literal
 # that silently drifts from pyproject.toml on every release.
@@ -769,7 +776,15 @@ async def handle_list_tools() -> list[Tool]:
                     },
                     "filter": {
                         "type": "string",
-                        "description": "OData $filter expression (e.g., \"amount gt 1000 and status eq 'ACTIVE'\")"
+                        "description": (
+                            "OData $filter. Operators: eq ne gt ge lt le, and/or/not, (). "
+                            "Partial text matching: startswith(Field,'v'), endswith(Field,'v'), "
+                            "contains(Field,'v') -- text columns only. Values must be single-quoted "
+                            "and are CASE-SENSITIVE ('us' does not match 'US'). A value containing a "
+                            "single quote cannot be filtered on at all. "
+                            "Example: startswith(Product,'TV') and Country eq 'US'. "
+                            "Assets whose lineage includes federated sources accept only eq/and/or/()."
+                        )
                     },
                     "select": {
                         "type": "string",
@@ -906,7 +921,17 @@ async def handle_list_tools() -> list[Tool]:
                     },
                     "filter": {
                         "type": "string",
-                        "description": "OData filter expression (e.g., 'Amount gt 1000 and Currency eq \"USD\"')"
+                        "description": (
+                            "OData $filter. Operators: eq ne gt ge lt le, and/or/not, (). "
+                            "Partial text matching: startswith(Field,'v'), endswith(Field,'v'), "
+                            "contains(Field,'v') -- text columns only. Values must be single-quoted "
+                            "and are CASE-SENSITIVE ('us' does not match 'US'). A value containing a "
+                            "single quote cannot be filtered on at all. "
+                            "Example: startswith(Product,'TV') and Country eq 'US'. "
+                            "Filtering a dimension is much cheaper than filtering an aggregated "
+                            "measure. Assets whose lineage includes federated sources accept only "
+                            "eq/and/or/()."
+                        )
                     },
                     "orderby": {
                         "type": "string",
@@ -924,7 +949,11 @@ async def handle_list_tools() -> list[Tool]:
                     },
                     "count": {
                         "type": "boolean",
-                        "description": "Include total count in response",
+                        "description": (
+                            "Report a row count. Analytical entities declare "
+                            "Countable:false, so $count is not sent -- the count "
+                            "returned covers the current page only."
+                        ),
                         "default": False
                     },
                     "apply": {
@@ -1170,6 +1199,67 @@ async def handle_list_tools() -> list[Tool]:
     )
 
     return tools
+
+def _looks_like_capability_rejection(exc: Exception) -> bool:
+    """True if an exception looks like the API refusing an unsupported query option.
+
+    Datasphere returns a 400 (occasionally 501) when a query parameter is not
+    available for an asset, which is how federated lineage surfaces.
+    """
+    text = str(exc).lower()
+    if any(code in text for code in ("400", "501", "bad request", "not implemented")):
+        return True
+    return any(
+        phrase in text
+        for phrase in ("not supported", "unsupported", "not allowed", "invalid filter")
+    )
+
+
+async def _fetch_filterable_schema(space_id: str, asset_id: str, kind: str = "relational"):
+    """Return ``(field_names, field_types)`` from an asset's ``$metadata``.
+
+    Used to validate ``$filter`` field names and reject types the Consumption
+    API cannot filter on. Fails soft: if metadata is unavailable for any reason
+    this returns ``(None, None)`` and filter validation falls back to checking
+    grammar only, rather than blocking a query that might well have worked.
+    """
+    if datasphere_connector is None:
+        return None, None
+    try:
+        import xml.etree.ElementTree as _ET
+        import aiohttp as _aiohttp
+
+        endpoint = f"/api/v1/datasphere/consumption/{kind}/{space_id}/{asset_id}/$metadata"
+        url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
+        headers = await datasphere_connector._get_headers()
+        headers["Accept"] = "application/xml"
+        async with datasphere_connector._session.get(
+            url, headers=headers, timeout=_aiohttp.ClientTimeout(total=15)
+        ) as response:
+            if response.status != 200:
+                return None, None
+            xml_content = await response.text()
+
+        root = _ET.fromstring(xml_content)
+        ns = {
+            "edmx": "http://docs.oasis-open.org/odata/ns/edmx",
+            "edm": "http://docs.oasis-open.org/odata/ns/edm",
+        }
+        names, types_by_name = [], {}
+        for entity_type in root.findall(".//edm:EntityType", ns):
+            for prop in entity_type.findall("edm:Property", ns):
+                prop_name = prop.get("Name")
+                if not prop_name:
+                    continue
+                names.append(prop_name)
+                types_by_name[prop_name] = prop.get("Type", "")
+        if not names:
+            return None, None
+        return names, types_by_name
+    except Exception as exc:  # metadata is advisory here, never fatal
+        logger.debug(f"Filter schema lookup failed for {space_id}/{asset_id}: {exc}")
+        return None, None
+
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict | None) -> list[types.TextContent]:
@@ -1681,13 +1771,13 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             try:
                 if task_id:
                     # Get specific task by ID
-                    endpoint = f"/api/v1/dwc/tasks/{task_id}"
+                    endpoint = f"/api/v1/datasphere/tasks/{task_id}"
                     logger.info(f"Getting task status for task {task_id}")
                     task_data = await datasphere_connector.get(endpoint)
                     tasks = [task_data] if task_data else []
                 else:
                     # List tasks (optionally filtered by space)
-                    endpoint = "/api/v1/dwc/tasks"
+                    endpoint = "/api/v1/datasphere/tasks"
                     params = {}
                     if space_filter:
                         params["$filter"] = f"space eq '{space_filter}'"
@@ -1711,7 +1801,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                              f"The task monitoring API endpoint returned HTML instead of JSON.\n\n"
                              f"Possible reasons:\n"
                              f"- This endpoint may be designed for browser/UI access only\n"
-                             f"- The /api/v1/dwc/tasks endpoint may not be available on this tenant\n"
+                             f"- The /api/v1/datasphere/tasks endpoint may not be available on this tenant\n"
                              f"- This could be a legacy Data Warehouse Cloud (DWC) endpoint\n\n"
                              f"Alternatives:\n"
                              f"1. Check task status directly in SAP Datasphere UI\n"
@@ -5810,6 +5900,17 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 text="Error: OAuth connector not initialized. Cannot query relational entity."
             )]
 
+        # Validate the filter before it reaches the wire, so a bad expression
+        # becomes an actionable message rather than an opaque 400.
+        if filter_expr:
+            try:
+                known_fields, field_types = await _fetch_filterable_schema(
+                    space_id, asset_id, "relational"
+                )
+                validate_filter_expression(filter_expr, known_fields, field_types)
+            except FilterValidationError as ve:
+                return [types.TextContent(type="text", text=f"Invalid $filter: {ve}")]
+
         try:
             # Build OData query for ETL extraction with 3-level path
             endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
@@ -5867,6 +5968,22 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
         except Exception as e:
             logger.error(f"Error querying relational entity: {str(e)}")
+
+            # An asset whose lineage includes federated (non-replicated)
+            # sources narrows $filter to eq/and/or/() and drops $top/$skip.
+            # That is only observable as a failure, so map it into something
+            # the model can act on instead of retrying the same request.
+            if _looks_like_capability_rejection(e) and (
+                (filter_expr and uses_beyond_federated_subset(filter_expr))
+                or skip
+            ):
+                return [types.TextContent(
+                    type="text",
+                    text=federated_filter_error(
+                        filter_expr or f"$top={top}, $skip={skip}", space_id, asset_id
+                    )
+                )]
+
             return [types.TextContent(
                 type="text",
                 text=f"Error querying relational entity: {str(e)}\n\n"
@@ -6340,6 +6457,15 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     text="Error: OAuth connector not initialized. Cannot query analytical data."
                 )]
 
+            if filter_param:
+                try:
+                    known_fields, field_types = await _fetch_filterable_schema(
+                        space_id, asset_id, "analytical"
+                    )
+                    validate_filter_expression(filter_param, known_fields, field_types)
+                except FilterValidationError as ve:
+                    return [types.TextContent(type="text", text=f"Invalid $filter: {ve}")]
+
             try:
                 # Build OData query URL
                 endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/{entity_set}"
@@ -6355,8 +6481,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     params["$top"] = top
                 if skip:
                     params["$skip"] = skip
-                if count:
-                    params["$count"] = "true"
+                # $count is not supported for analytical requests at all -- this
+                # is independent of lineage. Emitting it fails the whole query,
+                # so honour the argument by counting the returned rows instead.
                 if apply_param:
                     params["$apply"] = apply_param
 
@@ -6371,6 +6498,13 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     if _masked:
                         data["masked_fields"] = _masked
 
+                if count and isinstance(data.get("value"), list):
+                    data["returned_row_count"] = len(data["value"])
+                    data["count_note"] = (
+                        "$count is not supported for analytical requests; this "
+                        "counts the rows returned by this page only."
+                    )
+
                 query_info = f"\nQuery Parameters:\n"
                 for key, value in params.items():
                     query_info += f"  {key}: {value}\n"
@@ -6382,6 +6516,19 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
             except Exception as e:
                 logger.error(f"Error querying analytical data: {str(e)}")
+
+                if _looks_like_capability_rejection(e) and (
+                    (filter_param and uses_beyond_federated_subset(filter_param))
+                    or skip
+                ):
+                    return [types.TextContent(
+                        type="text",
+                        text=federated_filter_error(
+                            filter_param or f"$top={top}, $skip={skip}",
+                            space_id, asset_id
+                        )
+                    )]
+
                 return [types.TextContent(
                     type="text",
                     text=f"Error querying analytical data: {str(e)}"
