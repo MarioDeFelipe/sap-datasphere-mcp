@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sap-datasphere-mcp"
-version = "1.7.0"
-description = "Model Context Protocol server for SAP Datasphere — 48 tools, Streamable HTTP, and built-in config-driven PII/sensitive-field masking (fail-closed, audit-logged)."
+version = "2.0.0"
+description = "Model Context Protocol server for SAP Datasphere — MCP SDK v2 / 2026-07-28 stateless spec, Streamable HTTP, per-asset capability discovery, and config-driven PII masking (fail-closed, audit-logged)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -101,6 +101,7 @@ py-modules = [
     "sap_datasphere_mcp_server",
     "odata_v4_annotations",
     "odata_filter",
+    "asset_capability",
     "pii_masking",
     "tool_descriptions",
     "error_helpers",
