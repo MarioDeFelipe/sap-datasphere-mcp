@@ -192,6 +192,105 @@ def test_no_deprecation_warnings_from_our_code():
     assert not ours, [str(w.message) for w in ours]
 
 
+# ── Dual-era over HTTP, not just in-process ─────────────────────────────────
+#
+# The era tests above run in-process, which exercises the protocol but not the
+# transport. Cross-transport asymmetry is the 1.5.2 lesson: the HTTP path
+# builds its own InitializationOptions and once reported the SDK's version as
+# the server's. A legacy client arriving over HTTP must still be answered.
+
+
+@pytest.fixture(scope="module")
+def http_server():
+    import socket
+    import subprocess
+    import time as _time
+    import urllib.request
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "sap_datasphere_mcp_server",
+         "--transport", "http", "--host", "127.0.0.1", "--port", str(port)],
+        cwd=os.path.join(os.path.dirname(__file__), ".."),
+        env={**os.environ, "USE_MOCK_DATA": "true"},
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    base = f"http://127.0.0.1:{port}"
+    for _ in range(60):
+        try:
+            urllib.request.urlopen(base + "/health", timeout=1).read()
+            break
+        except Exception:
+            _time.sleep(0.5)
+    else:
+        proc.terminate()
+        pytest.skip("HTTP transport did not come up (starlette/uvicorn missing?)")
+    yield base
+    proc.terminate()
+    proc.wait(timeout=10)
+
+
+def _post(base, body, headers=None):
+    import json as _json
+    import urllib.request
+    req = urllib.request.Request(
+        base + "/mcp/", data=_json.dumps(body).encode(),
+        headers={"Content-Type": "application/json",
+                 "Accept": "application/json, text/event-stream",
+                 **(headers or {})},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return _json.loads(resp.read().decode())
+
+
+def test_legacy_client_over_http_is_answered(http_server):
+    """Dual-era must hold on HTTP too, not only on stdio.
+
+    A legacy client sends `initialize` with none of the 2026-07-28 envelope
+    headers. Rejecting it here would break every 2025-era client that connects
+    over HTTP while stdio kept working -- precisely the asymmetry 1.5.2 taught.
+    """
+    reply = _post(http_server, {
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+                   "clientInfo": {"name": "legacy-http", "version": "0"}},
+    })
+    assert "error" not in reply, reply
+    assert reply["result"]["serverInfo"]["name"] == "sap-datasphere-mcp"
+
+
+def test_http_reports_the_package_version(http_server):
+    """The HTTP path builds its own InitializationOptions from the Server
+    object; this is the transport where the version regression appeared."""
+    reply = _post(http_server, {
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+                   "clientInfo": {"name": "legacy-http", "version": "0"}},
+    })
+    assert reply["result"]["serverInfo"]["version"] == md.version("sap-datasphere-mcp")
+
+
+def test_modern_client_over_http_gets_cache_hints(http_server):
+    """Modern era on HTTP must carry ttlMs/cacheScope (SEP-2549)."""
+    reply = _post(
+        http_server,
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list",
+         "params": {"_meta": {
+             "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+             "io.modelcontextprotocol/clientCapabilities": {}}}},
+        headers={"MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list"},
+    )
+    result = reply["result"]
+    assert result["ttlMs"] > 0
+    assert result["cacheScope"] == "private"
+    names = [t["name"] for t in result["tools"]]
+    assert names == sorted(names)
+
+
 # ── Capability layer ────────────────────────────────────────────────────────
 
 
@@ -227,3 +326,31 @@ def test_capability_descriptor_survives_a_cache_round_trip():
     assert cap.countable is False
     assert cap.source["countable"] == "declarative"
     assert cap.discovered_at > 0
+
+
+def test_lineage_verdict_deflects_once_then_self_heals():
+    """A remembered verdict must actually be consulted -- and must not stick.
+
+    Recording without reading delivers nothing; reading without clearing means
+    one wrong inference blocks valid filters for the cache lifetime. Clearing
+    on read caps the cost of a bad inference at a single deflected call.
+    """
+    import asset_capability as ac
+    from cache_manager import CacheManager
+    cache = CacheManager(max_size=50)
+
+    assert ac.consume_lineage_verdict(cache, "S", "A") is False   # nothing known
+    ac.record_filter_profile(cache, "S", "A", ac.FILTER_LINEAGE_LIMITED)
+    assert ac.consume_lineage_verdict(cache, "S", "A") is True    # deflects
+    assert ac.consume_lineage_verdict(cache, "S", "A") is False   # self-healed
+    assert ac.is_lineage_limited(cache, "S", "A") is False
+
+
+def test_bare_400_does_not_brand_an_asset_lineage_limited():
+    """Deciding an asset is lineage-limited is a claim we remember, so it needs
+    better evidence than any failed request."""
+    import sap_datasphere_mcp_server as srv
+    assert srv._looks_like_filter_capability_rejection(
+        Exception("400 Bad Request: $filter option not supported")) is True
+    assert srv._looks_like_filter_capability_rejection(
+        Exception("400 Bad Request: malformed entity key")) is False

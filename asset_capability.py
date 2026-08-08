@@ -118,6 +118,30 @@ def is_lineage_limited(cache, space_id: str, asset_id: str) -> bool:
     return get(cache, space_id, asset_id).filter_profile == FILTER_LINEAGE_LIMITED
 
 
+def consume_lineage_verdict(cache, space_id: str, asset_id: str) -> bool:
+    """Check the remembered verdict **and clear it**, so it deflects once.
+
+    This is what makes the memo safe to act on. The verdict is inferred from a
+    failure, and inference can be wrong -- an unrelated error could in
+    principle mark a healthy asset. If acting on it merely blocked the request
+    for the life of the cache entry, a bad inference would cost an hour of
+    working filters.
+
+    Clearing on read caps that at exactly one deflected call: the caller gets
+    the actionable message immediately instead of waiting for a round trip
+    that would have failed, and if the verdict was wrong the very next attempt
+    goes to the wire and succeeds. A genuinely lineage-limited asset simply
+    re-records on its next failure.
+    """
+    cap = get(cache, space_id, asset_id)
+    if cap.filter_profile != FILTER_LINEAGE_LIMITED:
+        return False
+    cap.filter_profile = UNKNOWN
+    cap.source.pop("filter_profile", None)
+    _store(cache, cap)
+    return True
+
+
 def countability_from_metadata(xml_content: str) -> Optional[bool]:
     """Read ``Capabilities.CountRestrictions/Countable`` out of ``$metadata``.
 
