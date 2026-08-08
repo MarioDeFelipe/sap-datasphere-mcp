@@ -14,6 +14,7 @@ import secrets
 import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence
+from urllib.parse import quote
 from dotenv import load_dotenv
 from mcp.server import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
@@ -52,8 +53,10 @@ from odata_filter import (
     federated_filter_error,
     uses_beyond_federated_subset,
     validate_filter_expression,
-    validate_parameter_value,
 )
+# NOTE: odata_filter.validate_parameter_value is intentionally not imported.
+# No handler builds the (<param>='<value>')/Set URL form, so importing it would
+# suggest a wiring that does not exist. See its docstring.
 
 # Report the installed package version over the wire rather than a literal
 # that silently drifts from pyproject.toml on every release.
@@ -1200,6 +1203,22 @@ async def handle_list_tools() -> list[Tool]:
 
     return tools
 
+def _seg(value) -> str:
+    """Percent-encode a value being placed into a URL *path* segment.
+
+    Defence in depth behind ``ToolValidators``. Validation is the primary
+    control and gives the caller a clear message; this exists because
+    validation has twice been found silently not running -- once through a
+    registry that drifted out of sync, once through an ``allowed_values``
+    field only one code path consulted. If a tool is ever added without rules,
+    an identifier still cannot change what the request addresses.
+
+    ``safe=''`` so that "/" and "." are encoded too; those are exactly the
+    characters that turn a value into a path.
+    """
+    return quote(str(value), safe='')
+
+
 def _looks_like_capability_rejection(exc: Exception) -> bool:
     """True if an exception looks like the API refusing an unsupported query option.
 
@@ -1229,7 +1248,7 @@ async def _fetch_filterable_schema(space_id: str, asset_id: str, kind: str = "re
         import xml.etree.ElementTree as _ET
         import aiohttp as _aiohttp
 
-        endpoint = f"/api/v1/datasphere/consumption/{kind}/{space_id}/{asset_id}/$metadata"
+        endpoint = f"/api/v1/datasphere/consumption/{_seg(kind)}/{_seg(space_id)}/{_seg(asset_id)}/$metadata"
         url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
         headers = await datasphere_connector._get_headers()
         headers["Accept"] = "application/xml"
@@ -1491,7 +1510,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 return [types.TextContent(type="text", text="Error: OAuth connector not initialized.")]
 
             try:
-                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')"
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{_seg(space_id)}')"
                 space_data = await datasphere_connector.get(endpoint)
                 response = [types.TextContent(
                     type="text",
@@ -2093,7 +2112,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
                     try:
                         # Get assets in this space
-                        assets_response = await datasphere_connector.get(f"/api/v1/datasphere/consumption/catalog/spaces/{space_id_current}/assets")
+                        assets_response = await datasphere_connector.get(f"/api/v1/datasphere/consumption/catalog/spaces/{_seg(space_id_current)}/assets")
                         assets = assets_response.get("value", []) if isinstance(assets_response, dict) else []
 
                         # Check each asset's schema
@@ -2365,7 +2384,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 # For most SAP views, the asset_id and entity_name are the same as the table name
                 asset_id = table_name
                 entity_name = table_name
-                endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
+                endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}/{_seg(entity_name)}"
 
                 # Build OData parameters
                 params = {
@@ -2716,7 +2735,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             try:
                 if method_used == "analytical" and table_name:
                     execution_log.append(f"Attempting query_analytical_data on {table_name}")
-                    endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{table_name}"
+                    endpoint = f"/api/v1/datasphere/consumption/analytical/{_seg(space_id)}/{_seg(table_name)}"
                     params = {"$top": min(effective_limit, 10000)}
 
                     # Extract WHERE for $filter
@@ -2745,7 +2764,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     execution_log.append(f"Attempting query_relational_entity on {table_name}")
                     asset_id = table_name
                     entity_name = table_name
-                    endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
+                    endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}/{_seg(entity_name)}"
 
                     # For aggregation queries, fetch more data for client-side processing
                     fetch_limit = min(effective_limit * 10 if has_agg else effective_limit, 50000)
@@ -2823,7 +2842,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     execution_log.append(f"Attempting execute_query (SQL) on {table_name}")
                     asset_id = table_name
                     entity_name = table_name
-                    endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
+                    endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}/{_seg(entity_name)}"
                     params = {"$top": min(effective_limit, 1000)}
 
                     # Extract WHERE for $filter
@@ -2873,7 +2892,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                             if fallback_method == "relational" and table_name:
                                 asset_id = table_name
                                 entity_name = table_name
-                                endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
+                                endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}/{_seg(entity_name)}"
 
                                 # For aggregation queries in fallback, fetch more data for client-side processing
                                 fetch_limit = min(effective_limit * 10 if has_agg else effective_limit, 50000)
@@ -3893,7 +3912,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Get asset details from catalog API
-                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets('{asset_id}')"
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{_seg(space_id)}')/assets('{_seg(asset_id)}')"
                 params = {}
                 if select_fields:
                     params["$select"] = ",".join(select_fields) if isinstance(select_fields, list) else select_fields
@@ -3970,7 +3989,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Get asset details using compound key (same as get_asset_details endpoint)
-                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets('{asset_id}')"
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{_seg(space_id)}')/assets('{_seg(asset_id)}')"
                 params = {}
                 if select_fields:
                     params["$select"] = ",".join(select_fields) if isinstance(select_fields, list) else select_fields
@@ -4088,7 +4107,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Get assets for the specific space
-                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets"
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{_seg(space_id)}')/assets"
                 params = {"$top": top, "$skip": skip}
 
                 if filter_expression:
@@ -5382,7 +5401,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
                 logger.info(f"Asset supports analytical queries - proceeding with metadata retrieval")
 
-                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/$metadata"
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{_seg(space_id)}/{_seg(asset_id)}/$metadata"
                 url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
 
                 # Metadata endpoints return XML, need custom Accept header
@@ -5557,7 +5576,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 )]
 
             try:
-                endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/$metadata"
+                endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}/$metadata"
                 url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
 
                 # Metadata endpoints return XML, need custom Accept header
@@ -5670,7 +5689,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
         try:
             import aiohttp
-            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/$metadata"
+            endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}/$metadata"
             url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
             headers = await datasphere_connector._get_headers()
             headers['Accept'] = 'application/xml'
@@ -5714,7 +5733,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
         try:
             # Get OData service document (no params for service root)
-            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}"
+            endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}"
 
             logger.info(f"Listing relational entities for {space_id}/{asset_id}")
             data = await datasphere_connector.get(endpoint)
@@ -5770,7 +5789,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
         try:
             # Get CSDL metadata for the entity
-            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/$metadata"
+            endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}/$metadata"
             url = f"{DATASPHERE_CONFIG['base_url'].rstrip('/')}{endpoint}"
 
             logger.info(f"Getting entity metadata for {space_id}/{asset_id}")
@@ -5913,7 +5932,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
         try:
             # Build OData query for ETL extraction with 3-level path
-            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}/{entity_name}"
+            endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}/{_seg(entity_name)}"
 
             params = {
                 "$top": min(top, 50000)  # ETL mode: allow up to 50K records
@@ -6007,7 +6026,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
         try:
             # Get OData service document
-            endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{asset_id}"
+            endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(asset_id)}"
 
             logger.info(f"Getting OData service document for {space_id}/{asset_id}")
             data = await datasphere_connector.get(endpoint)
@@ -6220,7 +6239,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}/
                 # NOTE: Use trailing slash and NO query parameters ($top, $skip not supported)
                 # This returns the OData service document for the analytical asset
-                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/"
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{_seg(space_id)}/{_seg(asset_id)}/"
 
                 # DO NOT pass $top or $skip parameters - they cause 400 Bad Request
                 params = {}
@@ -6302,7 +6321,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}
-                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{_seg(space_id)}/{_seg(asset_id)}"
 
                 # Fetch service document using .get() method
                 service_doc = await datasphere_connector.get(endpoint)
@@ -6468,7 +6487,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Build OData query URL
-                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}/{entity_set}"
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{_seg(space_id)}/{_seg(asset_id)}/{_seg(entity_set)}"
                 params = {}
 
                 if select_param:
@@ -6566,7 +6585,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # GET /api/v1/datasphere/consumption/analytical/{spaceId}/{assetId}
-                endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{asset_id}"
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{_seg(space_id)}/{_seg(asset_id)}"
 
                 # Use .get() method from DatasphereAuthConnector
                 data = await datasphere_connector.get(endpoint)
@@ -6740,7 +6759,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # Fixed: Repository APIs are UI endpoints; use Catalog spaces/assets API instead
-                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets"
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{_seg(space_id)}')/assets"
                 params = {"$top": top, "$skip": skip}
 
                 # Build filter expression
@@ -6901,9 +6920,9 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
                     try:
                         if asset_type == "AnalyticalModel":
-                            metadata_endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id}/{object_id}/$metadata"
+                            metadata_endpoint = f"/api/v1/datasphere/consumption/analytical/{_seg(space_id)}/{_seg(object_id)}/$metadata"
                         else:
-                            metadata_endpoint = f"/api/v1/datasphere/consumption/relational/{space_id}/{object_id}/$metadata"
+                            metadata_endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(space_id)}/{_seg(object_id)}/$metadata"
 
                         # Metadata endpoints return XML
                         import aiohttp
@@ -7055,7 +7074,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 # Fixed: Repository APIs are UI endpoints; use Catalog assets API
                 # API doesn't support ANY OData filters - do ALL filtering client-side
                 # IMPORTANT: Must use BOTH $top and $skip parameters (like list_catalog_assets)
-                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets"
+                endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{_seg(space_id)}')/assets"
                 params = {
                     "$top": 50,    # Match list_catalog_assets parameter
                     "$skip": 0     # Required - API returns empty without this
@@ -7816,7 +7835,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # POST /api/v1/datasphere/tasks/chains/{space_id}/run/{object_id}
-                endpoint = f"/api/v1/datasphere/tasks/chains/{space_id}/run/{object_id}"
+                endpoint = f"/api/v1/datasphere/tasks/chains/{_seg(space_id)}/run/{_seg(object_id)}"
                 logger.info(f"Running task chain: POST {endpoint}")
 
                 data = await datasphere_connector.post(endpoint)
@@ -7888,7 +7907,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # GET /api/v1/datasphere/tasks/logs/{space_id}/{log_id}
-                endpoint = f"/api/v1/datasphere/tasks/logs/{space_id}/{log_id}"
+                endpoint = f"/api/v1/datasphere/tasks/logs/{_seg(space_id)}/{_seg(log_id)}"
 
                 # Set Accept header based on detail level
                 accept_headers = {
@@ -7979,7 +7998,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
             try:
                 # GET /api/v1/datasphere/tasks/logs/{space_id}/objects/{object_id}
-                endpoint = f"/api/v1/datasphere/tasks/logs/{space_id}/objects/{object_id}"
+                endpoint = f"/api/v1/datasphere/tasks/logs/{_seg(space_id)}/objects/{_seg(object_id)}"
                 logger.info(f"Getting task history: GET {endpoint}")
 
                 history = await datasphere_connector.get(endpoint)

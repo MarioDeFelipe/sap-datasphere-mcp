@@ -200,6 +200,15 @@ class InputValidator:
                 f"Parameter '{rule.param_name}' does not match required pattern"
             )
 
+        # Honour allowed_values on STRING rules too, not only on ENUM ones.
+        # Several rules were written as STRING + allowed_values and silently
+        # enforced nothing, because only _validate_enum consulted the field.
+        if rule.allowed_values and value not in rule.allowed_values:
+            raise ValidationError(
+                f"Parameter '{rule.param_name}' must be one of: "
+                f"{', '.join(sorted(rule.allowed_values))}"
+            )
+
     def _validate_integer(self, rule: ValidationRule, value: Any):
         """Validate integer parameter"""
         if not isinstance(value, int):
