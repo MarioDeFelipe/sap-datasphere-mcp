@@ -43,6 +43,16 @@ def advertised_tools():
     return asyncio.run(server.handle_list_tools())
 
 
+
+def _schema_of(tool):
+    """Tool.inputSchema on SDK 1.x, Tool.input_schema on 2.x.
+
+    Kept version-agnostic on purpose: this suite is the forward-port guarantee
+    and must run unchanged on both the 1.x maintenance branch and the port.
+    """
+    return getattr(tool, "input_schema", None) or getattr(tool, "inputSchema", None) or {}
+
+
 def _rules_for(tool_name):
     return {r.param_name: r for r in ToolValidators.get_validator_rules(tool_name)}
 
@@ -87,7 +97,7 @@ def test_every_tool_with_inputs_has_a_validator(advertised_tools):
     """
     missing = [
         t.name for t in advertised_tools
-        if (t.inputSchema or {}).get("properties")
+        if _schema_of(t).get("properties")
         and not ToolValidators.has_validator(t.name)
     ]
     assert not missing, f"tools advertised with inputs but no validation rules: {missing}"
@@ -102,7 +112,7 @@ def test_path_identifiers_are_all_constrained(advertised_tools):
     PATH_PARAMS = {"space_id", "asset_id", "entity_name", "object_id", "asset_name"}
     unconstrained = []
     for tool in advertised_tools:
-        props = (tool.inputSchema or {}).get("properties", {})
+        props = _schema_of(tool).get("properties", {})
         rules = _rules_for(tool.name)
         for param in props:
             if param not in PATH_PARAMS:
