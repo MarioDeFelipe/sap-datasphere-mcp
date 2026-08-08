@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence
 from urllib.parse import quote
 from dotenv import load_dotenv
-from mcp.server import Server, NotificationOptions
+from mcp.server import CacheHint, Server, NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.types import (
     Resource,
@@ -24,9 +24,14 @@ from mcp.types import (
     TextContent,
     ImageContent,
     EmbeddedResource,
-    LoggingLevel,
     Prompt,
-    PromptMessage
+    PromptMessage,
+    CallToolResult,
+    ListToolsResult,
+    ListResourcesResult,
+    ListPromptsResult,
+    ReadResourceResult,
+    TextResourceContents,
 )
 import mcp.server.stdio
 import mcp.types as types
@@ -130,7 +135,9 @@ logger.info(f"=" * 80)
 # builds its own InitializationOptions from this object rather than going
 # through _build_init_options(), and the SDK otherwise reports its own
 # version as ours.
-server = Server("sap-datasphere-mcp", version=_SERVER_VERSION)
+# NOTE: the Server instance is constructed after the handlers are defined
+# (SDK v2 takes them as constructor kwargs). See _build_server() below.
+server = None  # set by _build_server()
 
 # Initialize authorization and security components
 auth_manager = AuthorizationManager()
@@ -158,7 +165,6 @@ cache_manager = CacheManager(
 # Global variable for OAuth connector (initialized in main())
 datasphere_connector: Optional[DatasphereAuthConnector] = None
 
-@server.list_resources()
 async def handle_list_resources() -> list[Resource]:
     """List available Datasphere resources"""
     
@@ -167,25 +173,25 @@ async def handle_list_resources() -> list[Resource]:
             uri="datasphere://spaces",
             name="Datasphere Spaces",
             description="List of all Datasphere spaces and their configurations",
-            mimeType="application/json"
+            mime_type="application/json"
         ),
         Resource(
             uri="datasphere://connections", 
             name="Data Connections",
             description="Available data source connections",
-            mimeType="application/json"
+            mime_type="application/json"
         ),
         Resource(
             uri="datasphere://tasks",
             name="Integration Tasks",
             description="Data integration and ETL tasks",
-            mimeType="application/json"
+            mime_type="application/json"
         ),
         Resource(
             uri="datasphere://marketplace",
             name="Data Marketplace",
             description="Available data packages in the marketplace",
-            mimeType="application/json"
+            mime_type="application/json"
         )
     ]
     
@@ -195,12 +201,11 @@ async def handle_list_resources() -> list[Resource]:
             uri=f"datasphere://spaces/{space['id']}/tables",
             name=f"{space['name']} - Tables",
             description=f"Tables and views in the {space['name']} space",
-            mimeType="application/json"
+            mime_type="application/json"
         ))
     
     return resources
 
-@server.read_resource()
 async def handle_read_resource(uri: str) -> str:
     """Read specific Datasphere resource content"""
 
@@ -231,7 +236,6 @@ async def handle_read_resource(uri: str) -> str:
         # Resources are accessed through MCP tools instead
         raise ValueError(f"Resource URIs not supported in real data mode. Use MCP tools instead: {uri}")
 
-@server.list_prompts()
 async def handle_list_prompts() -> list[Prompt]:
     """List available prompt templates for common workflows"""
 
@@ -270,7 +274,6 @@ async def handle_list_prompts() -> list[Prompt]:
         )
     ]
 
-@server.get_prompt()
 async def handle_get_prompt(name: str, arguments: dict | None) -> types.GetPromptResult:
     """Get specific prompt template content"""
 
@@ -378,7 +381,6 @@ Start with the task status overview."""
     else:
         raise ValueError(f"Unknown prompt: {name}")
 
-@server.list_tools()
 async def handle_list_tools() -> list[Tool]:
     """List available Datasphere tools with enhanced descriptions"""
 
@@ -389,107 +391,107 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="list_spaces",
             description=enhanced["list_spaces"]["description"],
-            inputSchema=enhanced["list_spaces"]["inputSchema"]
+            input_schema=enhanced["list_spaces"]["inputSchema"]
         ),
         Tool(
             name="get_space_info",
             description=enhanced["get_space_info"]["description"],
-            inputSchema=enhanced["get_space_info"]["inputSchema"]
+            input_schema=enhanced["get_space_info"]["inputSchema"]
         ),
         Tool(
             name="search_tables",
             description=enhanced["search_tables"]["description"],
-            inputSchema=enhanced["search_tables"]["inputSchema"]
+            input_schema=enhanced["search_tables"]["inputSchema"]
         ),
         Tool(
             name="get_table_schema",
             description=enhanced["get_table_schema"]["description"],
-            inputSchema=enhanced["get_table_schema"]["inputSchema"]
+            input_schema=enhanced["get_table_schema"]["inputSchema"]
         ),
         Tool(
             name="list_connections",
             description=enhanced["list_connections"]["description"],
-            inputSchema=enhanced["list_connections"]["inputSchema"]
+            input_schema=enhanced["list_connections"]["inputSchema"]
         ),
         Tool(
             name="get_task_status",
             description=enhanced["get_task_status"]["description"],
-            inputSchema=enhanced["get_task_status"]["inputSchema"]
+            input_schema=enhanced["get_task_status"]["inputSchema"]
         ),
         Tool(
             name="browse_marketplace",
             description=enhanced["browse_marketplace"]["description"],
-            inputSchema=enhanced["browse_marketplace"]["inputSchema"]
+            input_schema=enhanced["browse_marketplace"]["inputSchema"]
         ),
         Tool(
             name="find_assets_by_column",
             description=enhanced["find_assets_by_column"]["description"],
-            inputSchema=enhanced["find_assets_by_column"]["inputSchema"]
+            input_schema=enhanced["find_assets_by_column"]["inputSchema"]
         ),
         Tool(
             name="analyze_column_distribution",
             description=enhanced["analyze_column_distribution"]["description"],
-            inputSchema=enhanced["analyze_column_distribution"]["inputSchema"]
+            input_schema=enhanced["analyze_column_distribution"]["inputSchema"]
         ),
         Tool(
             name="execute_query",
             description=enhanced["execute_query"]["description"],
-            inputSchema=enhanced["execute_query"]["inputSchema"]
+            input_schema=enhanced["execute_query"]["inputSchema"]
         ),
         Tool(
             name="smart_query",
             description=enhanced["smart_query"]["description"],
-            inputSchema=enhanced["smart_query"]["inputSchema"]
+            input_schema=enhanced["smart_query"]["inputSchema"]
         ),
         Tool(
             name="list_database_users",
             description=enhanced["list_database_users"]["description"],
-            inputSchema=enhanced["list_database_users"]["inputSchema"]
+            input_schema=enhanced["list_database_users"]["inputSchema"]
         ),
         Tool(
             name="create_database_user",
             description=enhanced["create_database_user"]["description"],
-            inputSchema=enhanced["create_database_user"]["inputSchema"]
+            input_schema=enhanced["create_database_user"]["inputSchema"]
         ),
         Tool(
             name="reset_database_user_password",
             description=enhanced["reset_database_user_password"]["description"],
-            inputSchema=enhanced["reset_database_user_password"]["inputSchema"]
+            input_schema=enhanced["reset_database_user_password"]["inputSchema"]
         ),
         Tool(
             name="update_database_user",
             description=enhanced["update_database_user"]["description"],
-            inputSchema=enhanced["update_database_user"]["inputSchema"]
+            input_schema=enhanced["update_database_user"]["inputSchema"]
         ),
         Tool(
             name="delete_database_user",
             description=enhanced["delete_database_user"]["description"],
-            inputSchema=enhanced["delete_database_user"]["inputSchema"]
+            input_schema=enhanced["delete_database_user"]["inputSchema"]
         ),
         Tool(
             name="list_catalog_assets",
             description=enhanced["list_catalog_assets"]["description"],
-            inputSchema=enhanced["list_catalog_assets"]["inputSchema"]
+            input_schema=enhanced["list_catalog_assets"]["inputSchema"]
         ),
         Tool(
             name="get_asset_details",
             description=enhanced["get_asset_details"]["description"],
-            inputSchema=enhanced["get_asset_details"]["inputSchema"]
+            input_schema=enhanced["get_asset_details"]["inputSchema"]
         ),
         Tool(
             name="get_asset_by_compound_key",
             description=enhanced["get_asset_by_compound_key"]["description"],
-            inputSchema=enhanced["get_asset_by_compound_key"]["inputSchema"]
+            input_schema=enhanced["get_asset_by_compound_key"]["inputSchema"]
         ),
         Tool(
             name="get_space_assets",
             description=enhanced["get_space_assets"]["description"],
-            inputSchema=enhanced["get_space_assets"]["inputSchema"]
+            input_schema=enhanced["get_space_assets"]["inputSchema"]
         ),
         Tool(
             name="test_connection",
             description="Test the connection to SAP Datasphere and verify OAuth authentication status. Use this tool to check if the MCP server can successfully connect to SAP Datasphere.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {},
                 "required": []
@@ -498,7 +500,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_current_user",
             description="Get authenticated user information including user ID, email, display name, roles, permissions, and account status. Use this to understand the current user's identity and access rights in SAP Datasphere.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {},
                 "required": []
@@ -507,7 +509,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_tenant_info",
             description="Retrieve SAP Datasphere tenant configuration and system information including tenant ID, region, version, license type, storage quota/usage, user count, space count, enabled features, and maintenance windows. Use this for system administration and capacity planning.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {},
                 "required": []
@@ -516,7 +518,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_available_scopes",
             description="List available OAuth2 scopes for the current user, showing which scopes are granted and which are available but not granted. Includes scope descriptions and the token's current scopes. Use this to understand API access capabilities and troubleshoot permission issues.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {},
                 "required": []
@@ -525,7 +527,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="search_catalog",
             description="Universal search across all catalog items in SAP Datasphere using advanced search syntax. Supports searching across KPIs, assets, spaces, models, views, and tables. Use SCOPE:<scope_name> prefix for targeted searches. Boolean operators (AND, OR, NOT) supported.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "query": {
@@ -568,7 +570,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="search_repository",
             description="Global search across all repository objects in SAP Datasphere. Search through tables, views, analytical models, data flows, and transformations. Provides comprehensive object discovery with lineage and dependency information.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "search_terms": {
@@ -611,7 +613,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_catalog_metadata",
             description="Get CSDL metadata for the SAP Datasphere catalog service. Retrieves the OData metadata document (CSDL XML) that describes the catalog service schema including entity types, properties, relationships, and available operations. Essential for understanding the catalog structure.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "endpoint_type": {
@@ -632,7 +634,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_consumption_metadata",
             description="Get CSDL metadata for SAP Datasphere consumption models. Retrieves the overall consumption service schema including entity types, properties, navigation relationships, and complex types. Essential for understanding the consumption layer structure and planning data integrations.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "parse_xml": {
@@ -652,7 +654,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_analytical_metadata",
             description="Retrieve CSDL metadata for analytical consumption of a specific asset. Returns analytical schema with dimensions, measures, hierarchies, and aggregation information for BI and analytics integration. Automatically identifies analytical elements based on SAP annotations.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -675,7 +677,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_relational_metadata",
             description="Retrieve CSDL metadata for relational consumption of a specific asset. Returns complete schema information including tables, columns, data types, primary/foreign keys, and relationships for relational data access and ETL planning. Includes SQL type mapping.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -698,7 +700,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_asset_variables",
             description="Retrieve input parameters/variables and filter-capability annotations declared in the OData $metadata of a SAP Datasphere asset (wave 2026.10). Use this when the asset is parameterised (e.g., a view or analytic model with input variables) and you need to know what variables to bind and which fields are filterable/sortable before querying. Returns variables (name, type, default, nullable, multi_value), filter annotations, and the column list.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -716,7 +718,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="list_relational_entities",
             description="List all available relational entities (tables/views) within a specific SAP Datasphere asset for row-level data access and ETL operations. Returns OData entity sets that can be queried for detailed data extraction.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -739,7 +741,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_relational_entity_metadata",
             description="Get detailed metadata for a specific relational entity including column definitions, data types, SQL type mappings, and ETL extraction capabilities. Optimized for data warehouse loading and transformation workflows.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -762,7 +764,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="query_relational_entity",
             description="Execute OData queries on relational entities for ETL data extraction. Supports large batch processing (up to 50,000 records), advanced filtering, column selection, and pagination. Optimized for data warehouse loading and analytics pipelines. Use list_relational_entities to discover available entity names first.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -814,7 +816,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_relational_odata_service",
             description="Get the OData service document for a relational asset showing available entity sets, navigation properties, function imports, and query capabilities. Essential for ETL planning and understanding data extraction options.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -837,7 +839,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_repository_search_metadata",
             description="Get metadata for repository search capabilities. Retrieves information about searchable object types, searchable fields, available filters, and entity definitions. Essential for building advanced search queries and understanding repository structure.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "include_field_details": {
@@ -852,7 +854,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="list_analytical_datasets",
             description="List all available analytical datasets within a specific asset. Discovers analytical models that can be queried for business intelligence and reporting. Returns entity sets with their names, types, and URLs for data access.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -880,7 +882,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_analytical_model",
             description="Get the OData service document and metadata for a specific analytical model. Returns entity sets, dimensions, measures, and query capabilities. Parses CSDL metadata (OData V4) to identify analytical properties via Common.Label / Analytics.Dimension / Analytics.Measure / Analytics.AggregationRole annotations, with V2 sap:* attributes kept as a fallback.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -903,7 +905,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="query_analytical_data",
             description="Execute OData queries on analytical models to retrieve aggregated data with dimensions and measures. Supports full OData query syntax: $select (column selection), $filter (WHERE conditions), $orderby (sorting), $top/$skip (pagination), $apply (aggregations with sum/average/min/max/count/groupby). Perfect for business intelligence, reporting, and data analysis.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -970,7 +972,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_analytical_service_document",
             description="Get the OData service document for a specific analytical asset. Returns the service root with available entity sets and their URLs. Lightweight endpoint to discover what data is available without retrieving full metadata.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -990,7 +992,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="list_repository_objects",
             description="Browse all repository objects in a SAP Datasphere space including tables, views, analytical models, data flows, and transformations. This tool provides comprehensive metadata, dependency information, and lineage for design-time objects. Use this for object inventory, data cataloging, and understanding what assets exist in a space.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -1028,7 +1030,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_object_definition",
             description="Get complete design-time object definition from SAP Datasphere repository. Retrieves detailed structure, logic, transformations, and metadata for tables (with columns, keys, indexes), views (with SQL definitions), analytical models (with dimensions/measures), and data flows (with transformation steps). Use this for understanding object implementation details, extracting schema information, or planning migrations.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -1056,7 +1058,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="get_deployed_objects",
             description="List runtime/deployed objects that are actively running in SAP Datasphere. Returns deployment status, runtime metrics, execution history for data flows, and performance statistics. Use this for monitoring deployed assets, tracking execution status, analyzing runtime performance, and identifying active vs inactive objects.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "space_id": {
@@ -1095,7 +1097,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="test_phase67_endpoints",
             description="Diagnostic tool to test availability of Phase 6 & 7 API endpoints (KPI Management, System Monitoring, User Administration). Returns detailed status for each endpoint including HTTP response codes, error messages, and recommendations. Use this to determine which endpoints are available in your tenant before using the Phase 6 & 7 tools.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "detailed": {
@@ -1110,7 +1112,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="test_phase8_endpoints",
             description="Diagnostic tool to test availability of Phase 8 API endpoints (Data Sharing, AI Features, Security Config, Legacy DWC APIs). Tests 10 confirmed endpoints to determine which are available in your tenant. Returns detailed status for each endpoint including HTTP response codes, error messages, and recommendations. Use this before implementing Phase 8 tools to ensure real API availability.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "detailed": {
@@ -1130,7 +1132,7 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="test_analytical_endpoints",
             description="Diagnostic tool to test availability of Analytical and Query API endpoints (6 remaining tools). Tests endpoints that are currently in mock mode to determine if they work with real data. Returns detailed status for each endpoint including HTTP response codes, error messages, and recommendations. Use this to verify if setting USE_MOCK_DATA=false will enable these 6 tools.",
-            inputSchema={
+            input_schema={
                 "type": "object",
                 "properties": {
                     "detailed": {
@@ -1150,17 +1152,17 @@ async def handle_list_tools() -> list[Tool]:
         Tool(
             name="run_task_chain",
             description=enhanced["run_task_chain"]["description"],
-            inputSchema=enhanced["run_task_chain"]["inputSchema"]
+            input_schema=enhanced["run_task_chain"]["inputSchema"]
         ),
         Tool(
             name="get_task_log",
             description=enhanced["get_task_log"]["description"],
-            inputSchema=enhanced["get_task_log"]["inputSchema"]
+            input_schema=enhanced["get_task_log"]["inputSchema"]
         ),
         Tool(
             name="get_task_history",
             description=enhanced["get_task_history"]["description"],
-            inputSchema=enhanced["get_task_history"]["inputSchema"]
+            input_schema=enhanced["get_task_history"]["inputSchema"]
         )
         # Phase 6 & 7 tools removed - endpoints not available as REST APIs (return HTML instead of JSON)
     ]
@@ -1280,7 +1282,6 @@ async def _fetch_filterable_schema(space_id: str, asset_id: str, kind: str = "re
         return None, None
 
 
-@server.call_tool()
 async def handle_call_tool(name: str, arguments: dict | None) -> list[types.TextContent]:
     """Handle tool calls with validation, authorization, consent checks, and telemetry"""
 
@@ -8341,6 +8342,156 @@ def compare_design_deployed(design_obj: Dict[str, Any], deployed_obj: Dict[str, 
     comparison['has_differences'] = len(comparison['differences']) > 0
 
     return comparison
+
+
+# ─── SDK v2 adapter layer ────────────────────────────────────────────────────
+#
+# SDK 2.0.0 removed the decorator API on the low-level Server and takes handlers
+# as constructor kwargs, each with the shape (ctx, params) -> FullResultType.
+#
+# The handlers above are left byte-identical. handle_call_tool alone is ~7,000
+# lines with 230 `return [TextContent(...)]` sites, every one of them an error
+# path that 1.6.0/1.7.0 tests cover; rewriting them to build CallToolResult
+# directly would be a very large diff across exactly the surface where this
+# project has twice found silent breakage. Instead each surface gets one thin
+# adapter, so the v2 contract lives in six places rather than 230.
+#
+# Adapters translate shape only. They deliberately add no behaviour: error text
+# still comes from ErrorHelpers inside the handlers, which is what keeps the
+# is_error=True results readable rather than surfacing as JSON-RPC faults.
+
+
+async def _on_list_tools(ctx, params) -> ListToolsResult:
+    tools = await handle_list_tools()
+    # tools/list SHOULD be deterministically ordered (SEP-2549).
+    return ListToolsResult(tools=sorted(tools, key=lambda t: t.name))
+
+
+#: Banner markers the handlers use that do NOT indicate a failed call. The
+#: query ran and simply matched nothing -- reporting is_error for these would
+#: make an empty result look like a fault.
+_NON_ERROR_BANNERS = frozenset({
+    "No Assets Found",
+})
+
+
+def _content_is_error(content) -> bool:
+    """Decide the v2 ``is_error`` flag from 1.x-style content.
+
+    The handlers predate ``is_error``: they signal failure inside the text,
+    either with a ``>>> Some Banner <<<`` header or an ``Error``/``❌`` prefix.
+    In 1.x that was the whole contract. In v2 ``is_error`` is a protocol field
+    clients branch on, so reporting success for an error body would be a
+    regression -- a validation rejection would look like a successful call.
+
+    Conservative by design: anything not recognisably a failure stays
+    ``is_error=False``, because wrongly flagging a good result is worse than
+    leaving an unusual error unflagged.
+    """
+    first = next((c for c in content if getattr(c, "type", None) == "text"), None)
+    if first is None:
+        return False
+    text = (first.text or "").lstrip()
+
+    banner = re.match(r">>>\s*(.+?)\s*<<<", text)
+    if banner:
+        name = banner.group(1)
+        if name in _NON_ERROR_BANNERS:
+            return False
+        # Everything else banner-shaped is a failure, a refusal, or an
+        # unavailable backend -- in each case the requested work did not
+        # happen, which is what is_error means.
+        return True
+
+    return text.startswith("Error") or text.startswith("❌")
+
+
+async def _on_call_tool(ctx, params) -> CallToolResult:
+    """Dispatch a tool call.
+
+    v2 surfaces a raised exception as a JSON-RPC error, which would lose the
+    ErrorHelpers text the handlers work hard to produce. Anything unexpected is
+    therefore returned as an is_error result carrying the message instead.
+    """
+    try:
+        content = list(await handle_call_tool(params.name, params.arguments or {}))
+        return CallToolResult(content=content, is_error=_content_is_error(content))
+    except Exception as exc:  # noqa: BLE001 - deliberate: keep the text readable
+        logger.error(f"Unhandled error in tool '{params.name}': {exc}")
+        return CallToolResult(
+            content=[TextContent(type="text",
+                                 text=ErrorHelpers.general_error(params.name, str(exc)))],
+            is_error=True,
+        )
+
+
+async def _on_list_resources(ctx, params) -> ListResourcesResult:
+    return ListResourcesResult(resources=await handle_list_resources())
+
+
+async def _on_read_resource(ctx, params) -> ReadResourceResult:
+    text = await handle_read_resource(str(params.uri))
+    return ReadResourceResult(
+        contents=[TextResourceContents(uri=params.uri, mime_type="application/json",
+                                       text=text)]
+    )
+
+
+async def _on_list_prompts(ctx, params) -> ListPromptsResult:
+    return ListPromptsResult(prompts=await handle_list_prompts())
+
+
+async def _on_get_prompt(ctx, params):
+    return await handle_get_prompt(params.name, params.arguments)
+
+
+def _build_cache_hints() -> Dict[str, CacheHint]:
+    """Cache hints for the list-shaped methods (SEP-2549).
+
+    ``tools/list``, ``prompts/list`` and ``resources/list`` all return
+    *descriptors* built from code and the tool-profile env vars, not tenant
+    data. They are therefore stable for the lifetime of the process, and take
+    the longest TTL the cache defines rather than a data-shaped one.
+
+    The value is read from ``CacheManager.DEFAULT_TTL`` rather than written as
+    a literal so the protocol hint and the internal cache cannot drift apart --
+    which is the whole point of sourcing it from CacheManager at all.
+
+    ``scope`` is ``"private"`` everywhere: every result is shaped by the tenant
+    OAuth context this process holds, so a shared gateway must never re-serve
+    one user's response to another.
+    """
+    stable_ttl_s = CacheManager.DEFAULT_TTL.get(CacheCategory.TABLE_SCHEMA, 1800)
+    stable = CacheHint(ttl_ms=stable_ttl_s * 1000, scope="private")
+    return {
+        "tools/list": stable,
+        "prompts/list": stable,
+        "resources/list": stable,
+    }
+
+
+def _build_server() -> Server:
+    """Construct the v2 Server with handlers supplied as constructor kwargs.
+
+    version= is passed explicitly: the HTTP transport builds its own
+    InitializationOptions from this object rather than going through
+    _build_init_options(), so omitting it makes the server report the SDK's
+    version as its own. That regression was fixed in 1.5.2; do not reintroduce.
+    """
+    return Server(
+        name="sap-datasphere-mcp",
+        version=_SERVER_VERSION,
+        on_list_tools=_on_list_tools,
+        on_call_tool=_on_call_tool,
+        on_list_resources=_on_list_resources,
+        on_read_resource=_on_read_resource,
+        on_list_prompts=_on_list_prompts,
+        on_get_prompt=_on_get_prompt,
+        cache_hints=_build_cache_hints(),
+    )
+
+
+server = _build_server()
 
 
 def _build_init_options():

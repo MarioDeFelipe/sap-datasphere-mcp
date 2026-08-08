@@ -54,10 +54,7 @@ classifiers = [
 ]
 
 dependencies = [
-    # SDK v2.0.0 (2026-07-28) removed the decorator API on the low-level
-    # Server (@server.list_tools() etc.), which this server is built on.
-    # Stay on the v1 maintenance line until the v2 port lands.
-    "mcp>=1.28,<2",
+    "mcp>=2.0,<3",
     "aiohttp>=3.9.1",
     "cryptography>=41.0.7",
     "python-dotenv>=1.0.0",
