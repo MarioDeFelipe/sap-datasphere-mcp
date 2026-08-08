@@ -1,6 +1,14 @@
-# Changelog - v2.0.0 (MCP Python SDK v2 / 2026-07-28 stateless spec)
+# Changelog - v2.0.1 (MCP Python SDK v2 / 2026-07-28 stateless spec)
 
 **Release Date:** 2026-08-08 · **Base:** 1.7.0 (`0e2afc9`)
+
+> **Why 2.0.1 and not 2.0.0.** The 2.0.0 upload was rejected by PyPI with a
+> bare `400 Bad Request` and no detail. The artifact was sound — its metadata
+> differed from the successfully-published 1.7.0 wheel only in `Version` and
+> `Summary`, and it built, passed `twine check`, and imported cleanly in a fresh
+> venv. Nothing reached PyPI or npm, so **2.0.0 does not exist anywhere**; this
+> is the same code under a version number PyPI will accept. `twine upload` now
+> runs with `--verbose` so a future rejection reports its reason.
 
 The package major changes because the **dependency floor** does:
 `mcp>=1.28,<2` becomes `mcp>=2.0,<3`. Package major now tracks SDK major —
@@ -131,7 +139,7 @@ skips cleanly on SDK 1.x so the same suite runs on the maintenance branch.
 
 ## Upgrading
 
-`pip install --upgrade sap-datasphere-mcp` gets you 2.0.0. **No client changes
+`pip install --upgrade sap-datasphere-mcp` gets you 2.0.1. **No client changes
 are needed**: the v2 server answers the legacy `initialize` handshake as well
 as `server/discover`, so 2025-era clients keep working.
 
