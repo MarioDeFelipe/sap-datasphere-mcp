@@ -87,6 +87,14 @@ countability read fails **open**: a wrong `$count` costs one failed request,
 whereas suppressing it silently returns a page count where a total was asked
 for.
 
+The lineage verdict is **consulted, then cleared**. Recording without reading
+delivers nothing; reading without clearing means one wrong inference blocks
+valid filters for the cache lifetime. Clearing on read caps the cost of a bad
+inference at a single deflected call, after which the next attempt goes to the
+wire normally. Recording also requires the error to actually implicate a filter
+or query option -- a bare 400 is not evidence enough for a claim we then
+remember.
+
 Deliberately minimal — two consumers, no speculative fields, no tenant-wide
 pre-warming.
 
@@ -140,7 +148,13 @@ pip install 'sap-datasphere-mcp<2'
   therefore broken under SDK 2.x. It is not in `py-modules`, is not shipped in
   the wheel, and nothing imports it — left in place rather than silently
   deleted or repaired.
-* Live-tenant smoke was not re-run against 2.0.0 with rotated credentials.
+* Live-tenant smoke **was** run against 2.0.0 on `example-tenant` with the rotated
+  credential: relational and analytical reads, and both capability consumers.
+  The countability annotation read returned `False` from the live analytical
+  `$metadata` and `None` (countable) from the relational one, confirming the
+  asymmetry is per-asset rather than per-path. The lineage read-side path is
+  exercised by unit tests but has **not** met a genuinely federated asset --
+  none exists on this tenant.
 * `NON_FILTERABLE_TYPES` redesign and the `Edm.DateTimeOffset`/`Boolean`/`Guid`
   literal probes remain 1.x hardening, not port scope.
 * Tasks extension (SEP-2663) is not in SDK 2.0.0 and was not built against.
