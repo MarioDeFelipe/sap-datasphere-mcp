@@ -116,15 +116,16 @@ and the `--stateful` escape hatch from 1.5.2 both survive.
 
 ## Tests
 
-`tests/test_sdk_v2_protocol.py` — 24 new cases covering both eras: tool
+`tests/test_sdk_v2_protocol.py` — 29 new cases covering both eras: tool
 surface, deterministic ordering, cache hints present on modern and withheld on
 legacy, `is_error` fidelity, end-to-end traversal rejection, the three tool
 profiles (**lean-39 is the shipped default**), server version identity, absence
-of deprecation warnings from our own code, and the capability layer. The module
+of deprecation warnings from our own code, dual-era over HTTP (not only
+in-process), and the capability layer. The module
 skips cleanly on SDK 1.x so the same suite runs on the maintenance branch.
 
-* **SDK v2:** 166 passed (142 forward-ported + 24 new)
-* **SDK 1.x branch:** 142 passed, 24 skipped — unchanged from 1.7.0
+* **SDK v2:** 171 passed (142 forward-ported + 29 new)
+* **SDK 1.x branch:** 142 passed, 29 skipped — unchanged from 1.7.0
 
 ---
 
