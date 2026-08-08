@@ -373,6 +373,18 @@ def validate_parameter_value(name: str, value: str) -> str:
 
     Carries the same quoting restriction as ``$filter``: the API documents that
     text values containing single or double quotes are not supported.
+
+    .. note::
+       **Not currently called by any handler, deliberately.** No tool builds the
+       ``(<param>='<value>')/Set`` URL form -- ``get_asset_variables`` only
+       *reads* variable declarations out of ``$metadata``, it never supplies
+       values. This function is kept, and tested, so the restriction is already
+       enforced on the day parameterised-asset execution is implemented; wire it
+       in wherever that URL form is first constructed.
+
+       It was written for 1.6.0 against a path that turned out not to exist, and
+       a passing test suite made it look wired. Recorded here rather than
+       deleted so the next person meets the reasoning instead of the surprise.
     """
     if value is None:
         return value
