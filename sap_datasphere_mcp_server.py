@@ -52,6 +52,7 @@ from tool_descriptions import ToolDescriptions
 
 # Error helpers for better UX
 from error_helpers import ErrorHelpers
+import asset_capability
 from odata_v4_annotations import make_semantics_extractor
 from odata_filter import (
     FilterValidationError,
@@ -1221,6 +1222,33 @@ def _seg(value) -> str:
     return quote(str(value), safe='')
 
 
+async def _asset_is_countable(space_id: str, asset_id: str, kind: str) -> bool:
+    """Whether ``$count`` may be sent for this asset.
+
+    Declarative capability: the answer is in the asset's own ``$metadata`` as
+    ``Capabilities.CountRestrictions/Countable``. Replaces the 1.6.0 rule of
+    "never on analytical", which was correct in practice but coarse -- it is a
+    property of the asset, not of the path.
+
+    Cached per asset. Fails **open** on a metadata error: a wrong ``$count``
+    costs one failed request, whereas suppressing it silently returns a
+    page-count where the caller asked for a total.
+    """
+    cap = asset_capability.get(cache_manager, space_id, asset_id)
+    if cap.countable is not None:
+        return cap.countable
+
+    xml_content = await _fetch_metadata_xml(space_id, asset_id, kind)
+    if xml_content is None:
+        return True
+
+    countable = asset_capability.countability_from_metadata(xml_content)
+    if countable is None:
+        countable = True  # no CountRestrictions annotation ⇒ countable
+    asset_capability.record_countable(cache_manager, space_id, asset_id, countable)
+    return countable
+
+
 def _looks_like_capability_rejection(exc: Exception) -> bool:
     """True if an exception looks like the API refusing an unsupported query option.
 
@@ -1236,18 +1264,15 @@ def _looks_like_capability_rejection(exc: Exception) -> bool:
     )
 
 
-async def _fetch_filterable_schema(space_id: str, asset_id: str, kind: str = "relational"):
-    """Return ``(field_names, field_types)`` from an asset's ``$metadata``.
+async def _fetch_metadata_xml(space_id: str, asset_id: str, kind: str = "relational"):
+    """Fetch an asset's raw ``$metadata`` XML, or ``None`` if unavailable.
 
-    Used to validate ``$filter`` field names and reject types the Consumption
-    API cannot filter on. Fails soft: if metadata is unavailable for any reason
-    this returns ``(None, None)`` and filter validation falls back to checking
-    grammar only, rather than blocking a query that might well have worked.
+    Shared by the filter-schema lookup and the capability layer so a single
+    request shape serves both, and neither can drift from the other.
     """
     if datasphere_connector is None:
-        return None, None
+        return None
     try:
-        import xml.etree.ElementTree as _ET
         import aiohttp as _aiohttp
 
         endpoint = f"/api/v1/datasphere/consumption/{_seg(kind)}/{_seg(space_id)}/{_seg(asset_id)}/$metadata"
@@ -1258,8 +1283,26 @@ async def _fetch_filterable_schema(space_id: str, asset_id: str, kind: str = "re
             url, headers=headers, timeout=_aiohttp.ClientTimeout(total=15)
         ) as response:
             if response.status != 200:
-                return None, None
-            xml_content = await response.text()
+                return None
+            return await response.text()
+    except Exception as exc:
+        logger.debug(f"$metadata fetch failed for {space_id}/{asset_id}: {exc}")
+        return None
+
+
+async def _fetch_filterable_schema(space_id: str, asset_id: str, kind: str = "relational"):
+    """Return ``(field_names, field_types)`` from an asset's ``$metadata``.
+
+    Used to validate ``$filter`` field names and reject types the Consumption
+    API cannot filter on. Fails soft: if metadata is unavailable for any reason
+    this returns ``(None, None)`` and filter validation falls back to checking
+    grammar only, rather than blocking a query that might well have worked.
+    """
+    xml_content = await _fetch_metadata_xml(space_id, asset_id, kind)
+    if xml_content is None:
+        return None, None
+    try:
+        import xml.etree.ElementTree as _ET
 
         root = _ET.fromstring(xml_content)
         ns = {
@@ -5997,6 +6040,13 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 (filter_expr and uses_beyond_federated_subset(filter_expr))
                 or skip
             ):
+                # Empirical capability: lineage gating is invisible in
+                # $metadata and only shows up as this failure. Remember it so
+                # the next call for this asset is not another round trip.
+                asset_capability.record_filter_profile(
+                    cache_manager, space_id, asset_id,
+                    asset_capability.FILTER_LINEAGE_LIMITED,
+                )
                 return [types.TextContent(
                     type="text",
                     text=federated_filter_error(
@@ -6501,9 +6551,14 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     params["$top"] = top
                 if skip:
                     params["$skip"] = skip
-                # $count is not supported for analytical requests at all -- this
-                # is independent of lineage. Emitting it fails the whole query,
-                # so honour the argument by counting the returned rows instead.
+                # $count: ask the asset rather than assuming. Analytical
+                # entities generally declare Countable:false, but that is a
+                # property of the asset, not of the analytical path, so it is
+                # read from $metadata and remembered per asset.
+                if count:
+                    countable = await _asset_is_countable(space_id, asset_id, "analytical")
+                    if countable:
+                        params["$count"] = "true"
                 if apply_param:
                     params["$apply"] = apply_param
 
@@ -6518,11 +6573,11 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     if _masked:
                         data["masked_fields"] = _masked
 
-                if count and isinstance(data.get("value"), list):
+                if count and "$count" not in params and isinstance(data.get("value"), list):
                     data["returned_row_count"] = len(data["value"])
                     data["count_note"] = (
-                        "$count is not supported for analytical requests; this "
-                        "counts the rows returned by this page only."
+                        "This asset declares Countable:false, so $count was not "
+                        "sent; the figure counts this page's rows only."
                     )
 
                 query_info = f"\nQuery Parameters:\n"
@@ -6541,6 +6596,10 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     (filter_param and uses_beyond_federated_subset(filter_param))
                     or skip
                 ):
+                    asset_capability.record_filter_profile(
+                        cache_manager, space_id, asset_id,
+                        asset_capability.FILTER_LINEAGE_LIMITED,
+                    )
                     return [types.TextContent(
                         type="text",
                         text=federated_filter_error(
