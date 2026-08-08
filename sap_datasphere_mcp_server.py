@@ -1249,6 +1249,22 @@ async def _asset_is_countable(space_id: str, asset_id: str, kind: str) -> bool:
     return countable
 
 
+def _looks_like_filter_capability_rejection(exc: Exception) -> bool:
+    """Stricter than :func:`_looks_like_capability_rejection`, for *recording*.
+
+    Deciding an asset is lineage-limited is a claim we then remember, so a bare
+    400 is not enough evidence -- an unrelated bad request would mislabel the
+    asset for the life of the cache entry. Require the message to actually
+    implicate a filter or query option.
+    """
+    text = str(exc).lower()
+    return any(
+        phrase in text
+        for phrase in ("filter", "$top", "$skip", "query option",
+                       "not supported", "unsupported", "not implemented")
+    )
+
+
 def _looks_like_capability_rejection(exc: Exception) -> bool:
     """True if an exception looks like the API refusing an unsupported query option.
 
@@ -5963,6 +5979,17 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 text="Error: OAuth connector not initialized. Cannot query relational entity."
             )]
 
+        # If this asset already told us it is lineage-limited, a filter beyond
+        # eq/and/or/() will fail again. Deflect it once with the actionable
+        # message rather than paying the round trip. consume_* clears the
+        # verdict, so a wrong inference costs one call, not a cache lifetime.
+        if filter_expr and uses_beyond_federated_subset(filter_expr):
+            if asset_capability.consume_lineage_verdict(cache_manager, space_id, asset_id):
+                return [types.TextContent(
+                    type="text",
+                    text=federated_filter_error(filter_expr, space_id, asset_id)
+                )]
+
         # Validate the filter before it reaches the wire, so a bad expression
         # becomes an actionable message rather than an opaque 400.
         if filter_expr:
@@ -6043,10 +6070,12 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 # Empirical capability: lineage gating is invisible in
                 # $metadata and only shows up as this failure. Remember it so
                 # the next call for this asset is not another round trip.
-                asset_capability.record_filter_profile(
-                    cache_manager, space_id, asset_id,
-                    asset_capability.FILTER_LINEAGE_LIMITED,
-                )
+                if _looks_like_filter_capability_rejection(e):
+                    if _looks_like_filter_capability_rejection(e):
+                        asset_capability.record_filter_profile(
+                            cache_manager, space_id, asset_id,
+                            asset_capability.FILTER_LINEAGE_LIMITED,
+                        )
                 return [types.TextContent(
                     type="text",
                     text=federated_filter_error(
@@ -6596,10 +6625,11 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                     (filter_param and uses_beyond_federated_subset(filter_param))
                     or skip
                 ):
-                    asset_capability.record_filter_profile(
-                        cache_manager, space_id, asset_id,
-                        asset_capability.FILTER_LINEAGE_LIMITED,
-                    )
+                    if _looks_like_filter_capability_rejection(e):
+                        asset_capability.record_filter_profile(
+                            cache_manager, space_id, asset_id,
+                            asset_capability.FILTER_LINEAGE_LIMITED,
+                        )
                     return [types.TextContent(
                         type="text",
                         text=federated_filter_error(
