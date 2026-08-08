@@ -10,6 +10,29 @@
 
 > **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling — with built-in config-driven PII masking so sensitive fields never reach the LLM.**
 
+## 📦 Which version do I install?
+
+| Package | MCP Python SDK | Status |
+|---|---|---|
+| **2.x** (current) | `mcp>=2.0,<3` | Active development. Implements the 2026-07-28 stateless spec. |
+| **1.x** | `mcp>=1.28,<2` | Maintenance only — security and critical fixes. |
+
+`pip install sap-datasphere-mcp` gives you 2.x. **The 2.x server is dual-era**: it answers both the modern `server/discover` handshake and the legacy `initialize` one, so 2025-era clients keep working without changes.
+
+Stay on 1.x only if your environment cannot install SDK 2.x:
+
+```bash
+pip install 'sap-datasphere-mcp<2'
+```
+
+## 🆕 What's New (v2.0.0 — MCP SDK v2 / stateless spec)
+
+- **Ported to MCP Python SDK 2.0.0** and the 2026-07-28 stateless specification. Handlers moved from the removed decorator API to `Server(on_*=…)` constructor kwargs. The dependency floor is now `mcp>=2.0,<3` — this is why the package major changed.
+- **Dual-era by default** — modern and legacy clients are both served from the same process; no configuration needed.
+- **Response cache hints** (`ttlMs` / `cacheScope`, SEP-2549) on `tools/list`, `prompts/list` and `resources/list`, sourced from `CacheManager` so the protocol hint and the internal cache cannot drift. Hints are sent to modern clients only, as the spec requires. `tools/list` is deterministically ordered.
+- **Per-asset capability discovery** — Datasphere capability varies per *asset*, not per tenant. `$count` is now decided by reading the asset's own `Capabilities.CountRestrictions` annotation rather than a blanket rule, and a lineage-gated filter verdict is remembered per asset instead of being rediscovered on every call.
+- **Every 1.7.0 protection forward-ported**, verified by the same test suite running green on both SDK lines. See [`CHANGELOG_v2.0.0.md`](CHANGELOG_v2.0.0.md).
+
 ## 🆕 What's New (v1.7.0 — input validation hardening)
 
 - **Every tool with inputs now has validation rules** — 12 tools shipped without any, including `query_relational_entity` and `smart_query`. Coverage is 45/45 tools, 145/150 inputs.
