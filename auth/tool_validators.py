@@ -4,8 +4,13 @@ Tool-specific validation rules for SAP Datasphere MCP Server
 Defines validation rules for each MCP tool to ensure safe parameter handling.
 """
 
-from typing import Dict, List
+from typing import Callable, Dict, List
 from auth.input_validator import ValidationRule, ValidationType
+
+#: Identifiers that are interpolated into URL *path* segments rather than sent
+#: as query values. A path segment containing "/", "?" or ".." changes what the
+#: request addresses, so these are constrained to a conservative character set.
+PATH_SEGMENT_PATTERN = r'^[A-Za-z0-9_\-]+$'
 
 
 class ToolValidators:
@@ -22,43 +27,69 @@ class ToolValidators:
         Returns:
             List of validation rules for the tool
         """
-        validators = {
-            "list_spaces": ToolValidators._list_spaces_rules(),
-            "get_space_info": ToolValidators._get_space_info_rules(),
-            "search_tables": ToolValidators._search_tables_rules(),
-            "get_table_schema": ToolValidators._get_table_schema_rules(),
-            "list_connections": ToolValidators._list_connections_rules(),
-            "get_task_status": ToolValidators._get_task_status_rules(),
-            "browse_marketplace": ToolValidators._browse_marketplace_rules(),
-            "find_assets_by_column": ToolValidators._find_assets_by_column_rules(),
-            "analyze_column_distribution": ToolValidators._analyze_column_distribution_rules(),
-            "execute_query": ToolValidators._execute_query_rules(),
-            "list_database_users": ToolValidators._list_database_users_rules(),
-            "create_database_user": ToolValidators._create_database_user_rules(),
-            "reset_database_user_password": ToolValidators._reset_database_user_password_rules(),
-            "update_database_user": ToolValidators._update_database_user_rules(),
-            "delete_database_user": ToolValidators._delete_database_user_rules(),
-            "list_catalog_assets": ToolValidators._list_catalog_assets_rules(),
-            "get_asset_details": ToolValidators._get_asset_details_rules(),
-            "get_asset_by_compound_key": ToolValidators._get_asset_by_compound_key_rules(),
-            "get_space_assets": ToolValidators._get_space_assets_rules(),
-            "search_catalog": ToolValidators._search_catalog_rules(),
-            "search_repository": ToolValidators._search_repository_rules(),
-            "get_catalog_metadata": ToolValidators._get_catalog_metadata_rules(),
-            "get_consumption_metadata": ToolValidators._get_consumption_metadata_rules(),
-            "get_analytical_metadata": ToolValidators._get_analytical_metadata_rules(),
-            "get_relational_metadata": ToolValidators._get_relational_metadata_rules(),
-            "get_repository_search_metadata": ToolValidators._get_repository_search_metadata_rules(),
-            "list_analytical_datasets": ToolValidators._list_analytical_datasets_rules(),
-            "get_analytical_model": ToolValidators._get_analytical_model_rules(),
-            "query_analytical_data": ToolValidators._query_analytical_data_rules(),
-            "get_analytical_service_document": ToolValidators._get_analytical_service_document_rules(),
-            "list_repository_objects": ToolValidators._list_repository_objects_rules(),
-            "get_object_definition": ToolValidators._get_object_definition_rules(),
-            "get_deployed_objects": ToolValidators._get_deployed_objects_rules(),
-        }
+        builder = ToolValidators._rule_builders().get(tool_name)
+        return builder() if builder else []
 
-        return validators.get(tool_name, [])
+    @staticmethod
+    def _rule_builders() -> Dict[str, Callable[[], List[ValidationRule]]]:
+        """Single registry of tool name -> rule builder.
+
+        ``get_validator_rules``, ``get_all_tool_names`` and ``has_validator``
+        all derive from this one mapping. They used to be maintained
+        separately, and drifted: ``analyze_column_distribution`` and
+        ``find_assets_by_column`` had rules that were never executed because
+        ``has_validator`` consulted a hand-written list that omitted them.
+
+        Builders are stored uncalled so membership checks stay cheap.
+        """
+        return {
+            "list_spaces": ToolValidators._list_spaces_rules,
+            "get_space_info": ToolValidators._get_space_info_rules,
+            "search_tables": ToolValidators._search_tables_rules,
+            "get_table_schema": ToolValidators._get_table_schema_rules,
+            "list_connections": ToolValidators._list_connections_rules,
+            "get_task_status": ToolValidators._get_task_status_rules,
+            "browse_marketplace": ToolValidators._browse_marketplace_rules,
+            "find_assets_by_column": ToolValidators._find_assets_by_column_rules,
+            "analyze_column_distribution": ToolValidators._analyze_column_distribution_rules,
+            "execute_query": ToolValidators._execute_query_rules,
+            "list_database_users": ToolValidators._list_database_users_rules,
+            "create_database_user": ToolValidators._create_database_user_rules,
+            "reset_database_user_password": ToolValidators._reset_database_user_password_rules,
+            "update_database_user": ToolValidators._update_database_user_rules,
+            "delete_database_user": ToolValidators._delete_database_user_rules,
+            "list_catalog_assets": ToolValidators._list_catalog_assets_rules,
+            "get_asset_details": ToolValidators._get_asset_details_rules,
+            "get_asset_by_compound_key": ToolValidators._get_asset_by_compound_key_rules,
+            "get_space_assets": ToolValidators._get_space_assets_rules,
+            "search_catalog": ToolValidators._search_catalog_rules,
+            "search_repository": ToolValidators._search_repository_rules,
+            "get_catalog_metadata": ToolValidators._get_catalog_metadata_rules,
+            "get_consumption_metadata": ToolValidators._get_consumption_metadata_rules,
+            "get_analytical_metadata": ToolValidators._get_analytical_metadata_rules,
+            "get_relational_metadata": ToolValidators._get_relational_metadata_rules,
+            "get_repository_search_metadata": ToolValidators._get_repository_search_metadata_rules,
+            "list_analytical_datasets": ToolValidators._list_analytical_datasets_rules,
+            "get_analytical_model": ToolValidators._get_analytical_model_rules,
+            "query_analytical_data": ToolValidators._query_analytical_data_rules,
+            "get_analytical_service_document": ToolValidators._get_analytical_service_document_rules,
+            "list_repository_objects": ToolValidators._list_repository_objects_rules,
+            "get_object_definition": ToolValidators._get_object_definition_rules,
+            "get_deployed_objects": ToolValidators._get_deployed_objects_rules,
+            # ── v1.7.0: tools that previously had no rules at all ──────────
+            "smart_query": ToolValidators._smart_query_rules,
+            "get_asset_variables": ToolValidators._get_asset_variables_rules,
+            "list_relational_entities": ToolValidators._list_relational_entities_rules,
+            "get_relational_entity_metadata": ToolValidators._get_relational_entity_metadata_rules,
+            "query_relational_entity": ToolValidators._query_relational_entity_rules,
+            "get_relational_odata_service": ToolValidators._get_relational_odata_service_rules,
+            "run_task_chain": ToolValidators._run_task_chain_rules,
+            "get_task_log": ToolValidators._get_task_log_rules,
+            "get_task_history": ToolValidators._get_task_history_rules,
+            "test_analytical_endpoints": ToolValidators._test_analytical_endpoints_rules,
+            "test_phase67_endpoints": ToolValidators._test_phase67_endpoints_rules,
+            "test_phase8_endpoints": ToolValidators._test_phase8_endpoints_rules,
+        }
 
     @staticmethod
     def _list_spaces_rules() -> List[ValidationRule]:
@@ -183,6 +214,7 @@ class ToolValidators:
             ValidationRule(
                 param_name="column_name",
                 validation_type=ValidationType.STRING,
+                pattern=PATH_SEGMENT_PATTERN,
                 required=True,
                 min_length=1,
                 max_length=100
@@ -220,6 +252,7 @@ class ToolValidators:
             ValidationRule(
                 param_name="asset_name",
                 validation_type=ValidationType.STRING,
+                pattern=PATH_SEGMENT_PATTERN,
                 required=True,
                 min_length=1,
                 max_length=100
@@ -227,6 +260,7 @@ class ToolValidators:
             ValidationRule(
                 param_name="column_name",
                 validation_type=ValidationType.STRING,
+                pattern=PATH_SEGMENT_PATTERN,
                 required=True,
                 min_length=1,
                 max_length=100
@@ -948,43 +982,182 @@ class ToolValidators:
             )
         ]
 
+    # ── v1.7.0 ───────────────────────────────────────────────────────────────
+    # These twelve tools shipped with no validation rules at all. Their
+    # space_id / asset_id / entity_name / object_id values are interpolated
+    # straight into URL paths, so an unconstrained value changes what the
+    # request addresses rather than merely what it asks for.
+    #
+    # The patterns here are the ones already in use elsewhere in this file --
+    # nothing new is invented, the existing mechanism is simply extended.
+
     @staticmethod
-    def get_all_tool_names() -> List[str]:
-        """Get list of all tools with validators"""
+    def _space_and_asset_rules(asset_param: str = "asset_id") -> List[ValidationRule]:
+        """The common pair: a space id and an asset-like path identifier."""
         return [
-            "list_spaces",
-            "get_space_info",
-            "search_tables",
-            "get_table_schema",
-            "list_connections",
-            "get_task_status",
-            "browse_marketplace",
-            "execute_query",
-            "list_database_users",
-            "create_database_user",
-            "reset_database_user_password",
-            "update_database_user",
-            "delete_database_user",
-            "list_catalog_assets",
-            "get_asset_details",
-            "get_asset_by_compound_key",
-            "get_space_assets",
-            "search_catalog",
-            "search_repository",
-            "get_catalog_metadata",
-            "get_consumption_metadata",
-            "get_analytical_metadata",
-            "get_relational_metadata",
-            "get_repository_search_metadata",
-            "list_analytical_datasets",
-            "get_analytical_model",
-            "query_analytical_data",
-            "get_analytical_service_document",
-            "list_repository_objects",
-            "get_object_definition",
-            "get_deployed_objects"
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64,
+            ),
+            ValidationRule(
+                param_name=asset_param,
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=PATH_SEGMENT_PATTERN,
+            ),
         ]
 
+    @staticmethod
+    def _smart_query_rules() -> List[ValidationRule]:
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64,
+            ),
+            # Natural-language or SQL text. It does not reach a path segment;
+            # the SQL path is separately sanitised by SQLSanitizer.
+            ValidationRule(
+                param_name="query",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=4000,
+            ),
+            ValidationRule(
+                param_name="mode",
+                validation_type=ValidationType.STRING,
+                required=False,
+                allowed_values=["auto", "relational", "analytical", "sql"],
+            ),
+            ValidationRule(param_name="limit", validation_type=ValidationType.INTEGER, required=False),
+            ValidationRule(param_name="include_metadata", validation_type=ValidationType.BOOLEAN, required=False),
+            ValidationRule(param_name="fallback", validation_type=ValidationType.BOOLEAN, required=False),
+        ]
+
+    @staticmethod
+    def _get_asset_variables_rules() -> List[ValidationRule]:
+        return ToolValidators._space_and_asset_rules()
+
+    @staticmethod
+    def _list_relational_entities_rules() -> List[ValidationRule]:
+        return ToolValidators._space_and_asset_rules() + [
+            ValidationRule(param_name="top", validation_type=ValidationType.INTEGER, required=False),
+        ]
+
+    @staticmethod
+    def _get_relational_entity_metadata_rules() -> List[ValidationRule]:
+        return ToolValidators._space_and_asset_rules() + [
+            ValidationRule(param_name="include_sql_types", validation_type=ValidationType.BOOLEAN, required=False),
+        ]
+
+    @staticmethod
+    def _get_relational_odata_service_rules() -> List[ValidationRule]:
+        return ToolValidators._space_and_asset_rules() + [
+            ValidationRule(param_name="include_capabilities", validation_type=ValidationType.BOOLEAN, required=False),
+        ]
+
+    @staticmethod
+    def _query_relational_entity_rules() -> List[ValidationRule]:
+        # entity_name is a third path segment, so it is constrained like the
+        # others. filter/select/orderby are query values -- the client URL
+        # encodes them, so they cannot alter request structure; filter is
+        # additionally parsed by odata_filter inside the handler.
+        return ToolValidators._space_and_asset_rules() + [
+            ValidationRule(
+                param_name="entity_name",
+                validation_type=ValidationType.STRING,
+                required=True,
+                min_length=1,
+                max_length=128,
+                pattern=PATH_SEGMENT_PATTERN,
+            ),
+            ValidationRule(param_name="filter", validation_type=ValidationType.STRING,
+                           required=False, min_length=1, max_length=2000),
+            ValidationRule(param_name="select", validation_type=ValidationType.STRING,
+                           required=False, min_length=1, max_length=2000),
+            ValidationRule(param_name="orderby", validation_type=ValidationType.STRING,
+                           required=False, min_length=1, max_length=1000),
+            ValidationRule(param_name="top", validation_type=ValidationType.INTEGER, required=False),
+            ValidationRule(param_name="skip", validation_type=ValidationType.INTEGER, required=False),
+        ]
+
+    @staticmethod
+    def _run_task_chain_rules() -> List[ValidationRule]:
+        return ToolValidators._space_and_asset_rules(asset_param="object_id")
+
+    @staticmethod
+    def _get_task_history_rules() -> List[ValidationRule]:
+        return ToolValidators._space_and_asset_rules(asset_param="object_id")
+
+    @staticmethod
+    def _get_task_log_rules() -> List[ValidationRule]:
+        return [
+            ValidationRule(
+                param_name="space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=True,
+                min_length=2,
+                max_length=64,
+            ),
+            ValidationRule(param_name="log_id", validation_type=ValidationType.INTEGER, required=True),
+            ValidationRule(
+                param_name="detail_level",
+                validation_type=ValidationType.STRING,
+                required=False,
+                allowed_values=["status", "status_only", "detailed", "extended"],
+            ),
+        ]
+
+    @staticmethod
+    def _test_analytical_endpoints_rules() -> List[ValidationRule]:
+        return [
+            ValidationRule(param_name="detailed", validation_type=ValidationType.BOOLEAN, required=False),
+            ValidationRule(
+                param_name="test_space_id",
+                validation_type=ValidationType.SPACE_ID,
+                required=False,
+                min_length=2,
+                max_length=64,
+            ),
+        ]
+
+    @staticmethod
+    def _test_phase67_endpoints_rules() -> List[ValidationRule]:
+        return [
+            ValidationRule(param_name="detailed", validation_type=ValidationType.BOOLEAN, required=False),
+        ]
+
+    @staticmethod
+    def _test_phase8_endpoints_rules() -> List[ValidationRule]:
+        return [
+            ValidationRule(param_name="detailed", validation_type=ValidationType.BOOLEAN, required=False),
+            ValidationRule(
+                param_name="test_product_id",
+                validation_type=ValidationType.STRING,
+                required=False,
+                min_length=1,
+                max_length=128,
+                pattern=PATH_SEGMENT_PATTERN,
+            ),
+        ]
+
+    @staticmethod
+    def get_all_tool_names() -> List[str]:
+        """All tools that have validators.
+
+        Derived from ``_rule_builders`` so it can never drift from the rules
+        that actually exist -- the drift it used to have silently disabled
+        validation for two tools.
+        """
+        return list(ToolValidators._rule_builders().keys())
     @staticmethod
     def has_validator(tool_name: str) -> bool:
         """Check if tool has validator rules defined"""

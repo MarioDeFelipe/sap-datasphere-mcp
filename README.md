@@ -10,6 +10,13 @@
 
 > **Production-ready Model Context Protocol (MCP) server that enables AI assistants to seamlessly interact with SAP Datasphere environments for real tenant data discovery, metadata exploration, analytics operations, ETL data extraction, database user management, data lineage analysis, and column-level data profiling — with built-in config-driven PII masking so sensitive fields never reach the LLM.**
 
+## 🆕 What's New (v1.7.0 — input validation hardening)
+
+- **Every tool with inputs now has validation rules** — 12 tools shipped without any, including `query_relational_entity` and `smart_query`. Coverage is 45/45 tools, 145/150 inputs.
+- **Path identifiers are constrained and percent-encoded.** `space_id` / `asset_id` / `entity_name` / `object_id` are interpolated into URL paths; they now reject traversal-shaped values *and* pass through `quote()` as a backstop.
+- **Two silent-no-op bugs fixed** — the validator registry had drifted so two tools' rules never ran, and `allowed_values` was ignored on `STRING` rules (which also left `get_catalog_metadata.endpoint_type` unenforced).
+- A CI guard now fails if a tool ships without validation rules. See [`CHANGELOG_v1.7.0.md`](CHANGELOG_v1.7.0.md).
+
 ## 🆕 What's New (v1.6.0 — partial text matching in `$filter`)
 
 - **`startswith` / `endswith` / `contains`** are now supported in `$filter` on the Consumption API, so an agent can match on partial values instead of first listing distinct ones. Example: `startswith(Product,'TV') and Country eq 'US'`.
