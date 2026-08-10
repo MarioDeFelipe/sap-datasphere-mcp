@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Aggregation.V1.xml">
+    <edmx:Include Alias="Aggregation" Namespace="Org.OData.Aggregation.V1"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Capabilities.V1.xml">
+    <edmx:Include Alias="Capabilities" Namespace="Org.OData.Capabilities.V1"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/Common.xml">
+    <edmx:Include Alias="Common" Namespace="com.sap.vocabularies.Common.v1"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Core.V1.xml">
+    <edmx:Include Alias="Core" Namespace="Org.OData.Core.V1"/>
+  </edmx:Reference>
+  <edmx:DataServices>
+    <Schema Namespace="StandaloneService" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityContainer Name="EntityContainer">
+        <EntitySet Name="ORDER_LINES" EntityType="StandaloneService.ORDER_LINES"/>
+      </EntityContainer>
+      <EntityType Name="ORDER_LINES">
+        <Key>
+          <PropertyRef Name="ORDER_ID"/>
+          <PropertyRef Name="LINE_NO"/>
+        </Key>
+        <Property Name="ORDER_ID" Type="Edm.String" MaxLength="10" Nullable="false"/>
+        <Property Name="LINE_NO" Type="Edm.String" MaxLength="5" Nullable="false"/>
+        <Property Name="CREATED_DATE" Type="Edm.String" MaxLength="8"/>
+        <Property Name="ORDER_TYPE" Type="Edm.String" MaxLength="4"/>
+        <Property Name="PRODUCT_CODE" Type="Edm.String" MaxLength="40"/>
+        <Property Name="PRODUCT_GROUP" Type="Edm.String" MaxLength="18"/>
+        <Property Name="NET_AMOUNT" Type="Edm.Decimal" Precision="17" Scale="2"/>
+        <Property Name="SITE" Type="Edm.String" MaxLength="4"/>
+        <Property Name="ORDER_QTY" Type="Edm.Decimal" Precision="17" Scale="3"/>
+        <Property Name="OPEN_QTY" Type="Edm.Decimal" Precision="17" Scale="3"/>
+        <Property Name="CHANGED_DATE" Type="Edm.String" MaxLength="8"/>
+        <Property Name="LEAD_TIME_DAYS" Type="Edm.Decimal" Precision="3" Scale="0"/>
+        <Property Name="EXPECTED_DATE" Type="Edm.String" MaxLength="8"/>
+        <Property Name="PRICE_REF" Type="Edm.String" MaxLength="10"/>
+        <Property Name="LINE_DATE" Type="Edm.String" MaxLength="8"/>
+        <Property Name="RECEIVED_QTY" Type="Edm.Decimal" Precision="17" Scale="3"/>
+        <Property Name="SUPPLIER" Type="Edm.String" MaxLength="10"/>
+        <Property Name="REF_PRICE" Type="Edm.Decimal" Precision="17" Scale="2"/>
+      </EntityType>
+      <Annotations Target="StandaloneService.ORDER_LINES">
+        <Annotation Term="Common.Label" String="ORDER_LINES"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.EntityContainer/ORDER_LINES">
+        <Annotation Term="Capabilities.DeleteRestrictions">
+          <Record Type="Capabilities.DeleteRestrictionsType">
+            <PropertyValue Property="Deletable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.InsertRestrictions">
+          <Record Type="Capabilities.InsertRestrictionsType">
+            <PropertyValue Property="Insertable" Bool="false"/>
+          </Record>
+        </Annotation>
+        <Annotation Term="Capabilities.UpdateRestrictions">
+          <Record Type="Capabilities.UpdateRestrictionsType">
+            <PropertyValue Property="Updatable" Bool="false"/>
+          </Record>
+        </Annotation>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/ORDER_ID">
+        <Annotation Term="Common.Label" String="Order Identifier"/>
+        <Annotation Term="Common.FieldControl" EnumMember="Common.FieldControlType/Mandatory"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/LINE_NO">
+        <Annotation Term="Common.Label" String="Order Line Number"/>
+        <Annotation Term="Common.FieldControl" EnumMember="Common.FieldControlType/Mandatory"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/PRODUCT_CODE">
+        <Annotation Term="Common.Label" String="Product Code"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/PRODUCT_GROUP">
+        <Annotation Term="Common.Label" String="Product Group"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/NET_AMOUNT">
+        <Annotation Term="Common.Label" String="Net Amount (Document Currency)"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/SITE">
+        <Annotation Term="Common.Label" String="Site"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/ORDER_QTY">
+        <Annotation Term="Common.Label" String="Order Quantity"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/OPEN_QTY">
+        <Annotation Term="Common.Label" String="OPEN_QTY"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/CHANGED_DATE">
+        <Annotation Term="Common.Label" String="Line Changed Date"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/LEAD_TIME_DAYS">
+        <Annotation Term="Common.Label" String="Lead Time in Days"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/EXPECTED_DATE">
+        <Annotation Term="Common.Label" String="EXPECTED_DATE"/>
+      </Annotations>
+      <Annotations Target="StandaloneService.ORDER_LINES/PRICE_REF">
+        <Annotation Term="Common.Label" String="Price Reference"/>
+      </Annotations>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

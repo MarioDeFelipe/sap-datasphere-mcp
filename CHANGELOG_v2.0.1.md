@@ -157,7 +157,7 @@ pip install 'sap-datasphere-mcp<2'
   therefore broken under SDK 2.x. It is not in `py-modules`, is not shipped in
   the wheel, and nothing imports it — left in place rather than silently
   deleted or repaired.
-* Live-tenant smoke **was** run against 2.0.0 on `example-tenant` with the rotated
+* Live-tenant smoke **was** run against 2.0.0 on `the test tenant` with the rotated
   credential: relational and analytical reads, and both capability consumers.
   The countability annotation read returned `False` from the live analytical
   `$metadata` and `None` (countable) from the relational one, confirming the

@@ -22,7 +22,7 @@ by this API, and is now rejected with a message pointing at `contains`.
 
 ## Tenant probe results
 
-Run against `example-tenant` (US20) on 2026-08-07. Two things the SAP
+Run against `the test tenant` (US20) on 2026-08-07. Two things the SAP
 documentation does not state:
 
 ### Filtering is case-sensitive

@@ -71,7 +71,7 @@ request's structure.
 
 Verified as a no-op for real identifiers (`DEMO_SALES`, `ORDER_LINES`,
 `DEMO_Open_Lines`, `DEMO_PRODUCTS` are unchanged) and confirmed live against the
-test tenant tenant: the quoted path returns rows normally.
+test tenant: the quoted path returns rows normally.
 
 ### 5. `validate_parameter_value` is documented as deliberately unwired
 

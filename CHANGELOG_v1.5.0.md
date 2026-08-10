@@ -14,7 +14,7 @@ level. The OData V4 envelope was already parsed correctly (so column names,
 types and keys came back fine) but every semantic field was still read as a
 legacy V2 attribute — and therefore always `None`.
 
-Observed on the example-tenant tenant (`DEMO_SALES / ORDER_LINES`) before
+Observed on the test tenant (`DEMO_SALES / ORDER_LINES`) before
 the fix:
 
 - `get_relational_metadata` — all 18 columns returned, every `label` empty.
@@ -74,7 +74,7 @@ continues to parse without change.
 
 `tests/test_odata_v4_annotations.py` — 7 cases covering:
 
-- Real CSDL fixtures captured live from example-tenant
+- Real CSDL fixtures captured live from the test tenant
   (`tests/fixtures/odata_v4_{analytical,relational}_ORDER_LINES.xml`).
 - `ORDER_ID`/`LINE_NO` key preservation and labelling on the relational model.
 - 17 dimensions + the single `NET_AMOUNT` measure on the analytical model.

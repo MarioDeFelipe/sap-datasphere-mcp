@@ -89,7 +89,7 @@ def test_analytical_fixture_dimensions_and_measures_non_empty():
     # The single measure in this fixture is NET_AMOUNT (Analytics.measure Bool=true)
     assert "NET_AMOUNT" in meas
     # A couple of known dimensions
-    for expected in ("ORDER_ID", "PRODUCT_CODE", "PLANT"):
+    for expected in ("ORDER_ID", "PRODUCT_CODE", "SITE"):
         assert expected in dims, f"missing dimension {expected!r}"
 
 
