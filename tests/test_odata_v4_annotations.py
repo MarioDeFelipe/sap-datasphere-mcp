@@ -86,10 +86,10 @@ def test_analytical_fixture_dimensions_and_measures_non_empty():
 
     assert dims, "expected at least one dimension, got none — V4 parser regressed"
     assert meas, "expected at least one measure, got none — V4 parser regressed"
-    # The single measure in this fixture is PO_NET_PRICE (Analytics.measure Bool=true)
-    assert "PO_NET_PRICE" in meas
+    # The single measure in this fixture is NET_AMOUNT (Analytics.measure Bool=true)
+    assert "NET_AMOUNT" in meas
     # A couple of known dimensions
-    for expected in ("ORDER_ID", "PRODUCT_CODE", "PLANT"):
+    for expected in ("ORDER_ID", "PRODUCT_CODE", "SITE"):
         assert expected in dims, f"missing dimension {expected!r}"
 
 
@@ -115,7 +115,7 @@ def test_analytical_fixture_dimension_count_matches_fixture():
         for prop in entity_type.findall("edm:Property", NS)
         if get_sem(prop, entity_type)["is_dimension"]
     ]
-    # The live fixture marks every property except PO_NET_PRICE as a dimension.
+    # The live fixture marks every property except NET_AMOUNT as a dimension.
     assert len(dims) == 17
 
 

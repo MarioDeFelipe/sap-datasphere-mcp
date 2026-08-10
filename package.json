@@ -1,6 +1,6 @@
 {
   "name": "@mariodefe/sap-datasphere-mcp",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "MCP server for SAP Datasphere — 48 tools, Smart Query, Streamable HTTP, and built-in config-driven PII/sensitive-field masking (fail-closed, audit-logged, GDPR-ready).",
   "keywords": [
     "sap",

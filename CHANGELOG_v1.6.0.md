@@ -22,7 +22,7 @@ by this API, and is now rejected with a message pointing at `contains`.
 
 ## Tenant probe results
 
-Run against `example-tenant` (US20) on 2026-08-07. Two things the SAP
+Run against `the test tenant` (US20) on 2026-08-07. Two things the SAP
 documentation does not state:
 
 ### Filtering is case-sensitive
@@ -31,12 +31,12 @@ Confirmed on `DEMO_SALES/ORDER_LINES`, whose stored values are uppercase:
 
 | Filter | Rows |
 |---|---|
-| `contains(PRODUCT_CODE,'KOOL')` | 6 |
-| `contains(PRODUCT_CODE,'kool')` | **0** |
-| `startswith(PLANT,'US')` | 50 |
-| `startswith(PLANT,'us')` | **0** |
-| `PLANT eq 'USPT'` | 50 |
-| `PLANT eq 'uspt'` | **0** |
+| `contains(PRODUCT_CODE,'DEMO')` | 6 |
+| `contains(PRODUCT_CODE,'demo')` | **0** |
+| `startswith(SITE,'US')` | 50 |
+| `startswith(SITE,'us')` | **0** |
+| `SITE eq 'SITE1'` | 50 |
+| `SITE eq 'site1'` | **0** |
 
 This applies to `eq` as well as to the three functions. There is no server-side
 workaround: the supported function list is closed and `tolower()` is not in it.
