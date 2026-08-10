@@ -187,7 +187,7 @@ def test_legitimate_identifiers_still_accepted(validator):
 
 
 def test_real_world_asset_names_accepted(validator):
-    """Names taken from the live test tenant catalog."""
+    """Synthetic names in the shapes Datasphere assets actually use."""
     for asset in ["DEMO_Open_Lines", "DEMO_Report", "DEMO_PRODUCTS", "ORDER_LINES"]:
         ok, errors = validator.validate_params(
             {"space_id": "DEMO_SALES", "asset_id": asset},
