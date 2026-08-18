@@ -800,38 +800,33 @@ class DatasphereConnector(MetadataConnector):
         }
 
 # Factory function for creating connectors
-def create_datasphere_connector(environment: str = "wolf") -> DatasphereConnector:
-    """Create a Datasphere connector for the specified environment"""
-    
-    # Environment configurations
-    configs = {
-        "dog": DatasphereConfig(
-            base_url="https://your-tenant.eu10.hcs.cloud.sap",
-            client_id="sb-<subaccount-uuid>!b<n>|client!b<n>",
-            client_secret="<your-client-secret>",
-            token_url="https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token",
-            environment_name="dog"
-        ),
-        "wolf": DatasphereConfig(
-            base_url="https://ailien-test.eu20.hcs.cloud.sap",
-            client_id="sb-<subaccount-uuid>!b<n>|client!b<n>",
-            client_secret="YOUR_WOLF_SECRET",  # Replace with actual secret
-            token_url="https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token",
-            environment_name="wolf"
-        ),
-        "bear": DatasphereConfig(
-            base_url="https://ailien-test.eu20.hcs.cloud.sap",
-            client_id="sb-<subaccount-uuid>!b<n>|client!b<n>",
-            client_secret="YOUR_BEAR_SECRET",  # Replace with actual secret
-            token_url="https://ailien-test.authentication.eu20.hana.ondemand.com/oauth/token",
-            environment_name="bear"
-        )
+def create_datasphere_connector(environment: str = "default") -> DatasphereConnector:
+    """Create a Datasphere connector from environment variables.
+
+    Credentials are never hardcoded here. Earlier revisions carried real
+    tenant hosts and an OAuth client secret inline, which meant anyone with
+    the repository had them; they are now required from the environment and
+    the function fails loudly when they are absent.
+
+    Set DATASPHERE_BASE_URL, DATASPHERE_CLIENT_ID, DATASPHERE_CLIENT_SECRET
+    and DATASPHERE_TOKEN_URL (see .env.example).
+    """
+    required = {
+        "base_url": os.getenv("DATASPHERE_BASE_URL"),
+        "client_id": os.getenv("DATASPHERE_CLIENT_ID"),
+        "client_secret": os.getenv("DATASPHERE_CLIENT_SECRET"),
+        "token_url": os.getenv("DATASPHERE_TOKEN_URL"),
     }
-    
-    if environment not in configs:
-        raise ValueError(f"Unknown environment: {environment}. Available: {list(configs.keys())}")
-    
-    return DatasphereConnector(configs[environment])
+    missing = sorted(f"DATASPHERE_{k.upper()}" for k, v in required.items() if not v)
+    if missing:
+        raise ValueError(
+            "Missing required environment variable(s): " + ", ".join(missing)
+            + ". Copy .env.example and fill in your own tenant's values."
+        )
+
+    return DatasphereConnector(DatasphereConfig(
+        environment_name=environment, **required
+    ))
 
 # Example usage and testing
 if __name__ == "__main__":

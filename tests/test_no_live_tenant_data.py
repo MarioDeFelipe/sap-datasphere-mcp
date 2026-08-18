@@ -125,3 +125,69 @@ def test_synthetic_fixtures_still_carry_the_shapes_under_test():
         assert needle in analytical, f"analytical fixture lost {needle}"
     for needle in ("Annotations Target=", "Common.Label", "<Key>"):
         assert needle in relational, f"relational fixture lost {needle}"
+
+
+# ── Credential shapes ────────────────────────────────────────────────────────
+#
+# Deliberately pattern-based rather than a denylist of known values. A denylist
+# would have to contain the secrets to match them, which is how a guard becomes
+# the leak (see the base64 encoding above, added for exactly that reason). These
+# patterns also catch credentials nobody has thought to add yet.
+
+_CREDENTIAL_SHAPES = [
+    # BTP OAuth client secret: <uuid>$<base64>
+    (r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\$[A-Za-z0-9_\-]{20,}=",
+     "OAuth client secret"),
+    # BTP service-broker client id: sb-<uuid>!b<n>|client!b<n>
+    (r"sb-[0-9a-f]{8}-[0-9a-f-]{20,}!b[0-9]+\|client!b[0-9]+",
+     "OAuth client id"),
+]
+
+
+def test_no_credential_shaped_strings_in_tracked_files():
+    """No live OAuth credential may be committed, in code or in prose.
+
+    2.0.3 removed two client secrets and two client ids that had been sitting
+    in the repository since 2025-10-25 -- in a connector factory, in a second
+    connector, and across six documentation files. The docs mattered as much
+    as the code: they carried complete, working values.
+    """
+    import re
+    import subprocess
+
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=REPO, capture_output=True, text=True
+    ).stdout.split()
+
+    offenders = []
+    for rel in tracked:
+        path = REPO / rel
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for pattern, label in _CREDENTIAL_SHAPES:
+            for match in re.finditer(pattern, text):
+                line = text[: match.start()].count("\n") + 1
+                offenders.append(f"{rel}:{line} ({label})")
+
+    assert not offenders, (
+        "credential-shaped string(s) committed:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_no_tenant_default_in_server_config():
+    """Live mode must not fall back to any particular tenant.
+
+    DATASPHERE_BASE_URL defaulted to a real tenant host, so any install that
+    forgot to set it addressed that tenant instead of failing.
+    """
+    import re
+    src = (REPO / "sap_datasphere_mcp_server.py").read_text()
+    defaults = re.findall(
+        r"os\.getenv\(\s*['\"]DATASPHERE_(?:BASE_URL|TENANT_ID)['\"]\s*,\s*['\"]([^'\"]+)['\"]",
+        src,
+    )
+    assert not defaults, f"tenant-specific default(s) in config: {defaults}"

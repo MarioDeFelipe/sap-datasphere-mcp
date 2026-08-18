@@ -201,7 +201,7 @@ curl -N -X POST http://127.0.0.1:8080/mcp/ \
 - ✅ Fuzzy table name matching
 - ✅ LIMIT pushdown optimization
 
-**Result:** **45 tools** with production-ready smart query engine supporting all SQL patterns
+**Result:** **39 tools advertised by default** (49 with diagnostics enabled) with a production-ready smart query engine supporting all SQL patterns
 
 **See [CHANGELOG_v1.0.9.md](CHANGELOG_v1.0.9.md) for complete details.**
 
@@ -211,7 +211,7 @@ curl -N -X POST http://127.0.0.1:8080/mcp/ \
 
 **🎉 45 TOOLS AVAILABLE - 44 with real data (98%)** | **Phases 1-5.1 Complete + Smart Query Engine**
 
-- ✅ **98% Real Data Integration** - 44/45 tools accessing actual tenant data
+- ✅ **Real data integration** - all non-diagnostic tools read live tenant data
 - ✅ **OAuth 2.0 Authentication** - Enterprise-grade security with automatic token refresh
 - ✅ **100% Foundation Tools** - All authentication, connection, and user tools working perfectly
 - ✅ **100% Catalog Tools** - Complete asset discovery and metadata exploration
@@ -317,7 +317,7 @@ query_analytical_data(
 
 ---
 
-## 🛠️ Complete Tool Catalog (45 Tools)
+## 🛠️ Complete Tool Catalog (39 advertised by default, 49 with diagnostics)
 
 ### 🏆 Real Data Success Summary
 
@@ -1076,7 +1076,7 @@ touched, so the LLM client can see what was withheld.
 - `telemetry.py` - Request tracking and metrics
 
 **MCP Server:**
-- `sap_datasphere_mcp_server.py` - Main server with 42 tools
+- `sap_datasphere_mcp_server.py` - Main server (39 tools advertised, 49 with diagnostics)
 
 ---
 
@@ -1165,10 +1165,13 @@ npx @modelcontextprotocol/inspector python sap_datasphere_mcp_server.py
 ```
 
 ### Test Results
-- ✅ **42/42 tools registered** - All tools properly defined
-- ✅ **42/42 tools authorized** - Authorization permissions configured
-- ✅ **41/42 tools working** - 98% success rate
-- ✅ **0 code bugs** - All implementation issues fixed
+
+Current suite: run `pytest` for the live number. The counts below are a
+point-in-time record from the v1.0.x era and are kept for history only.
+
+- ✅ **42/42 tools registered** (as of v1.0.9) - All tools properly defined
+- ✅ **42/42 tools authorized** (as of v1.0.9) - Authorization permissions configured
+- ✅ **41/42 tools working** (as of v1.0.9) - 98% success rate
 
 ---
 
@@ -1190,10 +1193,17 @@ sap-datasphere-mcp/
 │   ├── OAUTH_SETUP.md                  # OAuth setup guide
 │   ├── TROUBLESHOOTING_CLAUDE_DESKTOP.md
 │   └── OAUTH_IMPLEMENTATION_STATUS.md
-├── 📄 sap_datasphere_mcp_server.py     # Main MCP server (42 tools)
+├── 📄 sap_datasphere_mcp_server.py     # Main MCP server (39 lean / 49 full)
+├── 📄 odata_v4_annotations.py          # OData V4 CSDL annotation reader (V2 fallback)
+├── 📄 odata_filter.py                  # $filter parsing, validation, capability gating
+├── 📄 asset_capability.py              # Per-asset countability / filter profile
+├── 📄 pii_masking.py                   # Config-driven PII masking (fail-closed)
+├── 📄 error_helpers.py                 # Actionable error construction
+├── 📄 tool_descriptions.py             # Tool text and visibility profiles
 ├── 📄 cache_manager.py                 # Intelligent caching
 ├── 📄 telemetry.py                     # Monitoring and metrics
-├── 📄 mock_data_provider.py            # Mock data for testing
+├── 📄 mock_data.py                     # Mock data for testing
+├── 📄 pii_policy.yaml                  # Masking policy (editable)
 ├── 📄 .env.example                     # Configuration template
 ├── 📄 requirements.txt                 # Python dependencies
 ├── 📄 README.md                        # This file

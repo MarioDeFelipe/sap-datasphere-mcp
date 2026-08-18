@@ -50,6 +50,12 @@ _LITERAL_KEYWORDS = frozenset({"true", "false", "null"})
 #: matched case-insensitively against both the CDS name and the Edm name the
 #: type is surfaced as, since geometry types are overwritten to Edm.String.
 NON_FILTERABLE_TYPES: Dict[str, str] = {
+    # Only fires when $metadata declares the CDS name literally. In practice
+    # the Consumption API surfaces LargeString as Edm.String, and in that form
+    # it filters -- see test_large_text_surfacing_as_edm_string_stays_filterable.
+    # Kept because a literal declaration is the documented-non-filterable case;
+    # deliberately absent from STRING_COMPATIBLE_TYPES, which this check
+    # pre-empts, so listing it there asserted a reachable path that is not.
     "cds.largestring": "cds.LargeString",
     "cds.uuid": "cds.UUID",
     "cds.binary": "cds.Binary",
@@ -67,7 +73,7 @@ NON_FILTERABLE_TYPES: Dict[str, str] = {
 #: rejected by the API with "The type '<X>' is not compatible to 'Edm.String'"
 #: (confirmed against example-tenant, 2026-08-07), so it is caught locally instead.
 STRING_COMPATIBLE_TYPES = frozenset({
-    "edm.string", "cds.string", "cds.largestring", "cds.hana.varchar",
+    "edm.string", "cds.string", "cds.hana.varchar",
     "cds.hana.nvarchar", "cds.hana.char", "cds.hana.nchar", "cds.hana.clob",
 })
 

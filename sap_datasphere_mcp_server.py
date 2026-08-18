@@ -102,9 +102,13 @@ MASKING_POLICY = load_policy()
 # Configuration from environment variables
 USE_MOCK_DATA = os.getenv('USE_MOCK_DATA', 'true').lower() == 'true'
 
+# No tenant defaults. Earlier revisions fell back to a specific tenant's id
+# and host, so any install that did not set DATASPHERE_BASE_URL silently
+# addressed that tenant. Live mode now requires the values explicitly and
+# _require_tenant_config() fails with a clear message when they are absent.
 DATASPHERE_CONFIG = {
-    "tenant_id": os.getenv('DATASPHERE_TENANT_ID', '<your-tenant-id>'),
-    "base_url": os.getenv('DATASPHERE_BASE_URL', 'https://your-tenant.eu10.hcs.cloud.sap'),
+    "tenant_id": os.getenv('DATASPHERE_TENANT_ID', ''),
+    "base_url": (os.getenv('DATASPHERE_BASE_URL') or '').rstrip('/'),
     "use_mock_data": USE_MOCK_DATA,
     "oauth_config": {
         "client_id": os.getenv('DATASPHERE_CLIENT_ID'),
@@ -113,6 +117,22 @@ DATASPHERE_CONFIG = {
         "scope": os.getenv('DATASPHERE_SCOPE')
     }
 }
+
+def _require_tenant_config() -> None:
+    """Fail loudly rather than addressing someone else's tenant.
+
+    Only enforced outside mock mode: the mock provider never issues a request,
+    so tests and demos keep working without any tenant configuration.
+    """
+    if DATASPHERE_CONFIG["use_mock_data"]:
+        return
+    if not DATASPHERE_CONFIG["base_url"]:
+        raise ValueError(
+            "DATASPHERE_BASE_URL is not set. Set it to your own tenant, for "
+            "example https://<tenant>.eu10.hcs.cloud.sap, or set "
+            "USE_MOCK_DATA=true to run without a tenant. See .env.example."
+        )
+
 
 # Log configuration mode
 logger.info(f"=" * 80)
@@ -1850,7 +1870,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             try:
                 if task_id:
                     # Get specific task by ID
-                    endpoint = f"/api/v1/datasphere/tasks/{task_id}"
+                    endpoint = f"/api/v1/datasphere/tasks/{_seg(task_id)}"
                     logger.info(f"Getting task status for task {task_id}")
                     task_data = await datasphere_connector.get(endpoint)
                     tasks = [task_data] if task_data else []
@@ -2185,7 +2205,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
                             try:
                                 # Get schema using existing logic (similar to get_table_schema)
-                                schema_endpoint = f"/api/v1/datasphere/consumption/analytical/{space_id_current}/{asset_name}/$metadata"
+                                schema_endpoint = f"/api/v1/datasphere/consumption/analytical/{_seg(space_id_current)}/{_seg(asset_name)}/$metadata"
                                 schema_response = await datasphere_connector.get(schema_endpoint)
 
                                 assets_with_schema += 1
@@ -5438,7 +5458,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 # IMPORTANT: Check if asset supports analytical queries BEFORE calling metadata endpoint
                 # This prevents 400 Bad Request errors on assets that only support relational queries
                 logger.info(f"Checking if {space_id}/{asset_id} supports analytical queries...")
-                asset_endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets('{asset_id}')"
+                asset_endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{_seg(space_id)}')/assets('{_seg(asset_id)}')"
                 asset_data = await datasphere_connector.get(asset_endpoint)
 
                 supports_analytical = asset_data.get("supportsAnalyticalQueries", False)
@@ -6995,7 +7015,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             try:
                 # Fixed: Repository APIs are UI endpoints; use two-step Catalog + Metadata approach
                 # Step 1: Get asset details from catalog
-                asset_endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{space_id}')/assets('{object_id}')"
+                asset_endpoint = f"/api/v1/datasphere/consumption/catalog/spaces('{_seg(space_id)}')/assets('{_seg(object_id)}')"
                 asset_data = await datasphere_connector.get(asset_endpoint)
 
                 result = {
@@ -7664,7 +7684,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         tool_name = "get_analytical_metadata"
         if test_model_id:
             try:
-                endpoint = f"/api/v1/datasphere/modelingService/analyticalModels/{test_model_id}/metadata"
+                endpoint = f"/api/v1/datasphere/modelingService/analyticalModels/{_seg(test_model_id)}/metadata"
                 logger.info(f"Testing: {endpoint}")
                 response_data = await datasphere_connector.get(endpoint, params={})
 
@@ -7697,7 +7717,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         tool_name = "get_analytical_model"
         if test_model_id:
             try:
-                endpoint = f"/api/v1/datasphere/modelingService/analyticalModels/{test_model_id}"
+                endpoint = f"/api/v1/datasphere/modelingService/analyticalModels/{_seg(test_model_id)}"
                 logger.info(f"Testing: {endpoint}")
                 response_data = await datasphere_connector.get(endpoint, params={})
 
@@ -7730,7 +7750,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         tool_name = "list_analytical_datasets"
         if test_model_id:
             try:
-                endpoint = f"/api/v1/datasphere/consumption/analytical/{test_space_id}/{test_model_id}/"
+                endpoint = f"/api/v1/datasphere/consumption/analytical/{_seg(test_space_id)}/{_seg(test_model_id)}/"
                 logger.info(f"Testing: {endpoint}")
                 response_data = await datasphere_connector.get(endpoint, params={})
 
@@ -7765,7 +7785,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
             results["categories"]["Query Execution"][tool_name] = {
                 "status": "available",
                 "http_code": 200,
-                "endpoint": f"/api/v1/datasphere/consumption/analytical/{test_space_id}/{test_model_id}/",
+                "endpoint": f"/api/v1/datasphere/consumption/analytical/{_seg(test_space_id)}/{_seg(test_model_id)}/",
                 "message": "✅ Same endpoint as list_analytical_datasets - works"
             }
             results["summary"]["available"] += 1
@@ -7790,7 +7810,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
         tool_name = "execute_query"
         try:
             # Try to find a table/view to test with
-            endpoint = f"/api/v1/datasphere/catalog/spaces/{test_space_id}/assets"
+            endpoint = f"/api/v1/datasphere/catalog/spaces/{_seg(test_space_id)}/assets"
             logger.info(f"Discovering tables/views in {test_space_id}")
             assets_data = await datasphere_connector.get(endpoint, params={"$top": 1})
 
@@ -7799,7 +7819,7 @@ async def _execute_tool(name: str, arguments: dict) -> list[types.TextContent]:
                 asset_name = test_asset.get("name") or test_asset.get("technicalName")
 
                 # Try querying it
-                query_endpoint = f"/api/v1/datasphere/consumption/relational/{test_space_id}/{asset_name}"
+                query_endpoint = f"/api/v1/datasphere/consumption/relational/{_seg(test_space_id)}/{_seg(asset_name)}"
                 logger.info(f"Testing: {query_endpoint}")
                 query_data = await datasphere_connector.get(query_endpoint, params={"$top": 1})
 
@@ -8674,6 +8694,8 @@ async def _run_http(host: str, port: int, path: str, auth_token: Optional[str],
 async def main():
     """Main function to run the MCP server"""
     global datasphere_connector
+
+    _require_tenant_config()
 
     import argparse
     parser = argparse.ArgumentParser(

@@ -249,27 +249,61 @@ def test_seg_neutralises_structural_characters(value, must_not_contain):
 
 
 def test_no_unquoted_identifier_interpolation_remains():
-    """Every path f-string must route identifiers through _seg().
+    """Every value interpolated into an API path must route through _seg().
 
-    Covers inline f-strings passed straight to a connector call as well as
-    assignments -- the first sweep only matched assignments and missed one.
+    Deliberately structural rather than name-based. The previous version of
+    this test enumerated identifier names and required the line to be an
+    assignment to one of a few known variables; it therefore missed
+    ``test_model_id``/``test_space_id`` in the diagnostics handlers and every
+    ``"endpoint": f"..."`` dict entry. Anything that looks like an API path
+    is now checked, whatever the placeholder is called.
+
+    ``base_url`` is the one legitimate exception: it is operator-supplied
+    configuration carrying scheme and host, so percent-encoding it would
+    destroy the URL rather than protect it.
+    """
+    import re
+
+    src = open(os.path.join(os.path.dirname(__file__), "..",
+                            "sap_datasphere_mcp_server.py")).read()
+
+    api_fstring = re.compile(r'f"([^"]*(?:/api/|consumption/|catalog/)[^"]*)"')
+    placeholder = re.compile(r"\{([^}]+)\}")
+    already_quoted = re.compile(r"^(?:_seg|quote)\(")
+    ALLOWED = ("DATASPHERE_CONFIG[",)
+
+    offenders = []
+    for lineno, line in enumerate(src.split("\n"), 1):
+        for match in api_fstring.finditer(line):
+            for ph in placeholder.finditer(match.group(1)):
+                expr = ph.group(1).strip()
+                # "{{name}}" survives as "{name}" -- a literal brace in a
+                # documentation template, not an interpolation.
+                if expr.startswith(("{", "\'", '"')):
+                    continue
+                if already_quoted.match(expr):
+                    continue
+                if any(a in expr for a in ALLOWED):
+                    continue
+                offenders.append(f"{lineno}: {{{expr}}} in {line.strip()[:70]}")
+
+    assert not offenders, (
+        "unquoted interpolation into an API path:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_seg_covers_odata_key_predicate_positions():
+    """spaces('X')/assets('Y') is a key predicate, not a plain segment.
+
+    A single quote there would close the literal early. Validation is the
+    real control (PATH_SEGMENT_PATTERN and SPACE_ID_PATTERN both reject
+    quotes); this pins that no such URL is built from a bare value.
     """
     import re
     src = open(os.path.join(os.path.dirname(__file__), "..",
                             "sap_datasphere_mcp_server.py")).read()
-    interesting = re.compile(
-        r'\b(endpoint|url|search_endpoint|metadata_endpoint)\s*=\s*f"'
-        r'|(connector\.(get|post|put|delete)|_make_request)\(\s*f"'
-    )
-    raw_identifier = re.compile(
-        r'/\{(space_id|asset_id|entity_name|object_id|space_id_current|asset_name)\}'
-    )
-    offenders = [
-        line.strip()[:90]
-        for line in src.split("\n")
-        if interesting.search(line) and raw_identifier.search(line)
-    ]
-    assert not offenders, f"unquoted path interpolation: {offenders}"
+    bare = re.findall(r"(?:spaces|assets)\('\{(?!_seg)([^}]+)\}'\)", src)
+    assert not bare, f"key predicate built from unquoted value: {bare}"
 
 
 # ── The deliberately-unwired validator ───────────────────────────────────────

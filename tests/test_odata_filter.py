@@ -305,3 +305,15 @@ def test_federated_error_mentions_top_and_skip():
     """$top/$skip are lost under the same condition as the filter operators."""
     message = federated_filter_error("Value gt 1", "SALES", "ORDERS")
     assert "$top" in message and "$skip" in message
+
+
+def test_largestring_is_not_claimed_string_compatible():
+    """The two type tables must not contradict each other.
+
+    check_field_filterable() runs before _check_field_string_compatible(), so a
+    type in NON_FILTERABLE_TYPES can never reach the string-compatibility check.
+    Listing cds.largestring in both asserted a path that cannot execute.
+    """
+    from odata_filter import NON_FILTERABLE_TYPES, STRING_COMPATIBLE_TYPES
+    overlap = set(NON_FILTERABLE_TYPES) & STRING_COMPATIBLE_TYPES
+    assert not overlap, f"unreachable: rejected before the string check: {overlap}"
