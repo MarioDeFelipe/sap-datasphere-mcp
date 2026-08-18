@@ -89,3 +89,6 @@ odata_mcp_go/
 sap-datasphere-mcp-server/
 sap-datasphere-mcp/
 datasphere-control-panel/
+# Live-tenant captures. $metadata and API responses pulled from a real tenant
+# while developing stay here and are never committed.
+local-captures/
