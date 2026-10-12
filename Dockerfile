@@ -1,7 +1,7 @@
 # SAP Datasphere MCP Server - Docker Container
 # Production-ready container for easy deployment
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Metadata
 LABEL maintainer="Mario DeFelipe <mariodefe@example.com>"
